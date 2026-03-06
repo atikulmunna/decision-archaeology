@@ -1,10 +1,6 @@
 # Decision Archaeology
 
-> *Capture the reasoning behind your decisions before hindsight rewrites history.*
-
-**Decision Archaeology** is a personal decision intelligence platform that helps you log the full context of your significant decisions — the information available, the alternatives considered, the uncertainties acknowledged — at the exact moment you make them.
-
-Over time, the system builds a structured, searchable archive of your reasoning history, powered by AI that surfaces cognitive bias patterns, tracks prediction accuracy, and helps you make progressively better decisions.
+**Decision Archaeology** is a structured decision logging platform that captures the full reasoning context of decisions at the time they are made. It tracks prediction accuracy against actual outcomes, detects cognitive bias patterns across a user's decision history using LLM analysis, and surfaces calibration metrics broken down by life domain.
 
 ---
 
