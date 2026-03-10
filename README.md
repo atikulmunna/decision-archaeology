@@ -1,52 +1,36 @@
-# Decision Archaeology
-
-**Decision Archaeology** is a structured decision logging platform that captures the full reasoning context of decisions at the time they are made. It tracks prediction accuracy against actual outcomes, detects cognitive bias patterns across a user's decision history using LLM analysis, and surfaces calibration metrics broken down by life domain.
-
----
-
-## What It Does
-
-- **Time-locked decision capture** — Log decisions with full reasoning context. Core fields are locked after saving to preserve the authentic record before hindsight sets in.
-- **Outcome tracking** — Compare what you predicted to what actually happened.
-- **AI pattern analysis** — Identify recurring cognitive biases (overconfidence, planning fallacy, sunk cost, etc.) across your decision history.
-- **Calibration scoring** — Track how well your predictions align with reality over time, broken down by life domain.
-- **Timeline & archive** — A searchable, filterable history of every decision you've ever logged.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Web Frontend | Next.js (App Router) |
-| Mobile | React Native |
-| Backend API | Node.js / TypeScript |
-| Database | PostgreSQL (Neon) |
-| Cache / Queue | Redis (Upstash) |
-| Auth | Clerk |
-| AI (Primary) | NVIDIA NIM — `llama-3.1-nemotron-70b-instruct` |
-| AI (Fallback) | Mistral API — `mistral-large-latest` |
-| File Storage | Cloudflare R2 |
-| Email | SendGrid |
-| Push Notifications | Firebase Cloud Messaging |
-| Payments | Stripe |
-| Error Tracking | Sentry |
-| Logging | Axiom |
-
----
-
-## Project Status
-
-🚧 **In active development** — see [TASKS.md](./TASKS.md) for the implementation roadmap.
-
----
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 
-> Setup instructions will be added in Phase 1 once the project scaffold is complete.
+First, run the development server:
 
----
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-## License
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-MIT
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

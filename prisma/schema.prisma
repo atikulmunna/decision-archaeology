@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ──────────────────────────────────────────────────────────────────
+
+enum Tier {
+  FREE
+  PRO
+  POWER
+}
+
+enum DomainTag {
+  CAREER
+  FINANCE
+  HEALTH
+  RELATIONSHIPS
+  CREATIVE
+  OTHER
+}
+
+enum OutcomeRating {
+  MUCH_BETTER
+  SLIGHTLY_BETTER
+  AS_EXPECTED
+  SLIGHTLY_WORSE
+  MUCH_WORSE
+  TOO_EARLY_TO_TELL
+}
+
+enum BiasSeverity {
+  MILD
+  MODERATE
+  STRONG
+}
+
+// ── Models ─────────────────────────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  clerkId     String   @unique
+  email       String   @unique
+  displayName String?
+  avatarUrl   String?
+  tier        Tier     @default(FREE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  decisions         DecisionRecord[]
+  biasReports       BiasReport[]
+  collaborations    CollaboratorShare[] @relation("CollaboratorUser")
+  sharedDecisions   CollaboratorShare[] @relation("SharedDecisionOwner")
+
+  @@map("users")
+}
+
+model DecisionRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ── Core fields (LOCKED after 5-min window) ──
+  title       String
+  summary     String   // LOCKED
+  context     String   // LOCKED
+  alternatives String  // LOCKED
+  chosenOption String  // LOCKED
+  reasoning   String   // LOCKED
+  isLocked    Boolean  @default(false)
+  lockedAt    DateTime?
+
+  // ── Optional fields ──
+  values              String?
+  uncertainties       String?
+  predictedOutcome    String?
+  predictedTimeframe  DateTime?
+  confidenceLevel     Int?        // 1-10
+  domainTag           DomainTag?
+  customTags          String[]    @default([])
+  attachments         String[]    @default([]) // R2 object keys
+
+  // ── Editable post-lock ──
+  supplementaryNotes  String?
+
+  // ── Metadata ──
+  isImported  Boolean  @default(false)
+  isDraft     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  outcomes          OutcomeUpdate[]
+  collaborators     CollaboratorShare[]
+  corrections       CorrectionRequest[]
+
+  @@map("decision_records")
+}
+
+model OutcomeUpdate {
+  id           String   @id @default(cuid())
+  decisionId   String
+  decision     DecisionRecord @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  whatHappened     String
+  outcomeRating    OutcomeRating
+  lessonsLearned   String?
+  createdAt        DateTime @default(now())
+
+  @@map("outcome_updates")
+}
+
+model BiasReport {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  generatedAt         DateTime @default(now())
+  biases              Json     // Array of { name, severity, evidence, reframe, flagged }
+  calibrationScore    Float?
+  calibrationByDomain Json?    // { CAREER: Float, FINANCE: Float, ... }
+  recurringAssumptions Json?
+  decisionCount       Int
+  flaggedByUser       Boolean  @default(false)
+  jobId               String?  @unique // Redis job ID
+
+  @@map("bias_reports")
+}
+
+model CollaboratorShare {
+  id           String   @id @default(cuid())
+  decisionId   String
+  decision     DecisionRecord @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  ownerId      String
+  owner        User     @relation("SharedDecisionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  collaboratorId String
+  collaborator   User   @relation("CollaboratorUser", fields: [collaboratorId], references: [id], onDelete: Cascade)
+
+  isActive     Boolean  @default(true)
+  sharedAt     DateTime @default(now())
+  comments     CollaboratorComment[]
+
+  @@unique([decisionId, collaboratorId])
+  @@map("collaborator_shares")
+}
+
+model CollaboratorComment {
+  id        String   @id @default(cuid())
+  shareId   String
+  share     CollaboratorShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@map("collaborator_comments")
+}
+
+model CorrectionRequest {
+  id           String   @id @default(cuid())
+  decisionId   String
+  decision     DecisionRecord @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+
+  fieldName    String   // Which locked field has the typo
+  originalText String
+  correctedText String
+  reason       String?
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt    DateTime @default(now())
+
+  @@map("correction_requests")
+}
+
+model CheckInReminder {
+  id           String   @id @default(cuid())
+  decisionId   String
+  scheduledFor DateTime
+  snoozedUntil DateTime?
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  @@map("check_in_reminders")
+}
