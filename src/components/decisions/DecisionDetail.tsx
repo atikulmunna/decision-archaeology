@@ -5,6 +5,7 @@ import type { DecisionRecord, OutcomeUpdate, CorrectionRequest } from '@prisma/c
 import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
+import { AddOutcomeForm } from './AddOutcomeForm'
 
 type Decision = DecisionRecord & {
   outcomes: OutcomeUpdate[]
@@ -38,6 +39,7 @@ export function DecisionDetail({ decision }: { decision: Decision }) {
   const [notes, setNotes] = useState(decision.supplementaryNotes ?? '')
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
+  const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
 
   const createdAt = new Date(decision.createdAt).toLocaleString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -146,15 +148,15 @@ export function DecisionDetail({ decision }: { decision: Decision }) {
       {/* Outcome Updates */}
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Outcomes ({decision.outcomes.length})
+          Outcomes ({outcomes.length})
         </h2>
-        {decision.outcomes.length === 0 ? (
+        {outcomes.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
             No outcomes logged yet. Come back when you can evaluate how this played out.
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {decision.outcomes.map((outcome) => (
+            {outcomes.map((outcome) => (
               <div key={outcome.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between mb-2">
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${OUTCOME_COLORS[outcome.outcomeRating]}`}>
@@ -175,6 +177,12 @@ export function DecisionDetail({ decision }: { decision: Decision }) {
             ))}
           </div>
         )}
+        <div className="mt-3">
+          <AddOutcomeForm
+            decisionId={decision.id}
+            onAdded={(o) => setOutcomes((prev) => [...prev, o])}
+          />
+        </div>
       </section>
 
       {/* Supplementary Notes */}

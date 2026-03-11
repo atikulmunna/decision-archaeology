@@ -12,6 +12,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Link>
         <div className="flex items-center gap-4">
           <Link
+            href="/calibration"
+            className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
+          >
+            🎯 Calibration
+          </Link>
+          <Link
             href="/decisions/new"
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
           >

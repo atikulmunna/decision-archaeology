@@ -16,6 +16,8 @@
     "@clerk/nextjs": "^7.0.2",
     "@mistralai/mistralai": "^1.15.1",
     "@prisma/client": "^7.4.2",
+    "@sendgrid/mail": "^8.1.6",
+    "@upstash/qstash": "^2.9.0",
     "@upstash/redis": "^1.36.4",
     "next": "16.1.6",
     "openai": "^6.27.0",
