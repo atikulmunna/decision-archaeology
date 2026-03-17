@@ -12,6 +12,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Link>
         <div className="flex items-center gap-4">
           <Link
+            href="/ai/reports"
+            className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
+          >
+            🧠 Reports
+          </Link>
+          <Link
             href="/calibration"
             className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
           >

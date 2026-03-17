@@ -41,6 +41,13 @@ enum BiasSeverity {
   STRONG
 }
 
+enum BiasReportStatus {
+  PENDING
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
 // ── Models ─────────────────────────────────────────────────────────────────
 
 model User {
@@ -116,18 +123,19 @@ model OutcomeUpdate {
 }
 
 model BiasReport {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  generatedAt         DateTime @default(now())
-  biases              Json     // Array of { name, severity, evidence, reframe, flagged }
-  calibrationScore    Float?
-  calibrationByDomain Json?    // { CAREER: Float, FINANCE: Float, ... }
-  recurringAssumptions Json?
-  decisionCount       Int
-  flaggedByUser       Boolean  @default(false)
-  jobId               String?  @unique // Redis job ID
+  status        BiasReportStatus @default(PENDING)
+  decisionCount Int
+  summary       String?
+  findings      Json?            // BiasEntry[]
+  calibrationInsight String?
+  flaggedFindings Json?          // string[]
+  completedAt   DateTime?
+  errorMessage  String?
+  createdAt     DateTime         @default(now())
 
   @@map("bias_reports")
 }
