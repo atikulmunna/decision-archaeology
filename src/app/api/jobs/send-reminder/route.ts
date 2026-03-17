@@ -4,9 +4,8 @@ import { Receiver } from '@upstash/qstash'
 
 export const dynamic = 'force-dynamic'
 
-// Called by QStash at the scheduled time
 export async function POST(req: NextRequest) {
-  // Verify the request genuinely came from QStash
+  // Verify the request genuinely came from QStash (production)
   if (process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY) {
     const receiver = new Receiver({
       currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
@@ -17,20 +16,18 @@ export async function POST(req: NextRequest) {
     const isValid = await receiver.verify({ signature, body }).catch(() => false)
     if (!isValid) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
 
-    const payload = JSON.parse(body) as { reminderId: string; decisionId: string; userId: string }
+    const payload = JSON.parse(body) as { reminderId: string; decisionId: string }
     return handleReminder(payload.reminderId, payload.decisionId)
   }
 
-  // Dev mode: no signature verification
+  // Local dev: no signature verification
   const payload = await req.json()
   return handleReminder(payload.reminderId, payload.decisionId)
 }
 
 async function handleReminder(reminderId: string, decisionId: string) {
   const reminder = await prisma.checkInReminder.findUnique({ where: { id: reminderId } })
-  if (!reminder || reminder.sentAt) {
-    return NextResponse.json({ skipped: true })
-  }
+  if (!reminder || reminder.sentAt) return NextResponse.json({ skipped: true })
 
   const record = await prisma.decisionRecord.findUnique({
     where: { id: decisionId },
@@ -38,23 +35,39 @@ async function handleReminder(reminderId: string, decisionId: string) {
   })
   if (!record) return NextResponse.json({ error: 'Decision not found' }, { status: 404 })
 
-  // Send email (stub — fully implemented in Phase 10 with templates)
-  if (process.env.SENDGRID_API_KEY && record.user.email) {
+  // Send email via Resend
+  if (process.env.RESEND_API_KEY && record.user.email) {
     try {
-      const sgMail = (await import('@sendgrid/mail')).default
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-      await sgMail.send({
+      const { Resend } = await import('resend')
+      const resend = new Resend(process.env.RESEND_API_KEY)
+
+      await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL ?? 'Decision Archaeology <no-reply@decisionarchaeology.com>',
         to: record.user.email,
-        from: process.env.SENDGRID_FROM_EMAIL ?? 'no-reply@decisionarchaeology.com',
-        subject: `Check-in reminder: "${record.user.displayName ? `${record.user.displayName}'s` : 'Your'} decision"`,
-        text: `Hi,\n\nThis is your check-in reminder for the decision: "${record.title}".\n\nHead back to Decision Archaeology to log how it played out.\n\n— Decision Archaeology`,
+        subject: `Check-in reminder: "${record.title}"`,
+        html: `
+          <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+            <h2 style="color:#4f46e5">⏰ Time to check in</h2>
+            <p>You set a reminder for your decision:</p>
+            <blockquote style="border-left:3px solid #4f46e5;padding-left:16px;color:#374151">
+              <strong>${record.title}</strong>
+            </blockquote>
+            <p>Head back to Decision Archaeology to log what actually happened.</p>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL ?? 'https://decisionarchaeology.com'}/decisions/${record.id}"
+               style="display:inline-block;background:#4f46e5;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:8px">
+              Log outcome →
+            </a>
+            <p style="color:#9ca3af;font-size:12px;margin-top:32px">
+              Decision Archaeology · You can manage reminders in your account settings.
+            </p>
+          </div>
+        `,
       })
     } catch (err) {
-      console.error('[SendGrid] Email send failed:', err)
+      console.error('[Resend] Email send failed:', err)
     }
   }
 
-  // Mark as sent
   await prisma.checkInReminder.update({
     where: { id: reminderId },
     data: { sentAt: new Date() },
