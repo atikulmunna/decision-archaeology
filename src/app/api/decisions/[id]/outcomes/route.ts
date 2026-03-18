@@ -67,5 +67,46 @@ export async function POST(req: NextRequest, { params }: Params) {
     },
   })
 
+  // Fan-out: notify active collaborators (best-effort, non-blocking)
+  notifyCollaborators(id, record.title, dbUser.displayName ?? 'The owner').catch(console.error)
+
   return NextResponse.json(outcome, { status: 201 })
+}
+
+async function notifyCollaborators(decisionId: string, decisionTitle: string, ownerName: string) {
+  if (!process.env.RESEND_API_KEY) return
+
+  const shares = await prisma.collaboratorShare.findMany({
+    where: { decisionId, isActive: true },
+    include: { collaborator: { select: { email: true } } },
+  })
+  if (shares.length === 0) return
+
+  const { Resend } = await import('resend')
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
+  await Promise.allSettled(
+    shares.map((s) =>
+      resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL ?? 'Decision Archaeology <no-reply@resend.dev>',
+        to: s.collaborator.email,
+        subject: `${ownerName} logged a new outcome`,
+        html: `
+          <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+            <h2 style="color:#4f46e5">📊 New outcome logged</h2>
+            <p><strong>${ownerName}</strong> just added an outcome update to a decision you're following:</p>
+            <blockquote style="border-left:3px solid #4f46e5;padding-left:16px;color:#374151">
+              <strong>${decisionTitle}</strong>
+            </blockquote>
+            <a href="${appUrl}/shared/${s.id}"
+               style="display:inline-block;background:#4f46e5;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:8px">
+              View decision →
+            </a>
+            <p style="color:#9ca3af;font-size:12px;margin-top:32px">Decision Archaeology</p>
+          </div>
+        `,
+      })
+    )
+  )
 }
