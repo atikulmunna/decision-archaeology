@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { StepIndicator } from '@/components/ui/StepIndicator'
 import { TimeCapsuleConfirmation } from './TimeCapsuleConfirmation'
 import { CountdownTimer } from './CountdownTimer'
+import { AttachmentManager } from './AttachmentManager'
 import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
 
 const STEPS = ['Basics', 'Reasoning', 'Context', 'Confirm']
@@ -35,6 +36,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
   const [isLocked, setIsLocked] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'restored'>('idle')
+  const [activeDecisionId, setActiveDecisionId] = useState<string | undefined>(initialDraftId)
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
   const draftRef = useRef<string | null>(null)
   const hydratedRef = useRef(false)
@@ -67,6 +69,27 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
     customTags: form.customTags ?? [],
   }), [form])
 
+  const ensureDraftDecision = useCallback(async (): Promise<string | null> => {
+    if (draftRef.current) return draftRef.current
+
+    const res = await fetch('/api/decisions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...buildDraftPayload(), saveAsDraft: true }),
+    })
+
+    if (!res.ok) {
+      setDraftStatus('error')
+      return null
+    }
+
+    const draft = await res.json()
+    draftRef.current = draft.id
+    setActiveDecisionId(draft.id)
+    window.localStorage.setItem(DRAFT_STORAGE_KEY, draft.id)
+    return draft.id
+  }, [buildDraftPayload])
+
   // Auto-save draft every 30s after step 1 is complete
   const saveDraft = useCallback(async () => {
     if (!hydratedRef.current || savedRecord || !hasDraftContent()) return
@@ -84,17 +107,8 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
         if (!res.ok) throw new Error('Draft update failed')
       }
       else {
-        const res = await fetch('/api/decisions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...buildDraftPayload(), saveAsDraft: true }),
-        })
-
-        if (!res.ok) throw new Error('Draft create failed')
-
-        const draft = await res.json()
-        draftRef.current = draft.id
-        window.localStorage.setItem(DRAFT_STORAGE_KEY, draft.id)
+        const draftId = await ensureDraftDecision()
+        if (!draftId) throw new Error('Draft create failed')
       }
 
       setDraftStatus('saved')
@@ -103,7 +117,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
     } catch {
       setDraftStatus('error')
     }
-  }, [buildDraftPayload, hasDraftContent, savedRecord])
+  }, [buildDraftPayload, ensureDraftDecision, hasDraftContent, savedRecord])
 
   useEffect(() => {
     hydratedRef.current = true
@@ -135,6 +149,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
         }
 
         draftRef.current = draft.id
+        setActiveDecisionId(draft.id)
         window.localStorage.setItem(DRAFT_STORAGE_KEY, draft.id)
         setForm({
           title: draft.title || undefined,
@@ -236,6 +251,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
 
       const record = await res.json()
       draftRef.current = record.id
+      setActiveDecisionId(record.id)
       window.localStorage.removeItem(DRAFT_STORAGE_KEY)
       setSavedRecord({ id: record.id, createdAt: record.createdAt })
       setStep(5)
@@ -450,6 +466,11 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
             placeholder="What do you expect to happen as a result of this decision?"
             value={form.predictedOutcome ?? ''}
             onChange={(e) => set('predictedOutcome', e.target.value)}
+          />
+
+          <AttachmentManager
+            decisionId={activeDecisionId}
+            onRequireDecisionId={ensureDraftDecision}
           />
 
           <div className="flex gap-4">
