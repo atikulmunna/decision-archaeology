@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { Client } from '@upstash/qstash'
@@ -11,7 +11,7 @@ function getQStash() {
 }
 
 // GET /api/ai/reports — list user's reports
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -31,7 +31,7 @@ export async function GET(_req: NextRequest) {
 }
 
 // POST /api/ai/reports — trigger report generation
-export async function POST(_req: NextRequest) {
+export async function POST() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -42,9 +42,9 @@ export async function POST(_req: NextRequest) {
   const decisionCount = await prisma.decisionRecord.count({
     where: { userId: dbUser.id, isDraft: false },
   })
-  if (decisionCount < 3) {
+  if (decisionCount < 10) {
     return NextResponse.json(
-      { error: 'At least 3 decisions are required to generate a bias report.' },
+      { error: 'At least 10 decisions are required to generate a bias report.' },
       { status: 422 }
     )
   }

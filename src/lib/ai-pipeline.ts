@@ -24,8 +24,8 @@ function userMsg(content: string): AIMessage {
 export async function runBiasAnalysisPipeline(
   decisions: DecisionWithOutcomes[]
 ): Promise<BiasReportOutput> {
-  if (decisions.length < 3) {
-    throw new Error('At least 3 decisions are required to generate a bias report')
+  if (decisions.length < 10) {
+    throw new Error('At least 10 decisions are required to generate a bias report')
   }
 
   // ── Pass 1 — Normalization (fast 8B model) ────────────────────────────

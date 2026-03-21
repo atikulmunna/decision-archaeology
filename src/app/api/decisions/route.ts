@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { CreateDecisionSchema } from '@/lib/validations/decision'
+import { CreateDecisionSchema, DraftDecisionSchema } from '@/lib/validations/decision'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,33 +25,41 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const parsed = CreateDecisionSchema.safeParse(body)
+  const saveAsDraft = body?.saveAsDraft === true
+
+  const parsed = saveAsDraft
+    ? DraftDecisionSchema.safeParse(body)
+    : CreateDecisionSchema.safeParse(body)
+
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Validation failed', issues: parsed.error.issues },
+      { status: 400 }
+    )
   }
 
   const data = parsed.data
   const record = await prisma.decisionRecord.create({
     data: {
       userId: dbUser.id,
-      title: data.title,
-      summary: data.summary,
-      context: data.context,
-      alternatives: data.alternatives,
-      chosenOption: data.chosenOption,
-      reasoning: data.reasoning,
+      title: data.title ?? '',
+      summary: data.summary ?? '',
+      context: data.context ?? '',
+      alternatives: data.alternatives ?? '',
+      chosenOption: data.chosenOption ?? '',
+      reasoning: data.reasoning ?? '',
       values: data.values,
       uncertainties: data.uncertainties,
       predictedOutcome: data.predictedOutcome,
       predictedTimeframe: data.predictedTimeframe ? new Date(data.predictedTimeframe) : null,
       confidenceLevel: data.confidenceLevel,
       domainTag: data.domainTag ?? null,
-      customTags: data.customTags,
-      isDraft: false,
+      customTags: data.customTags ?? [],
+      isDraft: saveAsDraft,
     },
   })
 
-  return NextResponse.json(record, { status: 201 })
+  return NextResponse.json(record, { status: saveAsDraft ? 200 : 201 })
 }
 
 // GET /api/decisions — list user's records (paginated)

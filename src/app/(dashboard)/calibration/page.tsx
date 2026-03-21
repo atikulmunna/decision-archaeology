@@ -1,6 +1,10 @@
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { computeCalibrationScore, computeCalibrationByDomain } from '@/lib/calibration'
+import {
+  computeCalibrationScore,
+  computeCalibrationByDomain,
+  getClosedPredictedDecisions,
+} from '@/lib/calibration'
 import { CalibrationWidget } from '@/components/calibration/CalibrationWidget'
 
 export const dynamic = 'force-dynamic'
@@ -21,12 +25,9 @@ export default async function CalibrationPage() {
     include: { outcomes: true },
   })
 
-  const allOutcomes = records.flatMap((r) => r.outcomes)
-  const score = computeCalibrationScore(allOutcomes)
+  const score = computeCalibrationScore(records)
   const byDomain = computeCalibrationByDomain(records)
-  const closedDecisions = allOutcomes.filter(
-    (o) => o.outcomeRating !== 'TOO_EARLY_TO_TELL'
-  ).length
+  const closedDecisions = getClosedPredictedDecisions(records).length
 
   return (
     <div className="flex flex-col gap-6">

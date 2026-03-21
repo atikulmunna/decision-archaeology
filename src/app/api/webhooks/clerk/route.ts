@@ -6,6 +6,20 @@ import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
+type ClerkEmailAddress = {
+  id: string
+  email_address: string
+}
+
+type ClerkUserPayload = {
+  id: string
+  email_addresses?: ClerkEmailAddress[]
+  primary_email_address_id?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  image_url?: string | null
+}
+
 export async function POST(req: Request) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET
   if (!WEBHOOK_SECRET) {
@@ -36,8 +50,11 @@ export async function POST(req: Request) {
   const type = evt.type
 
   if (type === 'user.created' || type === 'user.updated') {
-    const { id: clerkId, email_addresses, first_name, last_name, image_url } = evt.data as any
-    const primaryEmail = email_addresses?.find((e: any) => e.id === evt.data.primary_email_address_id)?.email_address
+    const userData = evt.data as ClerkUserPayload
+    const { id: clerkId, email_addresses, first_name, last_name, image_url } = userData
+    const primaryEmail = email_addresses?.find(
+      (email) => email.id === userData.primary_email_address_id
+    )?.email_address
 
     await prisma.user.upsert({
       where: { clerkId },

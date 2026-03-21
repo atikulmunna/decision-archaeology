@@ -10,8 +10,8 @@ interface CalibrationData {
 }
 
 function ScoreGauge({ score }: { score: number | null }) {
-  const display = score === null ? '–' : `${score > 0 ? '+' : ''}${score}`
-  const pct = score === null ? 0 : ((score + 100) / 200) * 100 // map -100..+100 to 0..100%
+  const display = score === null ? '–' : `${score}`
+  const pct = score === null ? 0 : score
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -24,7 +24,7 @@ function ScoreGauge({ score }: { score: number | null }) {
               cy="72"
               r="60"
               fill="none"
-              stroke={score >= 60 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444'}
+              stroke={score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444'}
               strokeWidth="12"
               strokeDasharray={`${(pct / 100) * 377} 377`}
               strokeLinecap="round"
@@ -76,11 +76,10 @@ export function CalibrationWidget({ data }: { data: CalibrationData }) {
           </h2>
           <div className="flex flex-col gap-3">
             {domainEntries.map(([domain, score]) => {
-              const pct = score === null ? 0 : ((score + 100) / 200) * 100
               const barColor =
                 score === null ? 'bg-gray-200'
-                : score >= 60 ? 'bg-emerald-500'
-                : score >= 40 ? 'bg-amber-500'
+                : score >= 80 ? 'bg-emerald-500'
+                : score >= 60 ? 'bg-amber-500'
                 : 'bg-red-500'
 
               return (
@@ -90,13 +89,13 @@ export function CalibrationWidget({ data }: { data: CalibrationData }) {
                       {DOMAIN_LABELS[domain] ?? domain}
                     </span>
                     <span className={`font-semibold ${scoreColor(score)}`}>
-                      {score === null ? 'No data' : `${score > 0 ? '+' : ''}${score}`}
+                      {score === null ? 'No data' : `${score}`}
                     </span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-gray-100">
                     <div
                       className={`h-2 rounded-full ${barColor} transition-all duration-500`}
-                      style={{ width: `${pct}%` }}
+                      style={{ width: `${score === null ? 0 : score}%` }}
                     />
                   </div>
                 </div>
@@ -112,13 +111,13 @@ export function CalibrationWidget({ data }: { data: CalibrationData }) {
           How is the score calculated?
         </summary>
         <div className="mt-3 space-y-2">
-          <p><strong>Aligned (+1):</strong> As expected, Slightly better, Slightly worse</p>
-          <p><strong>Misaligned (−1):</strong> Much better, Much worse</p>
+          <p><strong>Aligned:</strong> As expected, Slightly better, Slightly worse</p>
+          <p><strong>Misaligned:</strong> Much better, Much worse</p>
           <p><strong>Excluded:</strong> Too early to tell</p>
           <p className="mt-2 font-mono bg-white border border-gray-200 rounded p-2">
-            Score = (Aligned − Misaligned) / (Aligned + Misaligned) × 100
+            Score = Aligned / (Aligned + Misaligned) x 100
           </p>
-          <p>Ranges from −100 (all misaligned) to +100 (all aligned)</p>
+          <p>Only decisions with a predicted outcome and a closed result count toward the score.</p>
         </div>
       </details>
     </div>

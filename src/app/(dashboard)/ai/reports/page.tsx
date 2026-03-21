@@ -1,18 +1,10 @@
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import { GenerateReportButton } from '@/components/ai/GenerateReportButton'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Bias Reports — Decision Archaeology' }
-
-async function triggerReport(userId: string) {
-  'use server'
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/ai/reports`,
-    { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-user-id': userId } }
-  )
-  return res
-}
 
 export default async function ReportsPage() {
   const { userId } = await auth()
@@ -45,28 +37,14 @@ export default async function ReportsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Bias Reports</h1>
           <p className="text-sm text-gray-400">AI-powered pattern analysis of your decision archive</p>
         </div>
-        {decisionCount >= 3 && (
-          <form action={async () => {
-            'use server'
-            await fetch(
-              `${process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'}/api/ai/reports`,
-              { method: 'POST' }
-            )
-          }}>
-            <Link
-              href="/api/ai/reports"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
-              prefetch={false}
-            >
-              + Generate report
-            </Link>
-          </form>
+        {decisionCount >= 10 && (
+          <GenerateReportButton />
         )}
       </div>
 
-      {decisionCount < 3 && (
+      {decisionCount < 10 && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          You need at least <strong>3 decisions</strong> to generate a bias report. You have {decisionCount} so far.
+          You need at least <strong>10 decisions</strong> to generate a bias report. You have {decisionCount} so far.
         </div>
       )}
 

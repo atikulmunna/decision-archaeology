@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CreateDecisionSchema } from '@/lib/validations/decision'
+import { CreateDecisionSchema, DraftDecisionSchema, FinalizeDecisionSchema } from '@/lib/validations/decision'
 
 const VALID_PAYLOAD = {
   title: 'Should I accept the senior role at Acme Corp?',
@@ -75,6 +75,41 @@ describe('CreateDecisionSchema', () => {
 
   it('rejects invalid domainTag', () => {
     const result = CreateDecisionSchema.safeParse({ ...VALID_PAYLOAD, domainTag: 'SPORTS' })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('DraftDecisionSchema', () => {
+  it('accepts a partial draft payload', () => {
+    const result = DraftDecisionSchema.safeParse({
+      title: 'Short',
+      summary: 'Still thinking',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('still enforces confidence range for drafts', () => {
+    const result = DraftDecisionSchema.safeParse({
+      confidenceLevel: 12,
+    })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('FinalizeDecisionSchema', () => {
+  it('requires finalize to be true', () => {
+    const result = FinalizeDecisionSchema.safeParse({
+      ...VALID_PAYLOAD,
+      finalize: true,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects incomplete finalize payloads', () => {
+    const result = FinalizeDecisionSchema.safeParse({
+      title: VALID_PAYLOAD.title,
+      finalize: true,
+    })
     expect(result.success).toBe(false)
   })
 })

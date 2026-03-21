@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { UpdateNotesSchema, UpdateDraftSchema } from '@/lib/validations/decision'
+import { isDecisionLocked, normalizeDecisionLockState } from '@/lib/locks'
+import {
+  DraftDecisionSchema,
+  FinalizeDecisionSchema,
+  UpdateNotesSchema,
+  UpdateDraftSchema,
+} from '@/lib/validations/decision'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +28,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   })
 
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(record)
+  return NextResponse.json(normalizeDecisionLockState(record))
 }
 
 // PATCH /api/decisions/:id — update notes (always) or draft fields (only if not locked)
@@ -52,8 +58,68 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json(updated)
   }
 
+  if (body.finalize === true) {
+    const parsed = FinalizeDecisionSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', issues: parsed.error.issues },
+        { status: 400 }
+      )
+    }
+
+    const updated = await prisma.decisionRecord.update({
+      where: { id },
+      data: {
+        title: parsed.data.title,
+        summary: parsed.data.summary,
+        context: parsed.data.context,
+        alternatives: parsed.data.alternatives,
+        chosenOption: parsed.data.chosenOption,
+        reasoning: parsed.data.reasoning,
+        values: parsed.data.values,
+        uncertainties: parsed.data.uncertainties,
+        predictedOutcome: parsed.data.predictedOutcome,
+        predictedTimeframe: parsed.data.predictedTimeframe
+          ? new Date(parsed.data.predictedTimeframe)
+          : null,
+        confidenceLevel: parsed.data.confidenceLevel,
+        domainTag: parsed.data.domainTag ?? null,
+        customTags: parsed.data.customTags,
+        isDraft: false,
+        createdAt: record.isDraft ? new Date() : undefined,
+      },
+    })
+
+    return NextResponse.json(updated)
+  }
+
+  if (record.isDraft) {
+    const parsed = DraftDecisionSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation failed', issues: parsed.error.issues },
+        { status: 400 }
+      )
+    }
+
+    const updated = await prisma.decisionRecord.update({
+      where: { id },
+      data: {
+        ...parsed.data,
+        predictedTimeframe:
+          parsed.data.predictedTimeframe === null
+            ? null
+            : parsed.data.predictedTimeframe
+              ? new Date(parsed.data.predictedTimeframe)
+              : undefined,
+      },
+    })
+
+    return NextResponse.json(updated)
+  }
+
   // Core field update: only allowed while not locked
-  if (record.isLocked) {
+  if (isDecisionLocked(record)) {
     return NextResponse.json(
       { error: 'Record is locked. Only supplementary notes can be updated.' },
       { status: 403 }
@@ -89,7 +155,11 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const record = await prisma.decisionRecord.findFirst({ where: { id, userId: dbUser.id } })
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (record.isLocked) {
+  if (!record.isDraft) {
+    return NextResponse.json({ error: 'Finalized decisions cannot be deleted.' }, { status: 403 })
+  }
+
+  if (isDecisionLocked(record)) {
     return NextResponse.json({ error: 'Locked records cannot be deleted.' }, { status: 403 })
   }
 
