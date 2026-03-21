@@ -30,6 +30,28 @@ export default async function DecisionDetailPage({ params }: Params) {
   const record = await getDecision(dbUser.id, id)
   if (!record) notFound()
 
+  const shares = await prisma.collaboratorShare.findMany({
+    where: { decisionId: id, ownerId: dbUser.id, isActive: true },
+    include: {
+      collaborator: {
+        select: { id: true, email: true, displayName: true, avatarUrl: true },
+      },
+      comments: {
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+    orderBy: { sharedAt: 'asc' },
+  })
+
+  const authorIds = [...new Set(shares.flatMap((share) => share.comments.map((comment) => comment.authorId)))]
+  const authors = authorIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: authorIds } },
+        select: { id: true, displayName: true, avatarUrl: true },
+      })
+    : []
+  const authorMap = Object.fromEntries(authors.map((author) => [author.id, author]))
+
   return (
     <div className="flex flex-col gap-4">
       {/* Breadcrumb */}
@@ -42,7 +64,27 @@ export default async function DecisionDetailPage({ params }: Params) {
       </nav>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <DecisionDetail decision={record} />
+        <DecisionDetail
+          decision={record}
+          collaboration={{
+            currentUserId: dbUser.id,
+            shares: shares.map((share) => ({
+              id: share.id,
+              shareId: share.id,
+              collaborator: share.collaborator,
+            })),
+            discussions: shares.map((share) => ({
+              shareId: share.id,
+              collaboratorName: share.collaborator.displayName ?? share.collaborator.email,
+              comments: share.comments.map((comment) => ({
+                id: comment.id,
+                content: comment.content,
+                createdAt: comment.createdAt.toISOString(),
+                author: authorMap[comment.authorId] ?? null,
+              })),
+            })),
+          }}
+        />
       </div>
     </div>
   )

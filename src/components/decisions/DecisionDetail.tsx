@@ -6,10 +6,40 @@ import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { AddOutcomeForm } from './AddOutcomeForm'
+import { SharePanel } from '@/components/sharing/SharePanel'
+import { CommentThread } from '@/components/sharing/CommentThread'
 
 type Decision = DecisionRecord & {
   outcomes: OutcomeUpdate[]
   corrections: CorrectionRequest[]
+}
+
+type CollaboratorShare = {
+  id: string
+  shareId: string
+  collaborator: {
+    id: string
+    email: string
+    displayName: string | null
+    avatarUrl: string | null
+  }
+}
+
+type ShareDiscussion = {
+  shareId: string
+  collaboratorName: string
+  comments: Array<{
+    id: string
+    content: string
+    createdAt: string
+    author: { id: string; displayName: string | null; avatarUrl: string | null } | null
+  }>
+}
+
+type CollaborationData = {
+  currentUserId: string
+  shares: CollaboratorShare[]
+  discussions: ShareDiscussion[]
 }
 
 const LOCKED_FIELDS: { key: keyof DecisionRecord; label: string }[] = [
@@ -35,7 +65,13 @@ const DOMAIN_COLORS: Record<string, string> = {
   OTHER: 'bg-gray-100 text-gray-600',
 }
 
-export function DecisionDetail({ decision }: { decision: Decision }) {
+export function DecisionDetail({
+  decision,
+  collaboration,
+}: {
+  decision: Decision
+  collaboration: CollaborationData
+}) {
   const [notes, setNotes] = useState(decision.supplementaryNotes ?? '')
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
@@ -210,6 +246,39 @@ export function DecisionDetail({ decision }: { decision: Decision }) {
             </Button>
           </div>
         </div>
+      </section>
+
+      {/* Collaboration */}
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            Collaboration
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage who can review this decision and keep the discussion close to the record.
+          </p>
+        </div>
+
+        <SharePanel decisionId={decision.id} initialShares={collaboration.shares} />
+
+        {collaboration.discussions.length > 0 && (
+          <div className="flex flex-col gap-4">
+            {collaboration.discussions.map((discussion) => (
+              <div key={discussion.shareId} className="flex flex-col gap-2">
+                <p className="text-sm font-medium text-gray-600">
+                  Discussion with {discussion.collaboratorName}
+                </p>
+                <CommentThread
+                  decisionId={decision.id}
+                  shareId={discussion.shareId}
+                  initialComments={discussion.comments}
+                  currentUserId={collaboration.currentUserId}
+                  isCollaborator={false}
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )
