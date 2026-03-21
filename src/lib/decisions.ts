@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { normalizeDecisionLockState } from '@/lib/locks'
 import { DomainTag, OutcomeRating } from '@prisma/client'
 
 export type DecisionFilters = {
@@ -75,7 +76,12 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
       // Re-sort by relevance order
       const sorted = ids.map((id) => fullRecords.find((r) => r.id === id)!).filter(Boolean)
 
-      return { records: sorted, total: Number(total[0]?.count ?? 0), page, limit }
+      return {
+        records: sorted.map((record) => normalizeDecisionLockState(record)),
+        total: Number(total[0]?.count ?? 0),
+        page,
+        limit,
+      }
     }
   }
 
@@ -90,17 +96,34 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
     prisma.decisionRecord.count({ where }),
   ])
 
-  return { records, total, page, limit }
+  return {
+    records: records.map((record) => normalizeDecisionLockState(record)),
+    total,
+    page,
+    limit,
+  }
+}
+
+export async function getDraftDecisions(userId: string, limit = 5) {
+  const records = await prisma.decisionRecord.findMany({
+    where: { userId, isDraft: true },
+    orderBy: { updatedAt: 'desc' },
+    take: limit,
+  })
+
+  return records.map((record) => normalizeDecisionLockState(record))
 }
 
 export async function getDecision(userId: string, id: string) {
-  return prisma.decisionRecord.findFirst({
+  const record = await prisma.decisionRecord.findFirst({
     where: { id, userId, isDraft: false },
     include: {
       outcomes: { orderBy: { createdAt: 'asc' } },
       corrections: { orderBy: { createdAt: 'desc' } },
     },
   })
+
+  return record ? normalizeDecisionLockState(record) : null
 }
 
 export const OUTCOME_LABELS: Record<OutcomeRating, string> = {

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildNormalizationPrompt,
-  buildAssumptionExtractionPrompt,
   buildBiasDetectionPrompt,
   buildCalibrationAnalysisPrompt,
   buildSynthesisPrompt,

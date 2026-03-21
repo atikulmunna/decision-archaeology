@@ -1,11 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { computeCalibrationScore, computeCalibrationByDomain } from '@/lib/calibration'
+import {
+  computeCalibrationScore,
+  computeCalibrationByDomain,
+  getClosedPredictedDecisions,
+} from '@/lib/calibration'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -18,13 +22,9 @@ export async function GET(_req: NextRequest) {
     include: { outcomes: true },
   })
 
-  const allOutcomes = records.flatMap((r) => r.outcomes)
-  const overallScore = computeCalibrationScore(allOutcomes)
+  const overallScore = computeCalibrationScore(records)
   const byDomain = computeCalibrationByDomain(records)
-
-  const closedCount = allOutcomes.filter(
-    (o) => o.outcomeRating !== 'TOO_EARLY_TO_TELL'
-  ).length
+  const closedCount = getClosedPredictedDecisions(records).length
 
   return NextResponse.json({
     score: overallScore,

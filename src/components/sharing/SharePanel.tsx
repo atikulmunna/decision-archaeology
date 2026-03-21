@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 
 interface Collaborator {
   id: string
@@ -62,7 +63,13 @@ export function SharePanel({ decisionId, initialShares }: Props) {
             <li key={s.shareId} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 {s.collaborator.avatarUrl ? (
-                  <img src={s.collaborator.avatarUrl} className="h-7 w-7 rounded-full object-cover" alt="" />
+                  <Image
+                    src={s.collaborator.avatarUrl}
+                    className="h-7 w-7 rounded-full object-cover"
+                    alt=""
+                    width={28}
+                    height={28}
+                  />
                 ) : (
                   <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
                     {(s.collaborator.displayName ?? s.collaborator.email)[0].toUpperCase()}

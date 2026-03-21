@@ -4,7 +4,11 @@ export const metadata = {
   title: 'New Decision — Decision Archaeology',
 }
 
-export default function NewDecisionPage() {
+type SearchParams = Promise<{ draftId?: string }>
+
+export default async function NewDecisionPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="mb-6">
@@ -13,7 +17,7 @@ export default function NewDecisionPage() {
           Capture your reasoning now, before hindsight rewrites it.
         </p>
       </div>
-      <DecisionCaptureForm />
+      <DecisionCaptureForm initialDraftId={params.draftId} />
     </div>
   )
 }

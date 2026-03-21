@@ -8,10 +8,11 @@ import { Textarea } from '@/components/ui/Textarea'
 import { StepIndicator } from '@/components/ui/StepIndicator'
 import { TimeCapsuleConfirmation } from './TimeCapsuleConfirmation'
 import { CountdownTimer } from './CountdownTimer'
-import type { CreateDecisionInput } from '@/lib/validations/decision'
+import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
 
 const STEPS = ['Basics', 'Reasoning', 'Context', 'Confirm']
 const MIN = 20
+const DRAFT_STORAGE_KEY = 'decision-archaeology:draft-id'
 
 type FormState = Partial<CreateDecisionInput>
 type Step = 1 | 2 | 3 | 4 | 5 // 4 = confirm, 5 = saved+timer
@@ -24,7 +25,7 @@ function fieldError(value: string | undefined, label: string) {
   return undefined
 }
 
-export function DecisionCaptureForm() {
+export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: string }) {
   const router = useRouter()
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<FormState>({ customTags: [] })
@@ -33,30 +34,135 @@ export function DecisionCaptureForm() {
   const [savedRecord, setSavedRecord] = useState<{ id: string; createdAt: string } | null>(null)
   const [isLocked, setIsLocked] = useState(false)
   const [tagInput, setTagInput] = useState('')
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'restored'>('idle')
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
   const draftRef = useRef<string | null>(null)
+  const hydratedRef = useRef(false)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const set = (field: keyof FormState, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }))
 
-  // Auto-save draft every 30s after step 1 is complete
-  const saveDraft = useCallback(async () => {
-    if (!form.title || !form.summary || !form.context) return
-    try {
-      if (draftRef.current) {
-        await fetch(`/api/decisions/${draftRef.current}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form }),
-        })
-      }
-    } catch { /* silent */ }
+  const hasDraftContent = useCallback(() => {
+    return Object.values(form).some((value) => {
+      if (typeof value === 'string') return value.trim().length > 0
+      if (Array.isArray(value)) return value.length > 0
+      return value !== undefined && value !== null
+    })
   }, [form])
 
+  const buildDraftPayload = useCallback((): DraftDecisionInput => ({
+    title: form.title,
+    summary: form.summary,
+    context: form.context,
+    alternatives: form.alternatives,
+    chosenOption: form.chosenOption,
+    reasoning: form.reasoning,
+    values: form.values,
+    uncertainties: form.uncertainties,
+    predictedOutcome: form.predictedOutcome,
+    predictedTimeframe: form.predictedTimeframe,
+    confidenceLevel: form.confidenceLevel,
+    domainTag: form.domainTag,
+    customTags: form.customTags ?? [],
+  }), [form])
+
+  // Auto-save draft every 30s after step 1 is complete
+  const saveDraft = useCallback(async () => {
+    if (!hydratedRef.current || savedRecord || !hasDraftContent()) return
+
+    setDraftStatus('saving')
+
+    try {
+      if (draftRef.current) {
+        const res = await fetch(`/api/decisions/${draftRef.current}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildDraftPayload()),
+        })
+
+        if (!res.ok) throw new Error('Draft update failed')
+      }
+      else {
+        const res = await fetch('/api/decisions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...buildDraftPayload(), saveAsDraft: true }),
+        })
+
+        if (!res.ok) throw new Error('Draft create failed')
+
+        const draft = await res.json()
+        draftRef.current = draft.id
+        window.localStorage.setItem(DRAFT_STORAGE_KEY, draft.id)
+      }
+
+      setDraftStatus('saved')
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = setTimeout(() => setDraftStatus('idle'), 2000)
+    } catch {
+      setDraftStatus('error')
+    }
+  }, [buildDraftPayload, hasDraftContent, savedRecord])
+
   useEffect(() => {
+    hydratedRef.current = true
     autoSaveRef.current = setInterval(saveDraft, 30000)
-    return () => { if (autoSaveRef.current) clearInterval(autoSaveRef.current) }
+    return () => {
+      if (autoSaveRef.current) clearInterval(autoSaveRef.current)
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
   }, [saveDraft])
+
+  useEffect(() => {
+    const draftId = initialDraftId ?? window.localStorage.getItem(DRAFT_STORAGE_KEY)
+    if (!draftId) return
+
+    let cancelled = false
+
+    async function loadDraft() {
+      try {
+        const res = await fetch(`/api/decisions/${draftId}`)
+        if (!res.ok) {
+          window.localStorage.removeItem(DRAFT_STORAGE_KEY)
+          return
+        }
+
+        const draft = await res.json()
+        if (cancelled || !draft.isDraft) {
+          window.localStorage.removeItem(DRAFT_STORAGE_KEY)
+          return
+        }
+
+        draftRef.current = draft.id
+        window.localStorage.setItem(DRAFT_STORAGE_KEY, draft.id)
+        setForm({
+          title: draft.title || undefined,
+          summary: draft.summary || undefined,
+          context: draft.context || undefined,
+          alternatives: draft.alternatives || undefined,
+          chosenOption: draft.chosenOption || undefined,
+          reasoning: draft.reasoning || undefined,
+          values: draft.values || undefined,
+          uncertainties: draft.uncertainties || undefined,
+          predictedOutcome: draft.predictedOutcome || undefined,
+          predictedTimeframe: draft.predictedTimeframe || undefined,
+          confidenceLevel: draft.confidenceLevel ?? undefined,
+          domainTag: draft.domainTag ?? undefined,
+          customTags: draft.customTags ?? [],
+        })
+        setDraftStatus('restored')
+      } catch {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY)
+      }
+    }
+
+    loadDraft()
+
+    return () => {
+      cancelled = true
+    }
+  }, [initialDraftId])
 
   // Step validators
   function validateStep1() {
@@ -88,6 +194,7 @@ export function DecisionCaptureForm() {
     if (step === 2 && !validateStep2()) return
     setStep((s) => (s + 1) as Step)
     setErrors({})
+    void saveDraft()
   }
 
   const handleSubmit = useCallback(async () => {
@@ -109,11 +216,17 @@ export function DecisionCaptureForm() {
         customTags: form.customTags ?? [],
       }
 
-      const res = await fetch('/api/decisions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const res = draftRef.current
+        ? await fetch(`/api/decisions/${draftRef.current}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, finalize: true }),
+          })
+        : await fetch('/api/decisions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
 
       if (!res.ok) {
         const err = await res.json()
@@ -123,6 +236,7 @@ export function DecisionCaptureForm() {
 
       const record = await res.json()
       draftRef.current = record.id
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY)
       setSavedRecord({ id: record.id, createdAt: record.createdAt })
       setStep(5)
     } finally {
@@ -150,7 +264,7 @@ export function DecisionCaptureForm() {
             <span className="text-2xl">✅</span>
             <div>
               <p className="font-semibold text-green-900">Decision recorded!</p>
-              <p className="text-sm text-green-700">"{form.title}"</p>
+              <p className="text-sm text-green-700">&quot;{form.title}&quot;</p>
             </div>
           </div>
         </div>
@@ -206,6 +320,21 @@ export function DecisionCaptureForm() {
 
   return (
     <div className="flex flex-col gap-8">
+      {(draftStatus === 'restored' || draftStatus === 'saving' || draftStatus === 'saved' || draftStatus === 'error') && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            draftStatus === 'error'
+              ? 'border-red-200 bg-red-50 text-red-700'
+              : 'border-indigo-100 bg-indigo-50 text-indigo-700'
+          }`}
+        >
+          {draftStatus === 'restored' && 'Draft restored from your last session.'}
+          {draftStatus === 'saving' && 'Saving draft…'}
+          {draftStatus === 'saved' && 'Draft saved.'}
+          {draftStatus === 'error' && 'Draft save failed. Your local edits are still in the form.'}
+        </div>
+      )}
+
       <StepIndicator steps={STEPS.slice(0, 3)} currentStep={step} />
 
       {/* Step 1 — Basics */}

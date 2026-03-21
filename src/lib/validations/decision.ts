@@ -39,6 +39,24 @@ export const CreateDecisionSchema = z.object({
 
 export type CreateDecisionInput = z.infer<typeof CreateDecisionSchema>
 
+export const DraftDecisionSchema = z.object({
+  title: z.string().optional(),
+  summary: z.string().optional(),
+  context: z.string().optional(),
+  alternatives: z.string().optional(),
+  chosenOption: z.string().optional(),
+  reasoning: z.string().optional(),
+  values: z.string().optional(),
+  uncertainties: z.string().optional(),
+  predictedOutcome: z.string().optional(),
+  predictedTimeframe: z.string().datetime().optional().nullable(),
+  confidenceLevel: z.number().int().min(1).max(10).optional().nullable(),
+  domainTag: DomainTagEnum.optional().nullable(),
+  customTags: z.array(z.string()).max(5, 'Maximum 5 custom tags').default([]),
+})
+
+export type DraftDecisionInput = z.infer<typeof DraftDecisionSchema>
+
 export const UpdateNotesSchema = z.object({
   supplementaryNotes: z.string(),
 })
@@ -46,3 +64,9 @@ export const UpdateNotesSchema = z.object({
 export const UpdateDraftSchema = CreateDecisionSchema.partial()
 
 export type UpdateDraftInput = z.infer<typeof UpdateDraftSchema>
+
+export const FinalizeDecisionSchema = CreateDecisionSchema.extend({
+  finalize: z.literal(true),
+})
+
+export type FinalizeDecisionInput = z.infer<typeof FinalizeDecisionSchema>
