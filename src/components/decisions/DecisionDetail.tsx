@@ -3,6 +3,12 @@
 import { useState } from 'react'
 import type { DecisionRecord, OutcomeUpdate, CorrectionRequest } from '@prisma/client'
 import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
+import {
+  CORRECTION_FIELDS,
+  getCorrectionFieldLabel,
+  getLatestApprovedCorrection,
+  type CorrectionField,
+} from '@/lib/corrections'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { AddOutcomeForm } from './AddOutcomeForm'
@@ -43,13 +49,10 @@ type CollaborationData = {
   discussions: ShareDiscussion[]
 }
 
-const LOCKED_FIELDS: { key: keyof DecisionRecord; label: string }[] = [
-  { key: 'summary', label: 'Decision Summary' },
-  { key: 'context', label: 'Context' },
-  { key: 'alternatives', label: 'Alternatives Considered' },
-  { key: 'chosenOption', label: 'Chosen Option' },
-  { key: 'reasoning', label: 'Reasoning' },
-]
+const LOCKED_FIELDS: { key: CorrectionField; label: string }[] = CORRECTION_FIELDS.map((field) => ({
+  key: field.key,
+  label: field.label,
+}))
 
 const OPTIONAL_FIELDS: { key: keyof DecisionRecord; label: string }[] = [
   { key: 'values', label: 'Values at Play' },
@@ -66,6 +69,12 @@ const DOMAIN_COLORS: Record<string, string> = {
   OTHER: 'bg-gray-100 text-gray-600',
 }
 
+const CORRECTION_STATUS_STYLES: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-700',
+  APPROVED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-gray-200 text-gray-600',
+}
+
 export function DecisionDetail({
   decision,
   collaboration,
@@ -77,6 +86,14 @@ export function DecisionDetail({
   const [savingNotes, setSavingNotes] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
   const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
+  const [corrections, setCorrections] = useState<CorrectionRequest[]>(decision.corrections)
+  const [activeCorrectionField, setActiveCorrectionField] = useState<CorrectionField | null>(null)
+  const [correctedText, setCorrectedText] = useState('')
+  const [correctionReason, setCorrectionReason] = useState('')
+  const [savingCorrection, setSavingCorrection] = useState(false)
+  const [updatingCorrectionId, setUpdatingCorrectionId] = useState<string | null>(null)
+  const [correctionError, setCorrectionError] = useState<string | null>(null)
+  const [correctionNotice, setCorrectionNotice] = useState<string | null>(null)
 
   const createdAt = new Date(decision.createdAt).toLocaleString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -86,6 +103,10 @@ export function DecisionDetail({
         month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
       })
     : null
+
+  const approvedCorrections = Object.fromEntries(
+    LOCKED_FIELDS.map(({ key }) => [key, getLatestApprovedCorrection(corrections, key)])
+  ) as Record<CorrectionField, CorrectionRequest | null>
 
   async function saveNotes() {
     setSavingNotes(true)
@@ -99,6 +120,81 @@ export function DecisionDetail({
       setTimeout(() => setNotesSaved(false), 2000)
     } finally {
       setSavingNotes(false)
+    }
+  }
+
+  function beginCorrection(field: CorrectionField) {
+    const originalValue = String(decision[field] ?? '')
+    const approvedValue = approvedCorrections[field]?.correctedText ?? ''
+    setActiveCorrectionField(field)
+    setCorrectedText(approvedValue || originalValue)
+    setCorrectionReason('')
+    setCorrectionError(null)
+    setCorrectionNotice(null)
+  }
+
+  async function submitCorrection() {
+    if (!activeCorrectionField) return
+
+    setSavingCorrection(true)
+    setCorrectionError(null)
+    setCorrectionNotice(null)
+
+    try {
+      const response = await fetch(`/api/decisions/${decision.id}/corrections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fieldName: activeCorrectionField,
+          correctedText,
+          reason: correctionReason,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setCorrectionError(payload.error ?? 'Unable to submit correction request.')
+        return
+      }
+
+      setCorrections((prev) => [payload as CorrectionRequest, ...prev])
+      setCorrectionNotice('Correction request submitted. Review it below and approve when ready.')
+      setActiveCorrectionField(null)
+      setCorrectedText('')
+      setCorrectionReason('')
+    } finally {
+      setSavingCorrection(false)
+    }
+  }
+
+  async function updateCorrectionStatus(correctionId: string, status: 'APPROVED' | 'REJECTED') {
+    setUpdatingCorrectionId(correctionId)
+    setCorrectionError(null)
+    setCorrectionNotice(null)
+
+    try {
+      const response = await fetch(`/api/decisions/${decision.id}/corrections/${correctionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setCorrectionError(payload.error ?? 'Unable to update correction request.')
+        return
+      }
+
+      setCorrections((prev) => prev.map((correction) => (
+        correction.id === correctionId ? payload as CorrectionRequest : correction
+      )))
+      setCorrectionNotice(
+        status === 'APPROVED'
+          ? 'Correction approved. The original text remains preserved in the audit trail.'
+          : 'Correction request rejected.'
+      )
+    } finally {
+      setUpdatingCorrectionId(null)
     }
   }
 
@@ -150,6 +246,7 @@ export function DecisionDetail({
           {LOCKED_FIELDS.map(({ key, label }) => {
             const value = decision[key]
             if (!value) return null
+            const approvedCorrection = approvedCorrections[key]
             return (
               <div key={key} className={`rounded-xl p-4 ${decision.isLocked ? 'border border-gray-200 bg-gray-50' : 'border border-white bg-white shadow-sm'}`}>
                 <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-gray-500">
@@ -157,11 +254,196 @@ export function DecisionDetail({
                   {label}
                 </p>
                 <p className="whitespace-pre-wrap text-sm text-gray-800">{String(value)}</p>
+                {approvedCorrection && (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Approved typo correction
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-900">
+                      {approvedCorrection.correctedText}
+                    </p>
+                  </div>
+                )}
+                {decision.isLocked && (
+                  <div className="mt-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => beginCorrection(key)}
+                    >
+                      Request typo correction
+                    </Button>
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
       </section>
+
+      {decision.isLocked && (
+        <section className="flex flex-col gap-4">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+              Correction Requests
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Locked fields keep the original wording forever. If you spot a typo, submit a small spelling or punctuation correction and preserve the change in the audit trail.
+            </p>
+          </div>
+
+          {activeCorrectionField && (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-indigo-900">
+                    Request correction for {getCorrectionFieldLabel(activeCorrectionField)}
+                  </p>
+                  <p className="mt-1 text-xs text-indigo-700">
+                    Keep this to a small typo fix. Larger wording changes should stay in supplementary notes.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setActiveCorrectionField(null)
+                    setCorrectionError(null)
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+
+              <div className="mt-4 flex flex-col gap-4">
+                <div className="rounded-lg border border-indigo-100 bg-white p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Original text
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+                    {String(decision[activeCorrectionField] ?? '')}
+                  </p>
+                </div>
+
+                <Textarea
+                  id="correctedText"
+                  label="Corrected text"
+                  value={correctedText}
+                  onChange={(e) => setCorrectedText(e.target.value)}
+                  placeholder="Fix only the typo or punctuation issue here..."
+                />
+
+                <Textarea
+                  id="correctionReason"
+                  label="Reason (optional)"
+                  value={correctionReason}
+                  onChange={(e) => setCorrectionReason(e.target.value)}
+                  placeholder="Example: Correcting a company name typo."
+                  className="min-h-[80px]"
+                />
+
+                {correctionError && <p className="text-sm text-red-600">{correctionError}</p>}
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={submitCorrection}
+                    loading={savingCorrection}
+                    disabled={correctedText.trim().length === 0}
+                  >
+                    Submit correction request
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {correctionNotice && (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              {correctionNotice}
+            </div>
+          )}
+
+          {corrections.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
+              No correction requests yet.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {corrections.map((correction) => (
+                <div key={correction.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-800">
+                      {getCorrectionFieldLabel(correction.fieldName)}
+                    </p>
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${CORRECTION_STATUS_STYLES[correction.status] ?? 'bg-gray-100 text-gray-600'}`}
+                    >
+                      {correction.status}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(correction.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Original
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">
+                        {correction.originalText}
+                      </p>
+                    </div>
+                    <div className="rounded-lg bg-emerald-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                        Requested correction
+                      </p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-900">
+                        {correction.correctedText}
+                      </p>
+                    </div>
+                  </div>
+
+                  {correction.reason && (
+                    <p className="mt-3 text-sm text-gray-600">
+                      Reason: {correction.reason}
+                    </p>
+                  )}
+
+                  {correction.status === 'PENDING' && (
+                    <div className="mt-3 flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => updateCorrectionStatus(correction.id, 'APPROVED')}
+                        loading={updatingCorrectionId === correction.id}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => updateCorrectionStatus(correction.id, 'REJECTED')}
+                        disabled={updatingCorrectionId === correction.id}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Optional fields */}
       {OPTIONAL_FIELDS.some(({ key }) => !!decision[key]) && (
