@@ -6,6 +6,7 @@ import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { AddOutcomeForm } from './AddOutcomeForm'
+import { AttachmentManager } from './AttachmentManager'
 import { SharePanel } from '@/components/sharing/SharePanel'
 import { CommentThread } from '@/components/sharing/CommentThread'
 
@@ -180,6 +181,13 @@ export function DecisionDetail({
           </div>
         </section>
       )}
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+          Attachments
+        </h2>
+        <AttachmentManager decisionId={decision.id} />
+      </section>
 
       {/* Outcome Updates */}
       <section>
