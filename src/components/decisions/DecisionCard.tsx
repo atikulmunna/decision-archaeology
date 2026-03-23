@@ -4,6 +4,7 @@ import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
 
 type Props = {
   decision: DecisionRecord & { outcomes: OutcomeUpdate[] }
+  searchQuery?: string
 }
 
 const DOMAIN_COLORS: Record<string, string> = {
@@ -15,7 +16,33 @@ const DOMAIN_COLORS: Record<string, string> = {
   OTHER: 'bg-gray-100 text-gray-600',
 }
 
-export function DecisionCard({ decision }: Props) {
+function highlightText(text: string, query?: string) {
+  if (!query?.trim()) return text
+
+  const tokens = query
+    .trim()
+    .split(/\s+/)
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .filter(Boolean)
+
+  if (tokens.length === 0) return text
+
+  const matcher = new RegExp(`(${tokens.join('|')})`, 'gi')
+  const parts = text.split(matcher)
+
+  return parts.map((part, index) => {
+    const isMatch = tokens.some((token) => part.toLowerCase() === token.toLowerCase())
+    return isMatch ? (
+      <mark key={`${part}-${index}`} className="rounded bg-amber-100 px-0.5 text-inherit">
+        {part}
+      </mark>
+    ) : (
+      <span key={`${part}-${index}`}>{part}</span>
+    )
+  })
+}
+
+export function DecisionCard({ decision, searchQuery }: Props) {
   const latestOutcome = decision.outcomes[0] ?? null
   const date = new Date(decision.createdAt).toLocaleDateString('en-US', {
     month: 'short',
@@ -35,7 +62,7 @@ export function DecisionCard({ decision }: Props) {
               <span className="text-gray-400 text-xs" title="Fields locked">🔒</span>
             )}
             <h3 className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
-              {decision.title}
+              {highlightText(decision.title, searchQuery)}
             </h3>
           </div>
           <p className="text-xs text-gray-400">{date}</p>
@@ -75,7 +102,7 @@ export function DecisionCard({ decision }: Props) {
       </div>
 
       {/* Summary preview */}
-      <p className="mt-2 text-sm text-gray-500 line-clamp-2">{decision.summary}</p>
+      <p className="mt-2 text-sm text-gray-500 line-clamp-2">{highlightText(decision.summary, searchQuery)}</p>
     </Link>
   )
 }

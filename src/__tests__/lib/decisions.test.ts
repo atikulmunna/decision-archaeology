@@ -41,4 +41,14 @@ describe('DecisionFilters — page/limit defaults', () => {
   it('limit is capped at 50', () => {
     expect(Math.min(50, parseInt('200'))).toBe(50)
   })
+
+  it('clamps minimum confidence into the supported 1-10 range', () => {
+    expect(Math.max(1, Math.min(10, parseInt('12')))).toBe(10)
+    expect(Math.max(1, Math.min(10, parseInt('0')))).toBe(1)
+  })
+
+  it('supports the richer outcome filter values used by the archive', () => {
+    const outcome = 'negative'
+    expect(['pending', 'has', 'positive', 'negative', 'expected', 'too_early']).toContain(outcome)
+  })
 })
