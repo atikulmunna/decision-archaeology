@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { OUTCOME_LABELS } from '@/lib/decisions'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -68,12 +69,24 @@ export async function POST(req: NextRequest, { params }: Params) {
   })
 
   // Fan-out: notify active collaborators (best-effort, non-blocking)
-  notifyCollaborators(id, record.title, dbUser.displayName ?? 'The owner').catch(console.error)
+  notifyCollaborators(
+    id,
+    record.title,
+    dbUser.displayName ?? 'The owner',
+    outcome.outcomeRating,
+    outcome.whatHappened
+  ).catch(console.error)
 
   return NextResponse.json(outcome, { status: 201 })
 }
 
-async function notifyCollaborators(decisionId: string, decisionTitle: string, ownerName: string) {
+async function notifyCollaborators(
+  decisionId: string,
+  decisionTitle: string,
+  ownerName: string,
+  outcomeRating: keyof typeof OUTCOME_LABELS,
+  whatHappened: string
+) {
   if (!process.env.RESEND_API_KEY) return
 
   const shares = await prisma.collaboratorShare.findMany({
@@ -85,13 +98,14 @@ async function notifyCollaborators(decisionId: string, decisionTitle: string, ow
   const { Resend } = await import('resend')
   const resend = new Resend(process.env.RESEND_API_KEY)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const summary = whatHappened.length > 180 ? `${whatHappened.slice(0, 177)}...` : whatHappened
 
   await Promise.allSettled(
     shares.map((s) =>
       resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL ?? 'Decision Archaeology <no-reply@resend.dev>',
         to: s.collaborator.email,
-        subject: `${ownerName} logged a new outcome`,
+        subject: `${ownerName} added an outcome update`,
         html: `
           <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
             <h2 style="color:#4f46e5">📊 New outcome logged</h2>
@@ -99,9 +113,15 @@ async function notifyCollaborators(decisionId: string, decisionTitle: string, ow
             <blockquote style="border-left:3px solid #4f46e5;padding-left:16px;color:#374151">
               <strong>${decisionTitle}</strong>
             </blockquote>
+            <p style="margin:16px 0 8px 0">
+              <strong>Outcome rating:</strong> ${OUTCOME_LABELS[outcomeRating]}
+            </p>
+            <p style="margin:0 0 16px 0;color:#374151">
+              ${summary}
+            </p>
             <a href="${appUrl}/shared/${s.id}"
                style="display:inline-block;background:#4f46e5;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:8px">
-              View decision →
+              View outcome history →
             </a>
             <p style="color:#9ca3af;font-size:12px;margin-top:32px">Decision Archaeology</p>
           </div>
