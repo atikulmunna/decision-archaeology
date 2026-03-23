@@ -18,6 +18,10 @@ type SearchParams = Promise<{
   q?: string
   domain?: string
   outcome?: string
+  dateFrom?: string
+  dateTo?: string
+  minConfidence?: string
+  tag?: string
   page?: string
 }>
 
@@ -29,22 +33,40 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
   if (!dbUser) return null
 
   const params = await searchParams
-  const { q, domain, outcome, page: pageStr } = params
+  const { q, domain, outcome, dateFrom, dateTo, minConfidence: minConfidenceStr, tag, page: pageStr } = params
   const page = Math.max(1, parseInt(pageStr ?? '1'))
-
-  const hasOutcome =
-    outcome === 'has' ? true : outcome === 'pending' ? false : undefined
+  const minConfidence = minConfidenceStr ? Math.max(1, Math.min(10, parseInt(minConfidenceStr))) : undefined
 
   const { records, total } = await getDecisions(dbUser.id, {
     q,
     domain: domain as DomainTag | undefined,
-    hasOutcome,
+    outcome: outcome as 'pending' | 'has' | 'positive' | 'negative' | 'expected' | 'too_early' | undefined,
+    dateFrom,
+    dateTo,
+    minConfidence,
+    tag,
     page,
     limit: 20,
   })
   const drafts = await getDraftDecisions(dbUser.id, 3)
 
   const totalPages = Math.ceil(total / 20)
+  const pageParams = new URLSearchParams()
+  if (q) pageParams.set('q', q)
+  if (domain) pageParams.set('domain', domain)
+  if (outcome) pageParams.set('outcome', outcome)
+  if (dateFrom) pageParams.set('dateFrom', dateFrom)
+  if (dateTo) pageParams.set('dateTo', dateTo)
+  if (typeof minConfidence === 'number' && !Number.isNaN(minConfidence)) {
+    pageParams.set('minConfidence', String(minConfidence))
+  }
+  if (tag) pageParams.set('tag', tag)
+
+  function hrefForPage(nextPage: number) {
+    const next = new URLSearchParams(pageParams.toString())
+    next.set('page', String(nextPage))
+    return `?${next.toString()}`
+  }
 
   // Milestone progress toward first Bias Report
   const allCount = await prisma.decisionRecord.count({
@@ -145,7 +167,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
       ) : (
         <div className="flex flex-col gap-3">
           {records.map((record) => (
-            <DecisionCard key={record.id} decision={record} />
+            <DecisionCard key={record.id} decision={record} searchQuery={q} />
           ))}
         </div>
       )}
@@ -155,7 +177,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
         <div className="flex items-center justify-center gap-2">
           {page > 1 && (
             <Link
-              href={`?page=${page - 1}${q ? `&q=${q}` : ''}${domain ? `&domain=${domain}` : ''}`}
+              href={hrefForPage(page - 1)}
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
             >
               ← Previous
@@ -166,7 +188,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
           </span>
           {page < totalPages && (
             <Link
-              href={`?page=${page + 1}${q ? `&q=${q}` : ''}${domain ? `&domain=${domain}` : ''}`}
+              href={hrefForPage(page + 1)}
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
             >
               Next →

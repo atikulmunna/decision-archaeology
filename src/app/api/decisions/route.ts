@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { DomainTag } from '@prisma/client'
+import { getDecisions } from '@/lib/decisions'
 import { CreateDecisionSchema, DraftDecisionSchema } from '@/lib/validations/decision'
 
 export const dynamic = 'force-dynamic'
@@ -73,18 +75,28 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
   const limit = Math.min(50, parseInt(searchParams.get('limit') ?? '20'))
-  const skip = (page - 1) * limit
+  const minConfidence = searchParams.get('minConfidence')
+  const maxConfidence = searchParams.get('maxConfidence')
 
-  const [records, total] = await Promise.all([
-    prisma.decisionRecord.findMany({
-      where: { userId: dbUser.id, isDraft: false },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-      include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
-    }),
-    prisma.decisionRecord.count({ where: { userId: dbUser.id, isDraft: false } }),
-  ])
+  const result = await getDecisions(dbUser.id, {
+    q: searchParams.get('q') ?? undefined,
+    domain: (searchParams.get('domain') ?? undefined) as DomainTag | undefined,
+    outcome: (searchParams.get('outcome') ?? undefined) as
+      | 'pending'
+      | 'has'
+      | 'positive'
+      | 'negative'
+      | 'expected'
+      | 'too_early'
+      | undefined,
+    dateFrom: searchParams.get('dateFrom') ?? undefined,
+    dateTo: searchParams.get('dateTo') ?? undefined,
+    minConfidence: minConfidence ? Math.max(1, Math.min(10, parseInt(minConfidence))) : undefined,
+    maxConfidence: maxConfidence ? Math.max(1, Math.min(10, parseInt(maxConfidence))) : undefined,
+    tag: searchParams.get('tag') ?? undefined,
+    page,
+    limit,
+  })
 
-  return NextResponse.json({ records, total, page, limit })
+  return NextResponse.json(result)
 }

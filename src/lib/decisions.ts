@@ -1,104 +1,147 @@
 import { prisma } from '@/lib/prisma'
 import { normalizeDecisionLockState } from '@/lib/locks'
-import { DomainTag, OutcomeRating } from '@prisma/client'
+import { DomainTag, OutcomeRating, Prisma } from '@prisma/client'
 
 export type DecisionFilters = {
   q?: string
   domain?: DomainTag
   dateFrom?: string
   dateTo?: string
-  hasOutcome?: boolean
+  outcome?: 'pending' | 'has' | 'positive' | 'negative' | 'expected' | 'too_early'
+  minConfidence?: number
+  maxConfidence?: number
+  tag?: string
   page?: number
   limit?: number
 }
 
 export async function getDecisions(userId: string, filters: DecisionFilters = {}) {
-  const { q, domain, dateFrom, dateTo, hasOutcome, page = 1, limit = 20 } = filters
+  const {
+    q,
+    domain,
+    dateFrom,
+    dateTo,
+    outcome,
+    minConfidence,
+    maxConfidence,
+    tag,
+    page = 1,
+    limit = 20,
+  } = filters
   const skip = (page - 1) * limit
 
-  // Build base where clause
-  const where: Record<string, unknown> = {
-    userId,
-    isDraft: false,
-    ...(domain ? { domainTag: domain } : {}),
-    ...(dateFrom || dateTo
-      ? {
-          createdAt: {
-            ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-            ...(dateTo ? { lte: new Date(dateTo) } : {}),
-          },
-        }
-      : {}),
-    ...(hasOutcome === true ? { outcomes: { some: {} } } : {}),
-    ...(hasOutcome === false ? { outcomes: { none: {} } } : {}),
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`user_id = ${userId}`,
+    Prisma.sql`is_draft = false`,
+  ]
+
+  if (domain) conditions.push(Prisma.sql`domain_tag = ${domain}`)
+  if (dateFrom) conditions.push(Prisma.sql`created_at >= ${new Date(dateFrom)}`)
+  if (dateTo) conditions.push(Prisma.sql`created_at <= ${new Date(dateTo)}`)
+  if (typeof minConfidence === 'number') {
+    conditions.push(Prisma.sql`confidence_level >= ${minConfidence}`)
+  }
+  if (typeof maxConfidence === 'number') {
+    conditions.push(Prisma.sql`confidence_level <= ${maxConfidence}`)
+  }
+  if (tag?.trim()) {
+    conditions.push(
+      Prisma.sql`EXISTS (
+        SELECT 1
+        FROM unnest(custom_tags) AS tag_value
+        WHERE LOWER(tag_value) = LOWER(${tag.trim()})
+      )`
+    )
   }
 
-  // Full-text search via raw Prisma query
-  if (q && q.trim()) {
-    const sanitized = q
-      .trim()
-      .split(/\s+/)
-      .map((w) => w.replace(/[^a-zA-Z0-9]/g, ''))
-      .filter(Boolean)
-      .join(' & ')
+  const latestOutcomeSubquery = Prisma.sql`(
+    SELECT outcome_rating
+    FROM outcome_updates
+    WHERE decision_id = decision_records.id
+    ORDER BY created_at DESC
+    LIMIT 1
+  )`
 
-    if (sanitized) {
-      const [records, total] = await Promise.all([
-        prisma.$queryRaw<
-          Array<{ id: string; relevance: number }>
-        >`
-          SELECT id, ts_rank(
-            to_tsvector('english', title || ' ' || summary || ' ' || context || ' ' || reasoning),
-            to_tsquery('english', ${sanitized})
-          ) AS relevance
-          FROM decision_records
-          WHERE user_id = ${userId}
-            AND is_draft = false
-            AND to_tsvector('english', title || ' ' || summary || ' ' || context || ' ' || reasoning)
-                @@ to_tsquery('english', ${sanitized})
-          ORDER BY relevance DESC
-          LIMIT ${limit} OFFSET ${skip}
-        `,
-        prisma.$queryRaw<Array<{ count: bigint }>>`
-          SELECT COUNT(*) as count FROM decision_records
-          WHERE user_id = ${userId}
-            AND is_draft = false
-            AND to_tsvector('english', title || ' ' || summary || ' ' || context || ' ' || reasoning)
-                @@ to_tsquery('english', ${sanitized})
-        `,
-      ])
-
-      const ids = records.map((r) => r.id)
-      const fullRecords = await prisma.decisionRecord.findMany({
-        where: { id: { in: ids } },
-        include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
-      })
-      // Re-sort by relevance order
-      const sorted = ids.map((id) => fullRecords.find((r) => r.id === id)!).filter(Boolean)
-
-      return {
-        records: sorted.map((record) => normalizeDecisionLockState(record)),
-        total: Number(total[0]?.count ?? 0),
-        page,
-        limit,
-      }
-    }
+  if (outcome === 'pending') {
+    conditions.push(Prisma.sql`NOT EXISTS (SELECT 1 FROM outcome_updates WHERE decision_id = decision_records.id)`)
+  } else if (outcome === 'has') {
+    conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM outcome_updates WHERE decision_id = decision_records.id)`)
+  } else if (outcome === 'positive') {
+    conditions.push(Prisma.sql`${latestOutcomeSubquery} IN ('MUCH_BETTER', 'SLIGHTLY_BETTER')`)
+  } else if (outcome === 'negative') {
+    conditions.push(Prisma.sql`${latestOutcomeSubquery} IN ('SLIGHTLY_WORSE', 'MUCH_WORSE')`)
+  } else if (outcome === 'expected') {
+    conditions.push(Prisma.sql`${latestOutcomeSubquery} = 'AS_EXPECTED'`)
+  } else if (outcome === 'too_early') {
+    conditions.push(Prisma.sql`${latestOutcomeSubquery} = 'TOO_EARLY_TO_TELL'`)
   }
+
+  const searchDocument = Prisma.sql`
+    coalesce(title, '') || ' ' ||
+    coalesce(summary, '') || ' ' ||
+    coalesce(context, '') || ' ' ||
+    coalesce(alternatives, '') || ' ' ||
+    coalesce(chosen_option, '') || ' ' ||
+    coalesce(reasoning, '') || ' ' ||
+    coalesce(values, '') || ' ' ||
+    coalesce(uncertainties, '') || ' ' ||
+    coalesce(predicted_outcome, '') || ' ' ||
+    coalesce(supplementary_notes, '') || ' ' ||
+    coalesce(array_to_string(custom_tags, ' '), '')
+  `
+
+  const sanitizedQuery = q
+    ?.trim()
+    .split(/\s+/)
+    .map((word) => word.replace(/[^a-zA-Z0-9]/g, ''))
+    .filter(Boolean)
+    .join(' & ')
+
+  if (sanitizedQuery) {
+    conditions.push(
+      Prisma.sql`to_tsvector('english', ${searchDocument}) @@ to_tsquery('english', ${sanitizedQuery})`
+    )
+  }
+
+  const whereClause = Prisma.join(conditions, ' AND ')
 
   const [records, total] = await Promise.all([
-    prisma.decisionRecord.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-      include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
-    }),
-    prisma.decisionRecord.count({ where }),
+    prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      SELECT id
+      FROM decision_records
+      WHERE ${whereClause}
+      ORDER BY
+        ${sanitizedQuery
+          ? Prisma.sql`ts_rank(
+              to_tsvector('english', ${searchDocument}),
+              to_tsquery('english', ${sanitizedQuery})
+            ) DESC,`
+          : Prisma.empty}
+        created_at DESC
+      LIMIT ${limit} OFFSET ${skip}
+    `),
+    prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+      SELECT COUNT(*) as count
+      FROM decision_records
+      WHERE ${whereClause}
+    `),
   ])
 
+  const ids = records.map((record) => record.id)
+  if (ids.length === 0) {
+    return { records: [], total: Number(total[0]?.count ?? 0), page, limit }
+  }
+
+  const fullRecords = await prisma.decisionRecord.findMany({
+    where: { id: { in: ids } },
+    include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
+  })
+
+  const sorted = ids.map((id) => fullRecords.find((record) => record.id === id)!).filter(Boolean)
+
   return {
-    records: records.map((record) => normalizeDecisionLockState(record)),
-    total,
+    records: sorted.map((record) => normalizeDecisionLockState(record)),
+    total: Number(total[0]?.count ?? 0),
     page,
     limit,
   }

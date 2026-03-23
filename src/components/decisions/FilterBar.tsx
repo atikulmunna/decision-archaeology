@@ -5,6 +5,15 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
 
 const DOMAIN_OPTIONS = ['CAREER', 'FINANCE', 'HEALTH', 'RELATIONSHIPS', 'CREATIVE', 'OTHER']
+const OUTCOME_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'pending', label: 'Pending outcome' },
+  { value: 'has', label: 'Has outcome' },
+  { value: 'positive', label: 'Positive outcome' },
+  { value: 'negative', label: 'Negative outcome' },
+  { value: 'expected', label: 'As expected' },
+  { value: 'too_early', label: 'Too early to tell' },
+]
 
 export function FilterBar() {
   const router = useRouter()
@@ -35,6 +44,10 @@ export function FilterBar() {
   const q = searchParams.get('q') ?? ''
   const domain = searchParams.get('domain') ?? ''
   const outcome = searchParams.get('outcome') ?? ''
+  const dateFrom = searchParams.get('dateFrom') ?? ''
+  const dateTo = searchParams.get('dateTo') ?? ''
+  const minConfidence = searchParams.get('minConfidence') ?? ''
+  const tag = searchParams.get('tag') ?? ''
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -48,7 +61,6 @@ export function FilterBar() {
       />
 
       <div className="flex flex-wrap gap-2">
-        {/* Domain filter */}
         <select
           value={domain}
           onChange={(e) => updateParam('domain', e.target.value)}
@@ -62,19 +74,53 @@ export function FilterBar() {
           ))}
         </select>
 
-        {/* Outcome status filter */}
         <select
           value={outcome}
           onChange={(e) => updateParam('outcome', e.target.value)}
           className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="">All statuses</option>
-          <option value="pending">Pending outcome</option>
-          <option value="has">Has outcome</option>
+          {OUTCOME_OPTIONS.map((option) => (
+            <option key={option.value || 'all'} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
 
-        {/* Clear filters */}
-        {(q || domain || outcome) && (
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => updateParam('dateFrom', e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          aria-label="Filter from date"
+        />
+
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => updateParam('dateTo', e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          aria-label="Filter to date"
+        />
+
+        <input
+          type="number"
+          min="1"
+          max="10"
+          value={minConfidence}
+          onChange={(e) => updateParam('minConfidence', e.target.value)}
+          placeholder="Min confidence"
+          className="w-36 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+
+        <input
+          type="text"
+          value={tag}
+          onChange={(e) => updateParam('tag', e.target.value)}
+          placeholder="Tag"
+          className="w-36 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+
+        {(q || domain || outcome || dateFrom || dateTo || minConfidence || tag) && (
           <button
             onClick={() => {
               startTransition(() => router.replace(pathname))
