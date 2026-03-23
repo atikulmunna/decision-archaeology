@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import type { DecisionRecord, OutcomeUpdate, CorrectionRequest } from '@prisma/client'
-import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
 import {
   CORRECTION_FIELDS,
   getCorrectionFieldLabel,
@@ -13,6 +12,7 @@ import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { AddOutcomeForm } from './AddOutcomeForm'
 import { AttachmentManager } from './AttachmentManager'
+import { OutcomeHistory } from './OutcomeHistory'
 import { SharePanel } from '@/components/sharing/SharePanel'
 import { CommentThread } from '@/components/sharing/CommentThread'
 
@@ -473,36 +473,11 @@ export function DecisionDetail({
 
       {/* Outcome Updates */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Outcomes ({outcomes.length})
-        </h2>
-        {outcomes.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
-            No outcomes logged yet. Come back when you can evaluate how this played out.
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {outcomes.map((outcome) => (
-              <div key={outcome.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${OUTCOME_COLORS[outcome.outcomeRating]}`}>
-                    {OUTCOME_LABELS[outcome.outcomeRating]}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(outcome.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-800">{outcome.whatHappened}</p>
-                {outcome.lessonsLearned && (
-                  <div className="mt-3 border-t border-gray-100 pt-3">
-                    <p className="text-xs font-semibold text-gray-400 mb-1">Lessons learned</p>
-                    <p className="text-sm text-gray-700">{outcome.lessonsLearned}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        <OutcomeHistory
+          outcomes={outcomes}
+          title="Outcomes"
+          emptyMessage="No outcomes logged yet. Come back when you can evaluate how this played out."
+        />
         <div className="mt-3">
           <AddOutcomeForm
             decisionId={decision.id}
