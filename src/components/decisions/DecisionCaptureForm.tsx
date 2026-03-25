@@ -9,6 +9,7 @@ import { StepIndicator } from '@/components/ui/StepIndicator'
 import { TimeCapsuleConfirmation } from './TimeCapsuleConfirmation'
 import { CountdownTimer } from './CountdownTimer'
 import { AttachmentManager } from './AttachmentManager'
+import { StarterDecisionWizard } from './StarterDecisionWizard'
 import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
 
 const STEPS = ['Basics', 'Reasoning', 'Context', 'Confirm']
@@ -44,6 +45,16 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
 
   const set = (field: keyof FormState, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }))
+
+  const applyStarterPrompt = useCallback((seed: Partial<CreateDecisionInput>) => {
+    setForm((prev) => ({
+      ...prev,
+      ...seed,
+      customTags: prev.customTags?.length ? prev.customTags : (seed.customTags ?? []),
+    }))
+    setDraftStatus('idle')
+    setErrors({})
+  }, [])
 
   const hasDraftContent = useCallback(() => {
     return Object.values(form).some((value) => {
@@ -356,6 +367,10 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
       {/* Step 1 — Basics */}
       {step === 1 && (
         <div className="flex flex-col gap-5">
+          {!initialDraftId && !hasDraftContent() && (
+            <StarterDecisionWizard onChoose={applyStarterPrompt} />
+          )}
+
           <h2 className="text-lg font-semibold text-gray-900">What is the decision?</h2>
 
           <Input
