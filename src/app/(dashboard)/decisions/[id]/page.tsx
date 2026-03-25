@@ -63,6 +63,21 @@ export default async function DecisionDetailPage({ params }: Params) {
         <span className="text-gray-600 truncate max-w-xs">{record.title}</span>
       </nav>
 
+      <div className="flex flex-wrap gap-2">
+        <a
+          href={`/api/decisions/${record.id}/export?format=json`}
+          className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Export JSON
+        </a>
+        <a
+          href={`/api/decisions/${record.id}/export?format=markdown`}
+          className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          Export Markdown
+        </a>
+      </div>
+
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <DecisionDetail
           decision={record}
