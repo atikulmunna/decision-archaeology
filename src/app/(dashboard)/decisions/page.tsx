@@ -5,6 +5,7 @@ import { getDecisions, getDraftDecisions } from '@/lib/decisions'
 import { DecisionCard } from '@/components/decisions/DecisionCard'
 import { DraftDecisionCard } from '@/components/decisions/DraftDecisionCard'
 import { FilterBar } from '@/components/decisions/FilterBar'
+import { ExportImportPanel } from '@/components/decisions/ExportImportPanel'
 import Link from 'next/link'
 import type { DomainTag } from '@prisma/client'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
@@ -157,6 +158,8 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
       <Suspense fallback={null}>
         <FilterBar />
       </Suspense>
+
+      <ExportImportPanel canImport={dbUser.tier === 'POWER'} />
 
       {/* Decision list */}
       {records.length === 0 ? (
