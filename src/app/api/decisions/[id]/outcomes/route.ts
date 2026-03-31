@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { OUTCOME_LABELS } from '@/lib/decisions'
+import { OUTCOME_LABELS } from '@/lib/outcomes'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'

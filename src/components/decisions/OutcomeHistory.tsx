@@ -1,5 +1,5 @@
 import type { OutcomeUpdate } from '@prisma/client'
-import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
+import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/outcomes'
 
 type Props = {
   outcomes: OutcomeUpdate[]

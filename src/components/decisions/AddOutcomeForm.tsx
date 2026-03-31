@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
-import { OUTCOME_LABELS } from '@/lib/decisions'
+import { OUTCOME_LABELS } from '@/lib/outcomes'
 import type { OutcomeUpdate } from '@prisma/client'
 
 const RATING_OPTIONS = [

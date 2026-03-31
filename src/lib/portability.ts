@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { DecisionRecord, OutcomeUpdate, User, Tier } from '@prisma/client'
 import { CreateDecisionSchema, DomainTagEnum } from '@/lib/validations/decision'
-import { OUTCOME_LABELS } from '@/lib/decisions'
+import { OUTCOME_LABELS } from '@/lib/outcomes'
 
 export const EXPORT_SCHEMA_VERSION = '1.0.0'
 

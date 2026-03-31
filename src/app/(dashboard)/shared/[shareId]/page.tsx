@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { CommentThread } from '@/components/sharing/CommentThread'
 import { OutcomeHistory } from '@/components/decisions/OutcomeHistory'
-import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/decisions'
+import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/outcomes'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision — Decision Archaeology' }
