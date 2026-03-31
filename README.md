@@ -1,8 +1,18 @@
 # Decision Archaeology
 
+<p align="center">
+  <a href="https://decision-archaeology.vercel.app/">
+    <img src="https://img.shields.io/badge/Live%20App-Decision%20Archaeology-111827?style=for-the-badge&logo=vercel&logoColor=white" alt="Open Decision Archaeology on Vercel" />
+  </a>
+</p>
+
 Decision Archaeology is a structured personal decision intelligence platform for recording important decisions at the moment they are made, preserving the original reasoning, and revisiting outcomes over time. Instead of acting like a journal or to-do list, the app is designed as a time-locked archive of decision context: what you knew, what alternatives you considered, what you predicted, and why you chose one path over another.
 
 Over time, the system turns individual decisions into a searchable personal knowledge base. Users can review their own thinking patterns, compare predictions against reality, track calibration, collaborate selectively on shared decisions, and generate AI-assisted reports that highlight recurring biases and assumptions.
+
+## Product Preview
+
+![Decision Archaeology application preview](./assets/decision-arch.png)
 
 ## What The Project Does
 
