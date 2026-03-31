@@ -37,6 +37,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
   const [isLocked, setIsLocked] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'restored'>('idle')
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [activeDecisionId, setActiveDecisionId] = useState<string | undefined>(initialDraftId)
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
   const draftRef = useRef<string | null>(null)
@@ -220,11 +221,13 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
     if (step === 2 && !validateStep2()) return
     setStep((s) => (s + 1) as Step)
     setErrors({})
+    setSubmitError(null)
     void saveDraft()
   }
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true)
+    setSubmitError(null)
     try {
       const payload: CreateDecisionInput = {
         title: form.title!,
@@ -255,8 +258,9 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
           })
 
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
         console.error('Submit failed:', err)
+        setSubmitError(err.error ?? 'We could not save this decision. Please try again.')
         return
       }
 
@@ -266,6 +270,9 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
       window.localStorage.removeItem(DRAFT_STORAGE_KEY)
       setSavedRecord({ id: record.id, createdAt: record.createdAt })
       setStep(5)
+    } catch (error) {
+      console.error('Submit failed:', error)
+      setSubmitError('A network or server error interrupted the save. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -336,12 +343,19 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
       customTags: form.customTags ?? [],
     }
     return (
-      <TimeCapsuleConfirmation
-        data={complete}
-        onConfirm={handleSubmit}
-        onBack={() => setStep(3)}
-        loading={submitting}
-      />
+      <div className="flex flex-col gap-4">
+        {submitError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submitError}
+          </div>
+        )}
+        <TimeCapsuleConfirmation
+          data={complete}
+          onConfirm={handleSubmit}
+          onBack={() => setStep(3)}
+          loading={submitting}
+        />
+      </div>
     )
   }
 
