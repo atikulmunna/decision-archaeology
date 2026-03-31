@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { OUTCOME_LABELS, OUTCOME_COLORS } from '@/lib/decisions'
+import { OUTCOME_LABELS, OUTCOME_COLORS } from '@/lib/outcomes'
 import type { OutcomeRating } from '@prisma/client'
 
 describe('OUTCOME_LABELS', () => {
