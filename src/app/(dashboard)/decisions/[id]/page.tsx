@@ -28,21 +28,22 @@ export default async function DecisionDetailPage({ params }: Params) {
   const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return null
 
-  const record = await getDecision(dbUser.id, id)
+  const [record, shares] = await Promise.all([
+    getDecision(dbUser.id, id),
+    prisma.collaboratorShare.findMany({
+      where: { decisionId: id, ownerId: dbUser.id, isActive: true },
+      include: {
+        collaborator: {
+          select: { id: true, email: true, displayName: true, avatarUrl: true },
+        },
+        comments: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { sharedAt: 'asc' },
+    }),
+  ])
   if (!record) notFound()
-
-  const shares = await prisma.collaboratorShare.findMany({
-    where: { decisionId: id, ownerId: dbUser.id, isActive: true },
-    include: {
-      collaborator: {
-        select: { id: true, email: true, displayName: true, avatarUrl: true },
-      },
-      comments: {
-        orderBy: { createdAt: 'asc' },
-      },
-    },
-    orderBy: { sharedAt: 'asc' },
-  })
 
   const authorIds = [...new Set(shares.flatMap((share) => share.comments.map((comment) => comment.authorId)))]
   const authors = authorIds.length > 0
@@ -57,7 +58,7 @@ export default async function DecisionDetailPage({ params }: Params) {
     <div className="flex flex-col gap-4">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-gray-400">
-        <Link href="/decisions" className="hover:text-indigo-600 transition-colors">
+        <Link prefetch href="/decisions" className="hover:text-indigo-600 transition-colors">
           ← Decisions
         </Link>
         <span>/</span>
