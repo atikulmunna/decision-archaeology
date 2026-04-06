@@ -1,4 +1,5 @@
-import type { User } from '@prisma/client'
+import { cache } from 'react'
+import { Prisma, type User } from '@prisma/client'
 import { clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 
@@ -13,7 +14,7 @@ function getPrimaryEmail(clerkUser: {
   )
 }
 
-export async function getOrCreateDbUser(clerkUserId: string): Promise<User | null> {
+export const getOrCreateDbUser = cache(async (clerkUserId: string): Promise<User | null> => {
   const existing = await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
   if (existing) return existing
 
@@ -27,22 +28,30 @@ export async function getOrCreateDbUser(clerkUserId: string): Promise<User | nul
       return null
     }
 
-    return await prisma.user.upsert({
-      where: { clerkId: clerkUserId },
-      create: {
-        clerkId: clerkUserId,
-        email,
-        displayName: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null,
-        avatarUrl: clerkUser.imageUrl ?? null,
-      },
-      update: {
-        email,
-        displayName: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null,
-        avatarUrl: clerkUser.imageUrl ?? null,
-      },
-    })
+    try {
+      return await prisma.user.upsert({
+        where: { clerkId: clerkUserId },
+        create: {
+          clerkId: clerkUserId,
+          email,
+          displayName: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null,
+          avatarUrl: clerkUser.imageUrl ?? null,
+        },
+        update: {
+          email,
+          displayName: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null,
+          avatarUrl: clerkUser.imageUrl ?? null,
+        },
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
+      }
+
+      throw error
+    }
   } catch (error) {
     console.error('[auth] Failed to backfill app user from Clerk:', error)
     return null
   }
-}
+})
