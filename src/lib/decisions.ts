@@ -107,45 +107,109 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
 
   const whereClause = Prisma.join(conditions, ' AND ')
 
-  const [records, total] = await Promise.all([
-    prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-      SELECT id
-      FROM decision_records
-      WHERE ${whereClause}
-      ORDER BY
-        ${sanitizedQuery
-          ? Prisma.sql`ts_rank(
-              to_tsvector('english', ${searchDocument}),
-              to_tsquery('english', ${sanitizedQuery})
-            ) DESC,`
-          : Prisma.empty}
-        created_at DESC
-      LIMIT ${limit} OFFSET ${skip}
-    `),
-    prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
-      SELECT COUNT(*) as count
-      FROM decision_records
-      WHERE ${whereClause}
-    `),
-  ])
+  try {
+    const [records, total] = await Promise.all([
+      prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT id
+        FROM decision_records
+        WHERE ${whereClause}
+        ORDER BY
+          ${sanitizedQuery
+            ? Prisma.sql`ts_rank(
+                to_tsvector('english', ${searchDocument}),
+                to_tsquery('english', ${sanitizedQuery})
+              ) DESC,`
+            : Prisma.empty}
+          created_at DESC
+        LIMIT ${limit} OFFSET ${skip}
+      `),
+      prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(*) as count
+        FROM decision_records
+        WHERE ${whereClause}
+      `),
+    ])
 
-  const ids = records.map((record) => record.id)
-  if (ids.length === 0) {
-    return { records: [], total: Number(total[0]?.count ?? 0), page, limit }
-  }
+    const ids = records.map((record) => record.id)
+    if (ids.length === 0) {
+      return { records: [], total: Number(total[0]?.count ?? 0), page, limit }
+    }
 
-  const fullRecords = await prisma.decisionRecord.findMany({
-    where: { id: { in: ids } },
-    include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
-  })
+    const fullRecords = await prisma.decisionRecord.findMany({
+      where: { id: { in: ids } },
+      include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    })
 
-  const sorted = ids.map((id) => fullRecords.find((record) => record.id === id)!).filter(Boolean)
+    const sorted = ids.map((id) => fullRecords.find((record) => record.id === id)!).filter(Boolean)
 
-  return {
-    records: sorted.map((record) => normalizeDecisionLockState(record)),
-    total: Number(total[0]?.count ?? 0),
-    page,
-    limit,
+    return {
+      records: sorted.map((record) => normalizeDecisionLockState(record)),
+      total: Number(total[0]?.count ?? 0),
+      page,
+      limit,
+    }
+  } catch (error) {
+    console.error('[decisions] Advanced archive query failed, falling back to Prisma query:', error)
+
+    const fallbackWhere: Prisma.DecisionRecordWhereInput = {
+      userId,
+      isDraft: false,
+      domainTag: domain,
+      createdAt: {
+        gte: dateFrom ? new Date(dateFrom) : undefined,
+        lte: dateTo ? new Date(dateTo) : undefined,
+      },
+      confidenceLevel: {
+        gte: typeof minConfidence === 'number' ? minConfidence : undefined,
+        lte: typeof maxConfidence === 'number' ? maxConfidence : undefined,
+      },
+      customTags: tag?.trim() ? { has: tag.trim() } : undefined,
+      OR: q?.trim()
+        ? [
+            { title: { contains: q.trim(), mode: 'insensitive' } },
+            { summary: { contains: q.trim(), mode: 'insensitive' } },
+            { context: { contains: q.trim(), mode: 'insensitive' } },
+            { alternatives: { contains: q.trim(), mode: 'insensitive' } },
+            { chosenOption: { contains: q.trim(), mode: 'insensitive' } },
+            { reasoning: { contains: q.trim(), mode: 'insensitive' } },
+            { values: { contains: q.trim(), mode: 'insensitive' } },
+            { uncertainties: { contains: q.trim(), mode: 'insensitive' } },
+            { predictedOutcome: { contains: q.trim(), mode: 'insensitive' } },
+            { supplementaryNotes: { contains: q.trim(), mode: 'insensitive' } },
+          ]
+        : undefined,
+    }
+
+    const [records, total] = await Promise.all([
+      prisma.decisionRecord.findMany({
+        where: fallbackWhere,
+        include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.decisionRecord.count({ where: fallbackWhere }),
+    ])
+
+    const filtered = records.filter((record) => {
+      const latestOutcome = record.outcomes[0]?.outcomeRating
+
+      if (outcome === 'pending') return !latestOutcome
+      if (outcome === 'has') return Boolean(latestOutcome)
+      if (outcome === 'positive') return latestOutcome === 'MUCH_BETTER' || latestOutcome === 'SLIGHTLY_BETTER'
+      if (outcome === 'negative') return latestOutcome === 'SLIGHTLY_WORSE' || latestOutcome === 'MUCH_WORSE'
+      if (outcome === 'expected') return latestOutcome === 'AS_EXPECTED'
+      if (outcome === 'too_early') return latestOutcome === 'TOO_EARLY_TO_TELL'
+
+      return true
+    })
+
+    return {
+      records: filtered.map((record) => normalizeDecisionLockState(record)),
+      total,
+      page,
+      limit,
+    }
   }
 }
 
