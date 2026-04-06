@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { GenerateReportButton } from '@/components/ai/GenerateReportButton'
+import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Bias Reports — Decision Archaeology' }
@@ -10,7 +11,7 @@ export default async function ReportsPage() {
   const { userId } = await auth()
   if (!userId) return null
 
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return null
 
   const reports = await prisma.biasReport.findMany({

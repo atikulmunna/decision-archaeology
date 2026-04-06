@@ -8,6 +8,7 @@ import {
   UpdateNotesSchema,
   UpdateDraftSchema,
 } from '@/lib/validations/decision'
+import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   const record = await prisma.decisionRecord.findFirst({
@@ -37,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   const record = await prisma.decisionRecord.findFirst({ where: { id, userId: dbUser.id } })
@@ -149,7 +150,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
   const record = await prisma.decisionRecord.findFirst({ where: { id, userId: dbUser.id } })

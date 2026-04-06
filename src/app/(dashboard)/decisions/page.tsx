@@ -9,6 +9,7 @@ import { ExportImportPanel } from '@/components/decisions/ExportImportPanel'
 import Link from 'next/link'
 import type { DomainTag } from '@prisma/client'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
+import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +32,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
   const { userId } = await auth()
   if (!userId) return null
 
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return null
 
   const params = await searchParams

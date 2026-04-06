@@ -3,11 +3,12 @@ import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { BIAS_REPORT_THRESHOLD } from '@/lib/onboarding'
+import { getOrCreateDbUser } from '@/lib/db-user'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
   const dbUser = userId
-    ? await prisma.user.findUnique({ where: { clerkId: userId } })
+    ? await getOrCreateDbUser(userId)
     : null
   const decisionCount = dbUser
     ? await prisma.decisionRecord.count({ where: { userId: dbUser.id, isDraft: false } })

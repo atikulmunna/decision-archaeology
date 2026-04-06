@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getDecision } from '@/lib/decisions'
 import { DecisionDetail } from '@/components/decisions/DecisionDetail'
 import Link from 'next/link'
+import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: Params) {
   const { id } = await params
   const { userId } = await auth()
   if (!userId) return {}
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return {}
   const record = await getDecision(dbUser.id, id)
   return { title: record ? `${record.title} — Decision Archaeology` : 'Decision Not Found' }
@@ -24,7 +25,7 @@ export default async function DecisionDetailPage({ params }: Params) {
   const { userId } = await auth()
   if (!userId) return null
 
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return null
 
   const record = await getDecision(dbUser.id, id)

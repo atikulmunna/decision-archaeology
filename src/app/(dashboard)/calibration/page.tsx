@@ -6,6 +6,7 @@ import {
   getClosedPredictedDecisions,
 } from '@/lib/calibration'
 import { CalibrationWidget } from '@/components/calibration/CalibrationWidget'
+import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,7 @@ export default async function CalibrationPage() {
   const { userId } = await auth()
   if (!userId) return null
 
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } })
+  const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return null
 
   const records = await prisma.decisionRecord.findMany({
