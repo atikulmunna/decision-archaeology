@@ -42,23 +42,39 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
   const page = Math.max(1, parseInt(pageStr ?? '1'))
   const minConfidence = minConfidenceStr ? Math.max(1, Math.min(10, parseInt(minConfidenceStr))) : undefined
 
-  const [{ records, total }, drafts, allCount] = await Promise.all([
-    getDecisions(dbUser.id, {
-      q,
-      domain: domain as DomainTag | undefined,
-      outcome: outcome as 'pending' | 'has' | 'positive' | 'negative' | 'expected' | 'too_early' | undefined,
-      dateFrom,
-      dateTo,
-      minConfidence,
-      tag,
-      page,
-      limit: 20,
-    }),
-    getDraftDecisions(dbUser.id, 3),
-    prisma.decisionRecord.count({
-      where: { userId: dbUser.id, isDraft: false },
-    }),
-  ])
+  let records: Awaited<ReturnType<typeof getDecisions>>['records'] = []
+  let total = 0
+  let drafts: Awaited<ReturnType<typeof getDraftDecisions>> = []
+  let allCount = 0
+  let archiveError = false
+
+  try {
+    const result = await Promise.all([
+      getDecisions(dbUser.id, {
+        q,
+        domain: domain as DomainTag | undefined,
+        outcome: outcome as 'pending' | 'has' | 'positive' | 'negative' | 'expected' | 'too_early' | undefined,
+        dateFrom,
+        dateTo,
+        minConfidence,
+        tag,
+        page,
+        limit: 20,
+      }),
+      getDraftDecisions(dbUser.id, 3),
+      prisma.decisionRecord.count({
+        where: { userId: dbUser.id, isDraft: false },
+      }),
+    ])
+
+    records = result[0].records
+    total = result[0].total
+    drafts = result[1]
+    allCount = result[2]
+  } catch (error) {
+    archiveError = true
+    console.error('[decisions-page] Failed to load archive page:', error)
+  }
 
   const totalPages = Math.ceil(total / 20)
   const pageParams = new URLSearchParams()
@@ -130,6 +146,12 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
               {milestone.cta}
             </Link>
           </div>
+        </div>
+      )}
+
+      {archiveError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          The dashboard archive could not load completely right now. You can still create a new decision while we retry the archive data.
         </div>
       )}
 
