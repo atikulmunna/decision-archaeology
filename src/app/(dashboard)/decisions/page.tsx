@@ -32,26 +32,33 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
   const { userId } = await auth()
   if (!userId) return null
 
-  const dbUser = await getOrCreateDbUser(userId)
+  const [dbUser, params] = await Promise.all([
+    getOrCreateDbUser(userId),
+    searchParams,
+  ])
   if (!dbUser) return null
 
-  const params = await searchParams
   const { q, domain, outcome, dateFrom, dateTo, minConfidence: minConfidenceStr, tag, page: pageStr } = params
   const page = Math.max(1, parseInt(pageStr ?? '1'))
   const minConfidence = minConfidenceStr ? Math.max(1, Math.min(10, parseInt(minConfidenceStr))) : undefined
 
-  const { records, total } = await getDecisions(dbUser.id, {
-    q,
-    domain: domain as DomainTag | undefined,
-    outcome: outcome as 'pending' | 'has' | 'positive' | 'negative' | 'expected' | 'too_early' | undefined,
-    dateFrom,
-    dateTo,
-    minConfidence,
-    tag,
-    page,
-    limit: 20,
-  })
-  const drafts = await getDraftDecisions(dbUser.id, 3)
+  const [{ records, total }, drafts, allCount] = await Promise.all([
+    getDecisions(dbUser.id, {
+      q,
+      domain: domain as DomainTag | undefined,
+      outcome: outcome as 'pending' | 'has' | 'positive' | 'negative' | 'expected' | 'too_early' | undefined,
+      dateFrom,
+      dateTo,
+      minConfidence,
+      tag,
+      page,
+      limit: 20,
+    }),
+    getDraftDecisions(dbUser.id, 3),
+    prisma.decisionRecord.count({
+      where: { userId: dbUser.id, isDraft: false },
+    }),
+  ])
 
   const totalPages = Math.ceil(total / 20)
   const pageParams = new URLSearchParams()
@@ -72,9 +79,6 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
   }
 
   // Milestone progress toward first Bias Report
-  const allCount = await prisma.decisionRecord.count({
-    where: { userId: dbUser.id, isDraft: false },
-  })
   const progressPct = Math.min(100, Math.round((allCount / BIAS_REPORT_THRESHOLD) * 100))
   const milestone = getMilestoneMessage(allCount)
 

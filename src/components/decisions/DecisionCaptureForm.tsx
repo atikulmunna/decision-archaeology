@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { startTransition, useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -43,6 +43,10 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
   const draftRef = useRef<string | null>(null)
   const hydratedRef = useRef(false)
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    router.prefetch('/decisions')
+  }, [router])
 
   const set = (field: keyof FormState, value: unknown) =>
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -270,13 +274,14 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
       window.localStorage.removeItem(DRAFT_STORAGE_KEY)
       setSavedRecord({ id: record.id, createdAt: record.createdAt })
       setStep(5)
+      router.prefetch(`/decisions/${record.id}`)
     } catch (error) {
       console.error('Submit failed:', error)
       setSubmitError('A network or server error interrupted the save. Please try again.')
     } finally {
       setSubmitting(false)
     }
-  }, [form])
+  }, [form, router])
 
   const addTag = () => {
     const tag = tagInput.trim()
@@ -316,10 +321,10 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
         )}
 
         <div className="flex gap-3">
-          <Button variant="secondary" onClick={() => router.push('/decisions')}>
+          <Button variant="secondary" onClick={() => startTransition(() => router.push('/decisions'))}>
             View all decisions
           </Button>
-          <Button onClick={() => router.push(`/decisions/${savedRecord.id}`)}>
+          <Button onClick={() => startTransition(() => router.push(`/decisions/${savedRecord.id}`))}>
             Open this record →
           </Button>
         </div>
