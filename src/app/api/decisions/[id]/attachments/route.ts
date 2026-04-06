@@ -10,13 +10,14 @@ import {
   validateAttachment,
 } from '@/lib/attachments'
 import { deleteFile, getSignedDownloadUrl, uploadFile } from '@/lib/storage'
+import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string }> }
 
 async function getOwnedDecision(clerkUserId: string, decisionId: string) {
-  const dbUser = await prisma.user.findUnique({ where: { clerkId: clerkUserId } })
+  const dbUser = await getOrCreateDbUser(clerkUserId)
   if (!dbUser) return { error: NextResponse.json({ error: 'User not found' }, { status: 404 }) }
 
   const decision = await prisma.decisionRecord.findFirst({
