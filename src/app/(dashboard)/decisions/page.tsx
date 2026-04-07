@@ -10,6 +10,7 @@ import Link from 'next/link'
 import type { DomainTag } from '@prisma/client'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import { createTimer } from '@/lib/timing'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,6 +30,7 @@ type SearchParams = Promise<{
 }>
 
 export default async function DecisionsPage({ searchParams }: { searchParams: SearchParams }) {
+  const timer = createTimer('page.dashboard.decisions')
   const { userId } = await auth()
   if (!userId) return null
 
@@ -97,6 +99,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
   // Milestone progress toward first Bias Report
   const progressPct = Math.min(100, Math.round((allCount / BIAS_REPORT_THRESHOLD) * 100))
   const milestone = getMilestoneMessage(allCount)
+  timer.end({ total, draftCount: drafts.length, archiveError })
 
   return (
     <div className="flex flex-col gap-6">
