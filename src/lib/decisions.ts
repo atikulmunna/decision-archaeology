@@ -41,41 +41,41 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
   const skip = (page - 1) * limit
 
   const conditions: Prisma.Sql[] = [
-    Prisma.sql`user_id = ${userId}`,
-    Prisma.sql`is_draft = false`,
+    Prisma.sql`"userId" = ${userId}`,
+    Prisma.sql`"isDraft" = false`,
   ]
 
-  if (domain) conditions.push(Prisma.sql`domain_tag = ${domain}`)
-  if (dateFrom) conditions.push(Prisma.sql`created_at >= ${new Date(dateFrom)}`)
-  if (dateTo) conditions.push(Prisma.sql`created_at <= ${new Date(dateTo)}`)
+  if (domain) conditions.push(Prisma.sql`"domainTag" = ${domain}`)
+  if (dateFrom) conditions.push(Prisma.sql`"createdAt" >= ${new Date(dateFrom)}`)
+  if (dateTo) conditions.push(Prisma.sql`"createdAt" <= ${new Date(dateTo)}`)
   if (typeof minConfidence === 'number') {
-    conditions.push(Prisma.sql`confidence_level >= ${minConfidence}`)
+    conditions.push(Prisma.sql`"confidenceLevel" >= ${minConfidence}`)
   }
   if (typeof maxConfidence === 'number') {
-    conditions.push(Prisma.sql`confidence_level <= ${maxConfidence}`)
+    conditions.push(Prisma.sql`"confidenceLevel" <= ${maxConfidence}`)
   }
   if (tag?.trim()) {
     conditions.push(
       Prisma.sql`EXISTS (
         SELECT 1
-        FROM unnest(custom_tags) AS tag_value
+        FROM unnest("customTags") AS tag_value
         WHERE LOWER(tag_value) = LOWER(${tag.trim()})
       )`
     )
   }
 
   const latestOutcomeSubquery = Prisma.sql`(
-    SELECT outcome_rating
+    SELECT "outcomeRating"
     FROM outcome_updates
-    WHERE decision_id = decision_records.id
-    ORDER BY created_at DESC
+    WHERE "decisionId" = decision_records.id
+    ORDER BY "createdAt" DESC
     LIMIT 1
   )`
 
   if (outcome === 'pending') {
-    conditions.push(Prisma.sql`NOT EXISTS (SELECT 1 FROM outcome_updates WHERE decision_id = decision_records.id)`)
+    conditions.push(Prisma.sql`NOT EXISTS (SELECT 1 FROM outcome_updates WHERE "decisionId" = decision_records.id)`)
   } else if (outcome === 'has') {
-    conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM outcome_updates WHERE decision_id = decision_records.id)`)
+    conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM outcome_updates WHERE "decisionId" = decision_records.id)`)
   } else if (outcome === 'positive') {
     conditions.push(Prisma.sql`${latestOutcomeSubquery} IN ('MUCH_BETTER', 'SLIGHTLY_BETTER')`)
   } else if (outcome === 'negative') {
@@ -91,13 +91,13 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
     coalesce(summary, '') || ' ' ||
     coalesce(context, '') || ' ' ||
     coalesce(alternatives, '') || ' ' ||
-    coalesce(chosen_option, '') || ' ' ||
+    coalesce("chosenOption", '') || ' ' ||
     coalesce(reasoning, '') || ' ' ||
     coalesce(values, '') || ' ' ||
     coalesce(uncertainties, '') || ' ' ||
-    coalesce(predicted_outcome, '') || ' ' ||
-    coalesce(supplementary_notes, '') || ' ' ||
-    coalesce(array_to_string(custom_tags, ' '), '')
+    coalesce("predictedOutcome", '') || ' ' ||
+    coalesce("supplementaryNotes", '') || ' ' ||
+    coalesce(array_to_string("customTags", ' '), '')
   `
 
   const sanitizedQuery = q
@@ -128,7 +128,7 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
                 to_tsquery('english', ${sanitizedQuery})
               ) DESC,`
             : Prisma.empty}
-          created_at DESC
+          "createdAt" DESC
         LIMIT ${limit} OFFSET ${skip}
       `),
       prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
