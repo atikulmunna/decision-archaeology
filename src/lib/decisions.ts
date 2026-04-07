@@ -39,6 +39,45 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
     limit = 20,
   } = filters
   const skip = (page - 1) * limit
+  const hasSearch = Boolean(q?.trim())
+  const hasAdvancedFilters = Boolean(
+    domain
+    || dateFrom
+    || dateTo
+    || outcome
+    || typeof minConfidence === 'number'
+    || typeof maxConfidence === 'number'
+    || tag?.trim()
+  )
+
+  if (!hasSearch && !hasAdvancedFilters) {
+    const [records, total] = await Promise.all([
+      prisma.decisionRecord.findMany({
+        where: { userId, isDraft: false },
+        include: { outcomes: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.decisionRecord.count({
+        where: { userId, isDraft: false },
+      }),
+    ])
+
+    timer.end({
+      usedSearch: false,
+      usedTagFilter: false,
+      outcome: null,
+      strategy: 'prisma-default',
+    })
+
+    return {
+      records: records.map((record) => normalizeDecisionLockState(record)),
+      total,
+      page,
+      limit,
+    }
+  }
 
   const conditions: Prisma.Sql[] = [
     Prisma.sql`"userId" = ${userId}`,
@@ -224,9 +263,10 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
     }
   } finally {
     timer.end({
-      usedSearch: Boolean(sanitizedQuery),
+      usedSearch: hasSearch,
       usedTagFilter: Boolean(tag?.trim()),
       outcome: outcome ?? null,
+      strategy: 'raw-or-fallback',
     })
   }
 }
