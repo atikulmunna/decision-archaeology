@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 import { BIAS_REPORT_THRESHOLD } from '@/lib/onboarding'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import { createTimer } from '@/lib/timing'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const timer = createTimer('page.dashboard.layout')
   const { userId } = await auth()
   const dbUser = userId
     ? await getOrCreateDbUser(userId)
@@ -15,6 +17,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     : 0
   const remaining = Math.max(BIAS_REPORT_THRESHOLD - decisionCount, 0)
   const progressPct = Math.min(100, Math.round((decisionCount / BIAS_REPORT_THRESHOLD) * 100))
+  timer.end({ hasUser: Boolean(dbUser), decisionCount })
 
   return (
     <div className="min-h-screen bg-gray-50">

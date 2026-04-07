@@ -3,6 +3,7 @@ import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { normalizeDecisionLockState } from '@/lib/locks'
 import { DomainTag, Prisma } from '@prisma/client'
+import { createTimer } from '@/lib/timing'
 
 export type DecisionFilters = {
   q?: string
@@ -18,6 +19,12 @@ export type DecisionFilters = {
 }
 
 export async function getDecisions(userId: string, filters: DecisionFilters = {}) {
+  const timer = createTimer('data.getDecisions', {
+    userId,
+    hasQuery: Boolean(filters.q?.trim()),
+    page: filters.page ?? 1,
+    limit: filters.limit ?? 20,
+  })
   const {
     q,
     domain,
@@ -210,6 +217,12 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
       page,
       limit,
     }
+  } finally {
+    timer.end({
+      usedSearch: Boolean(sanitizedQuery),
+      usedTagFilter: Boolean(tag?.trim()),
+      outcome: outcome ?? null,
+    })
   }
 }
 
