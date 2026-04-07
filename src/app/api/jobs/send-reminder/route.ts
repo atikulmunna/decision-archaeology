@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Receiver } from '@upstash/qstash'
+import { logError } from '@/lib/observability'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,7 @@ async function handleReminder(reminderId: string, decisionId: string) {
         `,
       })
     } catch (err) {
-      console.error('[Resend] Email send failed:', err)
+      await logError('[Resend] Email send failed', err, { reminderId, decisionId })
     }
   }
 

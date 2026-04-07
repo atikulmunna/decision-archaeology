@@ -3,6 +3,7 @@ import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { normalizeDecisionLockState } from '@/lib/locks'
 import { DomainTag, Prisma } from '@prisma/client'
+import { logError } from '@/lib/observability'
 import { createTimer } from '@/lib/timing'
 
 export type DecisionFilters = {
@@ -156,7 +157,11 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
       limit,
     }
   } catch (error) {
-    console.error('[decisions] Advanced archive query failed, falling back to Prisma query:', error)
+    await logError('[decisions] Advanced archive query failed, falling back to Prisma query', error, {
+      userId,
+      hasQuery: Boolean(q?.trim()),
+      page,
+    })
 
     const fallbackWhere: Prisma.DecisionRecordWhereInput = {
       userId,

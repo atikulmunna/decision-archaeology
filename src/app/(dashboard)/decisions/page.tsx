@@ -10,6 +10,7 @@ import Link from 'next/link'
 import type { DomainTag } from '@prisma/client'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import { logError } from '@/lib/observability'
 import { createTimer } from '@/lib/timing'
 
 export const dynamic = 'force-dynamic'
@@ -75,7 +76,11 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
     allCount = result[2]
   } catch (error) {
     archiveError = true
-    console.error('[decisions-page] Failed to load archive page:', error)
+    await logError('[decisions-page] Failed to load archive page', error, {
+      userId,
+      page,
+      query: q ?? null,
+    })
   }
 
   const totalPages = Math.ceil(total / 20)

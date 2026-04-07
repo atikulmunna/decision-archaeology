@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { runBiasAnalysisPipeline } from '@/lib/ai-pipeline'
 import { Receiver } from '@upstash/qstash'
+import { logError } from '@/lib/observability'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,7 +74,7 @@ async function runJob(reportId: string, userId: string) {
 
     return NextResponse.json({ success: true, reportId })
   } catch (err) {
-    console.error('[generate-report] Pipeline failed:', err)
+    await logError('[generate-report] Pipeline failed', err, { reportId, userId })
     await prisma.biasReport.update({
       where: { id: reportId },
       data: {
