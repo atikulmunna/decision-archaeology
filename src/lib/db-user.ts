@@ -2,6 +2,7 @@ import { cache } from 'react'
 import { Prisma, type User } from '@prisma/client'
 import { clerkClient } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { logError } from '@/lib/observability'
 import { createTimer } from '@/lib/timing'
 
 function getPrimaryEmail(clerkUser: {
@@ -29,7 +30,7 @@ export const getOrCreateDbUser = cache(async (clerkUserId: string): Promise<User
     const email = getPrimaryEmail(clerkUser)
 
     if (!email) {
-      console.error('[auth] Clerk user is missing an email address:', clerkUserId)
+      await logError('[auth] Clerk user is missing an email address', new Error('Missing primary email'), { clerkUserId })
       timer.end({ source: 'clerk', outcome: 'missing_email' })
       return null
     }
@@ -61,7 +62,7 @@ export const getOrCreateDbUser = cache(async (clerkUserId: string): Promise<User
       throw error
     }
   } catch (error) {
-    console.error('[auth] Failed to backfill app user from Clerk:', error)
+    await logError('[auth] Failed to backfill app user from Clerk', error, { clerkUserId })
     timer.end({ outcome: 'failed' })
     return null
   }
