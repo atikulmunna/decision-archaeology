@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { AddOutcomeForm } from './AddOutcomeForm'
 import { AttachmentManager } from './AttachmentManager'
 import { OutcomeHistory } from './OutcomeHistory'
+import { SupplementaryNotesEditor } from './SupplementaryNotesEditor'
 import { SharePanel } from '@/components/sharing/SharePanel'
 import { CommentThread } from '@/components/sharing/CommentThread'
 
@@ -82,9 +83,6 @@ export function DecisionDetail({
   decision: Decision
   collaboration: CollaborationData
 }) {
-  const [notes, setNotes] = useState(decision.supplementaryNotes ?? '')
-  const [savingNotes, setSavingNotes] = useState(false)
-  const [notesSaved, setNotesSaved] = useState(false)
   const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
   const [corrections, setCorrections] = useState<CorrectionRequest[]>(decision.corrections)
   const [activeCorrectionField, setActiveCorrectionField] = useState<CorrectionField | null>(null)
@@ -107,21 +105,6 @@ export function DecisionDetail({
   const approvedCorrections = Object.fromEntries(
     LOCKED_FIELDS.map(({ key }) => [key, getLatestApprovedCorrection(corrections, key)])
   ) as Record<CorrectionField, CorrectionRequest | null>
-
-  async function saveNotes() {
-    setSavingNotes(true)
-    try {
-      await fetch(`/api/decisions/${decision.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supplementaryNotes: notes }),
-      })
-      setNotesSaved(true)
-      setTimeout(() => setNotesSaved(false), 2000)
-    } finally {
-      setSavingNotes(false)
-    }
-  }
 
   function beginCorrection(field: CorrectionField) {
     const originalValue = String(decision[field] ?? '')
@@ -486,32 +469,7 @@ export function DecisionDetail({
         </div>
       </section>
 
-      {/* Supplementary Notes */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Supplementary Notes <span className="text-gray-300">(always editable)</span>
-        </h2>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add context, reflections, or updates that you want to preserve alongside the original record..."
-            className="min-h-[120px] border-0 p-0 focus:ring-0 resize-none"
-          />
-          <div className="mt-3 flex justify-end">
-            <Button
-              size="sm"
-              variant={notesSaved ? 'secondary' : 'primary'}
-              onClick={saveNotes}
-              loading={savingNotes}
-              disabled={notes === (decision.supplementaryNotes ?? '')}
-            >
-              {notesSaved ? '✓ Saved' : 'Save notes'}
-            </Button>
-          </div>
-        </div>
-      </section>
+      <SupplementaryNotesEditor decisionId={decision.id} initialNotes={decision.supplementaryNotes} />
 
       {/* Collaboration */}
       <section className="flex flex-col gap-4">
