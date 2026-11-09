@@ -3,7 +3,10 @@
 import { startTransition, useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { ArrowLeft, ArrowRight, X } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
+import { Callout } from '@/components/ui/Callout'
+import { Input, fieldClasses } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StepIndicator } from '@/components/ui/StepIndicator'
 import { TimeCapsuleConfirmation } from './TimeCapsuleConfirmation'
@@ -27,7 +30,13 @@ function fieldError(value: string | undefined, label: string) {
   return undefined
 }
 
-export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: string }) {
+export function DecisionCaptureForm({
+  initialDraftId,
+  upcomingCatalogNumber,
+}: {
+  initialDraftId?: string
+  upcomingCatalogNumber: number
+}) {
   const router = useRouter()
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<FormState>({ customTags: [] })
@@ -298,15 +307,9 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
   if (step === 5 && savedRecord) {
     return (
       <div className="flex flex-col gap-6">
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">✅</span>
-            <div>
-              <p className="font-semibold text-green-900">Decision recorded!</p>
-              <p className="text-sm text-green-700">&quot;{form.title}&quot;</p>
-            </div>
-          </div>
-        </div>
+        <Callout tone="success" title="Decision recorded">
+          <span className="break-words font-display text-lg">{form.title}</span>
+        </Callout>
 
         {!isLocked ? (
           <CountdownTimer
@@ -315,17 +318,16 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
             onLocked={() => setIsLocked(true)}
           />
         ) : (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-            🔒 Core fields are now permanently locked.
-          </div>
+          <Callout title="Core fields are now sealed.">Supplementary notes and outcomes can still be added.</Callout>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="secondary" onClick={() => startTransition(() => router.push('/decisions'))}>
-            View all decisions
+            View the archive
           </Button>
           <Button onClick={() => startTransition(() => router.push(`/decisions/${savedRecord.id}`))}>
-            Open this record →
+            Open this record
+            <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
           </Button>
         </div>
       </div>
@@ -350,38 +352,39 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
     return (
       <div className="flex flex-col gap-4">
         {submitError && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <Callout tone="danger" title="Could not seal this decision">
             {submitError}
-          </div>
+          </Callout>
         )}
         <TimeCapsuleConfirmation
           data={complete}
           onConfirm={handleSubmit}
           onBack={() => setStep(3)}
           loading={submitting}
+          upcomingCatalogNumber={upcomingCatalogNumber}
         />
       </div>
     )
   }
 
+  const promptClass = 'font-display text-[26px] leading-tight text-ink'
+
   return (
     <div className="flex flex-col gap-8">
-      {(draftStatus === 'restored' || draftStatus === 'saving' || draftStatus === 'saved' || draftStatus === 'error') && (
-        <div
-          className={`rounded-xl border px-4 py-3 text-sm ${
-            draftStatus === 'error'
-              ? 'border-red-200 bg-red-50 text-red-700'
-              : 'border-indigo-100 bg-indigo-50 text-indigo-700'
-          }`}
-        >
-          {draftStatus === 'restored' && 'Draft restored from your last session.'}
-          {draftStatus === 'saving' && 'Saving draft…'}
-          {draftStatus === 'saved' && 'Draft saved.'}
-          {draftStatus === 'error' && 'Draft save failed. Your local edits are still in the form.'}
-        </div>
-      )}
-
-      <StepIndicator steps={STEPS.slice(0, 3)} currentStep={step} />
+      <div className="flex flex-col gap-3">
+        <StepIndicator steps={STEPS.slice(0, 3)} currentStep={step} />
+        {draftStatus === 'error' ? (
+          <Callout tone="danger">Draft save failed. Your edits are still in the form.</Callout>
+        ) : (
+          (draftStatus === 'restored' || draftStatus === 'saving' || draftStatus === 'saved') && (
+            <p role="status" className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+              {draftStatus === 'restored' && 'Draft restored from your last session'}
+              {draftStatus === 'saving' && 'Saving draft...'}
+              {draftStatus === 'saved' && 'Draft saved'}
+            </p>
+          )
+        )}
+      </div>
 
       {/* Step 1: Basics */}
       {step === 1 && (
@@ -390,7 +393,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
             <StarterDecisionWizard onChoose={applyStarterPrompt} />
           )}
 
-          <h2 className="text-lg font-semibold text-gray-900">What is the decision?</h2>
+          <h2 className={promptClass}>What is the decision?</h2>
 
           <Input
             id="title"
@@ -431,7 +434,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
       {/* Step 2: Reasoning */}
       {step === 2 && (
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-semibold text-gray-900">What is your reasoning?</h2>
+          <h2 className={promptClass}>What is your reasoning?</h2>
 
           <Textarea
             id="alternatives"
@@ -474,9 +477,12 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
       {/* Step 3: Optional context */}
       {step === 3 && (
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Optional context <span className="text-sm font-normal text-gray-400">(skip if not applicable)</span>
-          </h2>
+          <div>
+            <h2 className={promptClass}>What else should future you know?</h2>
+            <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+              Optional · skip what does not apply
+            </p>
+          </div>
 
           <Textarea
             id="values"
@@ -502,14 +508,11 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
             onChange={(e) => set('predictedOutcome', e.target.value)}
           />
 
-          <AttachmentManager
-            decisionId={activeDecisionId}
-            onRequireDecisionId={ensureDraftDecision}
-          />
+          <AttachmentManager decisionId={activeDecisionId} onRequireDecisionId={ensureDraftDecision} />
 
-          <div className="flex gap-4">
-            <div className="flex flex-col gap-1 flex-1">
-              <label htmlFor="confidence" className="text-sm font-medium text-gray-700">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="flex flex-1 flex-col gap-1">
+              <label htmlFor="confidence" className="text-sm font-medium text-ink-2">
                 Confidence Level
               </label>
               <div className="flex items-center gap-3">
@@ -520,25 +523,29 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
                   max={10}
                   value={form.confidenceLevel ?? 5}
                   onChange={(e) => set('confidenceLevel', parseInt(e.target.value))}
-                  className="flex-1 accent-indigo-600"
+                  className="flex-1 accent-ink"
                 />
-                <span className="w-8 text-center text-sm font-semibold text-indigo-600">
-                  {form.confidenceLevel ?? 5}
+                <span className="w-12 text-right font-mono text-sm tabular-nums text-ink">
+                  {form.confidenceLevel ?? 5}/10
                 </span>
               </div>
             </div>
 
-            <div className="flex flex-col gap-1 flex-1">
-              <label htmlFor="domain" className="text-sm font-medium text-gray-700">Domain</label>
+            <div className="flex flex-1 flex-col gap-1">
+              <label htmlFor="domain" className="text-sm font-medium text-ink-2">
+                Domain
+              </label>
               <select
                 id="domain"
                 value={form.domainTag ?? ''}
                 onChange={(e) => set('domainTag', e.target.value || null)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className={fieldClasses()}
               >
                 <option value="">Select domain...</option>
                 {DOMAIN_OPTIONS.map((d) => (
-                  <option key={d} value={d}>{d.charAt(0) + d.slice(1).toLowerCase()}</option>
+                  <option key={d} value={d}>
+                    {d.charAt(0) + d.slice(1).toLowerCase()}
+                  </option>
                 ))}
               </select>
             </div>
@@ -546,15 +553,18 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
 
           {/* Custom tags */}
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-gray-700">Custom Tags (max 5)</label>
+            <label htmlFor="tag-input" className="text-sm font-medium text-ink-2">
+              Custom Tags (max 5)
+            </label>
             <div className="flex gap-2">
               <input
+                id="tag-input"
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                 placeholder="Add a tag..."
-                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className={`${fieldClasses()} flex-1`}
               />
               <Button variant="secondary" size="sm" onClick={addTag} disabled={(form.customTags?.length ?? 0) >= 5}>
                 Add
@@ -563,10 +573,17 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
             {(form.customTags?.length ?? 0) > 0 && (
               <div className="flex flex-wrap gap-2">
                 {form.customTags?.map((tag) => (
-                  <span key={tag} className="flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-700">
-                    {tag}
-                    <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:text-indigo-900">×</button>
-                  </span>
+                  <Badge key={tag}>
+                    #{tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      aria-label={`Remove tag ${tag}`}
+                      className="ml-0.5 text-muted hover:text-ink"
+                    >
+                      <X aria-hidden="true" size={12} strokeWidth={1.5} />
+                    </button>
+                  </Badge>
                 ))}
               </div>
             )}
@@ -575,16 +592,18 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
       )}
 
       {/* Navigation */}
-      <div className="flex justify-between border-t border-gray-100 pt-4">
+      <div className="flex justify-between border-t border-rule pt-4">
         {step > 1 ? (
           <Button variant="ghost" onClick={() => setStep((s) => (s - 1) as Step)}>
-            ← Back
+            <ArrowLeft aria-hidden="true" size={14} strokeWidth={1.5} />
+            Back
           </Button>
         ) : (
           <div />
         )}
         <Button onClick={nextStep}>
-          {step === 3 ? 'Review & Lock →' : 'Next →'}
+          {step === 3 ? 'Review and seal' : 'Next'}
+          <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
         </Button>
       </div>
     </div>

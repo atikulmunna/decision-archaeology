@@ -1,6 +1,12 @@
 'use client'
 
+import { ArrowLeft, Lock } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Callout } from '@/components/ui/Callout'
+import { Card } from '@/components/ui/Card'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { formatCatalogNumber } from '@/lib/catalog'
 import type { CreateDecisionInput } from '@/lib/validations/decision'
 
 interface TimeCapsuleConfirmationProps {
@@ -8,6 +14,7 @@ interface TimeCapsuleConfirmationProps {
   onConfirm: () => void
   onBack: () => void
   loading: boolean
+  upcomingCatalogNumber: number
 }
 
 const LOCKED_FIELDS: { key: keyof CreateDecisionInput; label: string }[] = [
@@ -18,57 +25,59 @@ const LOCKED_FIELDS: { key: keyof CreateDecisionInput; label: string }[] = [
   { key: 'reasoning', label: 'Reasoning' },
 ]
 
-export function TimeCapsuleConfirmation({ data, onConfirm, onBack, loading }: TimeCapsuleConfirmationProps) {
+export function TimeCapsuleConfirmation({
+  data,
+  onConfirm,
+  onBack,
+  loading,
+  upcomingCatalogNumber,
+}: TimeCapsuleConfirmationProps) {
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-        <div className="flex items-start gap-3">
-          <span className="text-3xl">🔒</span>
-          <div>
-            <h2 className="text-lg font-bold text-indigo-900">Time Capsule Confirmation</h2>
-            <p className="mt-1 text-sm text-indigo-700">
-              The following fields will be <strong>permanently locked</strong> after saving. You&apos;ll
-              have a 5-minute window to make corrections, then they&apos;re sealed forever.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Decision title */}
       <div>
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Decision</h3>
-        <p className="text-base font-semibold text-gray-900">{data.title}</p>
+        <Eyebrow>Time capsule</Eyebrow>
+        <h2 className="mt-2 font-display text-[28px] leading-tight text-ink">Read it once more before it is sealed.</h2>
+        <p className="mt-2 text-sm text-ink-2">
+          You get five minutes to fix mistakes after saving. Then these fields are locked for good.
+        </p>
       </div>
 
-      {/* Locked fields preview */}
-      <div className="flex flex-col gap-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Fields to be locked</h3>
-        {LOCKED_FIELDS.map(({ key, label }) => {
-          const value = data[key]
-          if (!value) return null
-          return (
-            <div key={key} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <p className="mb-1 text-xs font-semibold text-gray-500">{label}</p>
-              <p className="text-sm text-gray-800 line-clamp-3">{String(value)}</p>
-            </div>
-          )
-        })}
-      </div>
+      <Card as="article" className="p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule pb-3">
+          <p className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+            Will be sealed as {formatCatalogNumber(upcomingCatalogNumber)}
+          </p>
+          <Badge tone="signal">Sealing</Badge>
+        </div>
+        <h3 className="mt-4 break-words font-display text-[26px] leading-tight text-ink">{data.title}</h3>
+        <dl className="mt-4 flex flex-col gap-4">
+          {LOCKED_FIELDS.map(({ key, label }) => {
+            const value = data[key]
+            if (!value) return null
+            return (
+              <div key={key}>
+                <dt>
+                  <Eyebrow>{label}</Eyebrow>
+                </dt>
+                <dd className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink-2">{String(value)}</dd>
+              </div>
+            )
+          })}
+        </dl>
+      </Card>
 
-      {/* Warning */}
-      <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
-        ⚠️ After the 5-minute window, you will <strong>not</strong> be able to modify these fields.
-        Supplementary notes can always be added.
-      </div>
+      <Callout tone="warning" title="This cannot be undone">
+        After the edit window closes these fields stay as written. Supplementary notes and outcomes can always be added.
+      </Callout>
 
-      {/* Actions */}
-      <div className="flex justify-between gap-3">
+      <div className="flex flex-wrap justify-between gap-3">
         <Button variant="secondary" onClick={onBack} disabled={loading}>
-          ← Go back and edit
+          <ArrowLeft aria-hidden="true" size={14} strokeWidth={1.5} />
+          Go back and edit
         </Button>
         <Button onClick={onConfirm} loading={loading} size="lg">
-          🔒 Lock it in
+          {!loading && <Lock aria-hidden="true" size={14} strokeWidth={1.5} />}
+          Lock it in
         </Button>
       </div>
     </div>

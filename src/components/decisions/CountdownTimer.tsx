@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { Hourglass } from 'lucide-react'
 
 const LOCK_WINDOW_MS = 5 * 60 * 1000 // 5 minutes
 
@@ -49,24 +50,21 @@ export function CountdownTimer({ lockedAt, decisionId, onLocked }: CountdownTime
   const pct = (remaining / LOCK_WINDOW_MS) * 100
 
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">⏳</span>
-          <p className="text-sm font-semibold text-amber-800">Edit Window Open</p>
+    <div role="timer" aria-live="off" className="rounded-sm border border-ink bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-ink">
+          <Hourglass aria-hidden="true" size={16} strokeWidth={1.5} />
+          <p className="font-mono text-[11px] uppercase tracking-[0.09em]">Edit window open</p>
         </div>
-        <p className="text-xl font-mono font-bold text-amber-700">
+        <p className="font-mono text-2xl font-medium tabular-nums text-ink">
           {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
         </p>
       </div>
-      <div className="h-2 w-full rounded-full bg-amber-200">
-        <div
-          className="h-2 rounded-full bg-amber-500 transition-all duration-1000"
-          style={{ width: `${pct}%` }}
-        />
+      <div className="h-px w-full bg-rule">
+        <div className="h-px bg-ink transition-[width] duration-1000" style={{ width: `${pct}%` }} />
       </div>
-      <p className="mt-2 text-xs text-amber-700">
-        You can still edit the core fields. After this window, they will be permanently locked.
+      <p className="mt-3 text-xs text-muted">
+        You can still edit the core fields. When the timer reaches zero they are sealed.
       </p>
     </div>
   )
