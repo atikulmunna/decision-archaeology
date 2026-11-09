@@ -2,7 +2,7 @@ import type { DecisionRecord, OutcomeUpdate } from '@prisma/client'
 
 type DecisionWithOutcomes = DecisionRecord & { outcomes: OutcomeUpdate[] }
 
-// ── Pass 1 — Normalization ─────────────────────────────────────────────────
+// ── Pass 1: Normalization ─────────────────────────────────────────────────
 export function buildNormalizationPrompt(decisions: DecisionRecord[]): string {
   const texts = decisions
     .map(
@@ -17,9 +17,9 @@ DECISIONS:
 ${texts}`
 }
 
-// ── Pass 2 — Assumption Extraction ─────────────────────────────────────────
+// ── Pass 2: Assumption Extraction ─────────────────────────────────────────
 export function buildAssumptionExtractionPrompt(normalizedDecisions: string): string {
-  return `You are a decision analysis expert. Analyze the following decision records and extract the KEY IMPLICIT ASSUMPTIONS underlying each decision — things the decision-maker believed to be true but did not explicitly state.
+  return `You are a decision analysis expert. Analyze the following decision records and extract the KEY IMPLICIT ASSUMPTIONS underlying each decision: things the decision-maker believed to be true but did not explicitly state.
 
 For each decision, list 2-5 implicit assumptions. Be specific. Format your response as JSON:
 { "assumptions": [{ "decisionIndex": number, "decisionTitle": string, "assumptions": string[] }] }
@@ -28,7 +28,7 @@ NORMALIZED DECISIONS:
 ${normalizedDecisions}`
 }
 
-// ── Pass 3 — Bias Detection ─────────────────────────────────────────────────
+// ── Pass 3: Bias Detection ─────────────────────────────────────────────────
 export function buildBiasDetectionPrompt(assumptionsJson: string): string {
   return `You are a cognitive bias analyst. Review the following assumptions extracted from a person's decision history and identify which cognitive biases are present.
 
@@ -54,7 +54,7 @@ ASSUMPTIONS:
 ${assumptionsJson}`
 }
 
-// ── Pass 4 — Calibration Analysis ──────────────────────────────────────────
+// ── Pass 4: Calibration Analysis ──────────────────────────────────────────
 export function buildCalibrationAnalysisPrompt(decisions: DecisionWithOutcomes[]): string {
   const withOutcomes = decisions
     .filter((d) => d.outcomes.length > 0 && d.predictedOutcome)
@@ -79,7 +79,7 @@ DATA:
 ${JSON.stringify(withOutcomes, null, 2)}`
 }
 
-// ── Pass 5 — Synthesis ─────────────────────────────────────────────────────
+// ── Pass 5: Synthesis ─────────────────────────────────────────────────────
 export function buildSynthesisPrompt(opts: {
   biasesJson: string
   calibrationJson: string
@@ -90,7 +90,7 @@ export function buildSynthesisPrompt(opts: {
 
 Guidelines:
 - Write in second person ("You tend to…")
-- Be honest but constructive — frame weaknesses as growth opportunities  
+- Be honest but constructive, and frame weaknesses as growth opportunities  
 - Keep the overall summary to 3-4 sentences
 - Do NOT be preachy or repetitive
 

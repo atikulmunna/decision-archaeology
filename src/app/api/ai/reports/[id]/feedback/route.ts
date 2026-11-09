@@ -12,7 +12,7 @@ const FeedbackSchema = z.object({
   reason: z.string().optional(),
 })
 
-// POST /api/ai/reports/:id/feedback — flag a bias finding as inaccurate
+// POST /api/ai/reports/:id/feedback: flag a bias finding as inaccurate
 export async function POST(req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

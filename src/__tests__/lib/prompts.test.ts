@@ -98,10 +98,10 @@ describe('buildSynthesisPrompt', () => {
       biasesJson: '{}',
       calibrationJson: '{}',
       totalDecisions: 12,
-      dateRange: 'Jan 2025 – Mar 2025',
+      dateRange: 'Jan 2025 to Mar 2025',
     })
     expect(prompt).toContain('12 decisions')
-    expect(prompt).toContain('Jan 2025 – Mar 2025')
+    expect(prompt).toContain('Jan 2025 to Mar 2025')
   })
 
   it('requests JSON output with expected fields', () => {

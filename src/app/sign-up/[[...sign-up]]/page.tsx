@@ -1,7 +1,7 @@
 import { SignUp } from '@clerk/nextjs'
 
 export const metadata = {
-  title: 'Sign Up — Decision Archaeology',
+  title: 'Sign Up | Decision Archaeology',
 }
 
 export default function SignUpPage() {

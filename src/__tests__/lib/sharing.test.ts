@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-// Pure sharing business logic tests (no DB — testing validation rules & constraints)
+// Pure sharing business logic tests (no DB, testing validation rules & constraints)
 
 describe('Sharing business rules', () => {
   it('enforces max 5 collaborators', () => {
@@ -11,7 +11,7 @@ describe('Sharing business rules', () => {
 
   it('allows exactly 5 collaborators', () => {
     const MAX = 5
-    const activeShares = [1, 2, 3, 4] // 4 existing — one more allowed
+    const activeShares = [1, 2, 3, 4] // 4 existing, one more allowed
     expect(activeShares.length < MAX).toBe(true)
   })
 

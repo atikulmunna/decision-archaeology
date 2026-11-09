@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Params) {
   const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return {}
   const record = await getDecision(dbUser.id, id)
-  return { title: record ? `${record.title} — Decision Archaeology` : 'Decision Not Found' }
+  return { title: record ? `${record.title} | Decision Archaeology` : 'Decision Not Found' }
 }
 
 export default async function DecisionDetailPage({ params }: Params) {

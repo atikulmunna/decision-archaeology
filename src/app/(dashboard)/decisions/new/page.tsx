@@ -1,7 +1,7 @@
 import { DecisionCaptureForm } from '@/components/decisions/DecisionCaptureForm'
 
 export const metadata = {
-  title: 'New Decision — Decision Archaeology',
+  title: 'New Decision | Decision Archaeology',
 }
 
 type SearchParams = Promise<{ draftId?: string }>

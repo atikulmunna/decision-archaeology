@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string; shareId: string }> }
 
-// POST /api/decisions/:id/share/:shareId/checkin — collaborator requests outcome update from owner
+// POST /api/decisions/:id/share/:shareId/checkin: collaborator requests outcome update from owner
 export async function POST(_req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

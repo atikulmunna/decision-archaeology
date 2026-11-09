@@ -8,7 +8,7 @@ import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 
-// POST /api/decisions — create new decision record
+// POST /api/decisions: create new decision record
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(record, { status: saveAsDraft ? 200 : 201 })
 }
 
-// GET /api/decisions — list user's records (paginated)
+// GET /api/decisions: list user's records (paginated)
 export async function GET(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

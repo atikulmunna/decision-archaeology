@@ -27,7 +27,7 @@ describe('OUTCOME_LABELS', () => {
   })
 })
 
-describe('DecisionFilters — page/limit defaults', () => {
+describe('DecisionFilters: page/limit defaults', () => {
   it('page defaults to 1 when param is undefined', () => {
     const pageStr: string | undefined = undefined
     const page = Math.max(1, parseInt(pageStr ?? '1'))

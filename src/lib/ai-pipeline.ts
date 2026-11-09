@@ -28,29 +28,29 @@ export async function runBiasAnalysisPipeline(
     throw new Error('At least 10 decisions are required to generate a bias report')
   }
 
-  // ── Pass 1 — Normalization (fast 8B model) ────────────────────────────
+  // ── Pass 1: Normalization (fast 8B model) ────────────────────────────
   const normPrompt = buildNormalizationPrompt(decisions)
   const normResult = await generateNormalization([userMsg(normPrompt)])
   const normalizedText = extractJson(normResult)
 
-  // ── Pass 2 — Assumption Extraction ────────────────────────────────────
+  // ── Pass 2: Assumption Extraction ────────────────────────────────────
   const assumptionPrompt = buildAssumptionExtractionPrompt(normalizedText)
   const assumptionResult = await generateWithFallback([userMsg(assumptionPrompt)])
 
-  // ── Pass 3 — Bias Detection ────────────────────────────────────────────
+  // ── Pass 3: Bias Detection ────────────────────────────────────────────
   const biasPrompt = buildBiasDetectionPrompt(extractJson(assumptionResult))
   const biasResult = await generateWithFallback([userMsg(biasPrompt)])
 
-  // ── Pass 4 — Calibration Analysis ─────────────────────────────────────
+  // ── Pass 4: Calibration Analysis ─────────────────────────────────────
   const calibPrompt = buildCalibrationAnalysisPrompt(decisions)
   let calibResult = '{ "patterns": [] }'
   if (calibPrompt) {
     calibResult = await generateWithFallback([userMsg(calibPrompt)])
   }
 
-  // ── Pass 5 — Synthesis ────────────────────────────────────────────────
+  // ── Pass 5: Synthesis ────────────────────────────────────────────────
   const dates = decisions.map((d) => new Date(d.createdAt))
-  const dateRange = `${new Date(Math.min(...dates.map((d) => d.getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} – ${new Date(Math.max(...dates.map((d) => d.getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
+  const dateRange = `${new Date(Math.min(...dates.map((d) => d.getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} to ${new Date(Math.max(...dates.map((d) => d.getTime()))).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`
 
   const synthesisPrompt = buildSynthesisPrompt({
     biasesJson: extractJson(biasResult),

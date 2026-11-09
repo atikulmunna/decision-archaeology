@@ -32,7 +32,7 @@ export default async function ReportDetailPage({ params }: Params) {
           <div className="text-4xl animate-spin inline-block">⚙️</div>
           <p className="mt-4 font-semibold text-gray-700">Generating your report…</p>
           <p className="mt-1 text-sm text-gray-400">
-            The AI is analysing your decisions. This takes 30–90 seconds. Refresh to check progress.
+            The AI is analysing your decisions. This takes 30 to 90 seconds. Refresh to check progress.
           </p>
         </div>
       </div>

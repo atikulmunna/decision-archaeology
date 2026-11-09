@@ -1,7 +1,7 @@
 import { SignIn } from '@clerk/nextjs'
 
 export const metadata = {
-  title: 'Sign In — Decision Archaeology',
+  title: 'Sign In | Decision Archaeology',
 }
 
 export default function SignInPage() {

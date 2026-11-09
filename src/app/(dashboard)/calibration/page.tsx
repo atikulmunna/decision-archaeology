@@ -11,7 +11,7 @@ import { getOrCreateDbUser } from '@/lib/db-user'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Calibration Score — Decision Archaeology',
+  title: 'Calibration Score | Decision Archaeology',
 }
 
 export default async function CalibrationPage() {

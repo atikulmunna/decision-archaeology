@@ -65,7 +65,7 @@ export function BiasReportView({ report }: { report: Report }) {
         </div>
       )}
 
-      {/* Bias findings — sorted Strong → Moderate → Mild */}
+      {/* Bias findings, sorted Strong → Moderate → Mild */}
       <div className="flex flex-col gap-4">
         {[...report.findings]
           .sort((a, b) => {

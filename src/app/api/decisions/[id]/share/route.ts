@@ -11,7 +11,7 @@ const InviteSchema = z.object({
   email: z.string().email(),
 })
 
-// GET /api/decisions/:id/share — list active shares
+// GET /api/decisions/:id/share: list active shares
 export async function GET(_req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   return NextResponse.json(shares)
 }
 
-// POST /api/decisions/:id/share — invite collaborator
+// POST /api/decisions/:id/share: invite collaborator
 export async function POST(req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Cannot share with yourself.' }, { status: 400 })
   }
 
-  // Idempotent — reactivate if previously revoked
+  // Idempotent: reactivate if previously revoked
   const existing = await prisma.collaboratorShare.findUnique({
     where: { decisionId_collaboratorId: { decisionId: id, collaboratorId: collaborator.id } },
   })

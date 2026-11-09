@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 type Params = { params: Promise<{ id: string }> }
 
 const ReminderSchema = z.object({
-  scheduledFor: z.string().datetime({ message: 'Invalid date — use ISO 8601 format' }),
+  scheduledFor: z.string().datetime({ message: 'Invalid date: use ISO 8601 format' }),
 })
 
 function getQStash() {
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     data: { decisionId: id, scheduledFor },
   })
 
-  // Schedule QStash job (best-effort — fails silently if not configured)
+  // Schedule QStash job (best-effort; fails silently if not configured)
   const qstash = getQStash()
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       })
     } catch (err) {
       console.error('[QStash] Failed to schedule reminder:', err)
-      // Don't fail the request — reminder is saved in DB, QStash is best-effort
+      // Don't fail the request: the reminder is saved in DB, QStash is best-effort
     }
   }
 

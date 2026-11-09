@@ -37,7 +37,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   return NextResponse.json(normalizeDecisionLockState(record))
 }
 
-// PATCH /api/decisions/:id — update notes (always) or draft fields (only if not locked)
+// PATCH /api/decisions/:id: update notes (always) or draft fields (only if not locked)
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -151,7 +151,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   return NextResponse.json(updated)
 }
 
-// DELETE /api/decisions/:id — only drafts can be deleted
+// DELETE /api/decisions/:id: only drafts can be deleted
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

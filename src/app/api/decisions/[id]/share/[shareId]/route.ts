@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string; shareId: string }> }
 
-// DELETE /api/decisions/:id/share/:shareId — revoke share (owner only)
+// DELETE /api/decisions/:id/share/:shareId: revoke share (owner only)
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

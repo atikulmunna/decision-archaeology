@@ -5,7 +5,7 @@ import { GenerateReportButton } from '@/components/ai/GenerateReportButton'
 import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Bias Reports — Decision Archaeology' }
+export const metadata = { title: 'Bias Reports | Decision Archaeology' }
 
 export default async function ReportsPage() {
   const { userId } = await auth()

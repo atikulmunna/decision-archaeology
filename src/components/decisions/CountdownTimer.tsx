@@ -21,7 +21,7 @@ export function CountdownTimer({ lockedAt, decisionId, onLocked }: CountdownTime
       await fetch(`/api/decisions/${decisionId}/lock`, { method: 'POST' })
       onLocked()
     } catch {
-      // silently handled — record will still be displayed as locked on next load
+      // silently handled: the record will still be displayed as locked on next load
     }
   }, [decisionId, isLocking, onLocked])
 

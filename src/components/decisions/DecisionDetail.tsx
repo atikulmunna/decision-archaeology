@@ -216,7 +216,7 @@ export function DecisionDetail({
       ) : (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
           <span>⏳</span>
-          <span>Fields are <strong>not yet locked</strong> — editing is still possible.</span>
+          <span>Fields are <strong>not yet locked</strong>. Editing is still possible.</span>
         </div>
       )}
 

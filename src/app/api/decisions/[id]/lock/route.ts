@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string }> }
 
-// POST /api/decisions/:id/lock — permanently lock the core fields
+// POST /api/decisions/:id/lock: permanently lock the core fields
 export async function POST(_req: NextRequest, { params }: Params) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

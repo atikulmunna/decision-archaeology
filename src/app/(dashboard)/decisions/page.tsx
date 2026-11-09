@@ -16,7 +16,7 @@ import { createTimer } from '@/lib/timing'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Decisions — Decision Archaeology',
+  title: 'Decisions | Decision Archaeology',
 }
 
 type SearchParams = Promise<{

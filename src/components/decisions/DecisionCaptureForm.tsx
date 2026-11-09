@@ -383,7 +383,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
 
       <StepIndicator steps={STEPS.slice(0, 3)} currentStep={step} />
 
-      {/* Step 1 — Basics */}
+      {/* Step 1: Basics */}
       {step === 1 && (
         <div className="flex flex-col gap-5">
           {!initialDraftId && !hasDraftContent() && (
@@ -428,7 +428,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
         </div>
       )}
 
-      {/* Step 2 — Reasoning */}
+      {/* Step 2: Reasoning */}
       {step === 2 && (
         <div className="flex flex-col gap-5">
           <h2 className="text-lg font-semibold text-gray-900">What is your reasoning?</h2>
@@ -437,7 +437,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
             id="alternatives"
             label="Alternatives Considered"
             required
-            placeholder='What other options did you consider? (If none, write "None considered — because...")'
+            placeholder='What other options did you consider? (If none, write "None considered, because...")'
             value={form.alternatives ?? ''}
             onChange={(e) => set('alternatives', e.target.value)}
             error={errors.alternatives}
@@ -471,7 +471,7 @@ export function DecisionCaptureForm({ initialDraftId }: { initialDraftId?: strin
         </div>
       )}
 
-      {/* Step 3 — Optional context */}
+      {/* Step 3: Optional context */}
       {step === 3 && (
         <div className="flex flex-col gap-5">
           <h2 className="text-lg font-semibold text-gray-900">

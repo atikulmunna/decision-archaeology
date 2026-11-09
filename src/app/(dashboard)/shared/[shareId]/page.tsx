@@ -6,7 +6,7 @@ import { OutcomeHistory } from '@/components/decisions/OutcomeHistory'
 import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/outcomes'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Shared Decision — Decision Archaeology' }
+export const metadata = { title: 'Shared Decision | Decision Archaeology' }
 
 type Params = { params: Promise<{ shareId: string }> }
 
@@ -78,7 +78,7 @@ export default async function SharedDecisionPage({ params }: Params) {
         </div>
       )}
 
-      {/* Locked fields — read-only */}
+      {/* Locked fields: read-only */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-5">
         {[
           { label: 'Summary', value: d.summary },

@@ -11,7 +11,7 @@ function getQStash() {
   return new Client({ token: process.env.QSTASH_TOKEN })
 }
 
-// GET /api/ai/reports — list user's reports
+// GET /api/ai/reports: list user's reports
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -31,7 +31,7 @@ export async function GET() {
   return NextResponse.json(reports)
 }
 
-// POST /api/ai/reports — trigger report generation
+// POST /api/ai/reports: trigger report generation
 export async function POST() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

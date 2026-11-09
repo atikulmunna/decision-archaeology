@@ -10,7 +10,7 @@ interface CalibrationData {
 }
 
 function ScoreGauge({ score }: { score: number | null }) {
-  const display = score === null ? '–' : `${score}`
+  const display = score === null ? '?' : `${score}`
   const pct = score === null ? 0 : score
 
   return (
