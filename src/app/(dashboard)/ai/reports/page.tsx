@@ -1,11 +1,23 @@
-import { auth } from '@clerk/nextjs/server'
-import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
+import { auth } from '@clerk/nextjs/server'
+import { ScanSearch } from 'lucide-react'
+import { prisma } from '@/lib/prisma'
 import { GenerateReportButton } from '@/components/ai/GenerateReportButton'
+import { Badge, type BadgeTone } from '@/components/ui/Badge'
+import { Callout } from '@/components/ui/Callout'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Bias Reports | Decision Archaeology' }
+
+const STATUS_TONE: Record<string, BadgeTone> = {
+  PENDING: 'neutral',
+  RUNNING: 'neutral',
+  COMPLETE: 'signal',
+  FAILED: 'danger',
+}
 
 export default async function ReportsPage() {
   const { userId } = await auth()
@@ -24,67 +36,57 @@ export default async function ReportsPage() {
     where: { userId: dbUser.id, isDraft: false },
   })
 
-  const STATUS_BADGE: Record<string, string> = {
-    PENDING: 'bg-amber-100 text-amber-700',
-    RUNNING: 'bg-blue-100 text-blue-700',
-    COMPLETE: 'bg-emerald-100 text-emerald-700',
-    FAILED: 'bg-red-100 text-red-700',
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Bias Reports</h1>
-          <p className="text-sm text-gray-400">AI-powered pattern analysis of your decision archive</p>
-        </div>
-        {decisionCount >= 10 && (
-          <GenerateReportButton />
-        )}
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow="AI pattern reports"
+        title="Reports"
+        meta={`${reports.length} report${reports.length === 1 ? '' : 's'} · analyzed through OpenRouter`}
+        actions={decisionCount >= 10 ? <GenerateReportButton /> : undefined}
+      />
 
       {decisionCount < 10 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          You need at least <strong>10 decisions</strong> to generate a bias report. You have {decisionCount} so far.
-        </div>
+        <Callout tone="warning" title="Not enough history yet">
+          Reports need at least 10 sealed decisions. You have {decisionCount} so far.
+        </Callout>
       )}
 
       {reports.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
-          <span className="text-4xl">🧠</span>
-          <p className="mt-3 font-semibold text-gray-700">No reports yet</p>
-          <p className="mt-1 text-sm text-gray-400">
-            Reports are auto-generated every 10 decisions, or you can trigger one manually.
-          </p>
-        </div>
+        <EmptyState
+          icon={ScanSearch}
+          title="No reports yet"
+          description="Reports look for recurring biases and assumptions across your archive."
+        />
       ) : (
-        <div className="flex flex-col gap-3">
+        <ul className="flex flex-col">
           {reports.map((report) => (
-            <Link
-              key={report.id}
-              href={`/ai/reports/${report.id}`}
-              className="group block rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:border-indigo-300 hover:shadow-md transition-all"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm text-gray-400">
+            <li key={report.id} className="border-b border-rule">
+              <Link
+                href={`/ai/reports/${report.id}`}
+                className="grid gap-2 py-4 transition-colors duration-150 hover:bg-surface sm:grid-cols-[9rem_1fr_auto] sm:items-baseline sm:gap-6 sm:px-2"
+              >
+                <span className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
                   {new Date(report.createdAt).toLocaleDateString('en-US', {
-                    month: 'long', day: 'numeric', year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
                   })}
-                  {' · '}{report.decisionCount} decisions
-                </p>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_BADGE[report.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {report.status.charAt(0) + report.status.slice(1).toLowerCase()}
                 </span>
-              </div>
-              {report.summary && (
-                <p className="text-sm text-gray-700 line-clamp-2">{report.summary}</p>
-              )}
-              {report.status === 'PENDING' || report.status === 'RUNNING' ? (
-                <p className="mt-2 text-xs text-indigo-500 animate-pulse">Processing…</p>
-              ) : null}
-            </Link>
+                <span className="min-w-0">
+                  <span className="line-clamp-2 font-display text-lg leading-snug text-ink">
+                    {report.summary ?? (report.status === 'FAILED' ? 'Generation failed' : 'Generating...')}
+                  </span>
+                  <span className="mt-1 block font-mono text-[11px] text-muted">
+                    {report.decisionCount} decisions analyzed
+                  </span>
+                </span>
+                <Badge tone={STATUS_TONE[report.status] ?? 'neutral'}>
+                  {report.status.charAt(0) + report.status.slice(1).toLowerCase()}
+                </Badge>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   )

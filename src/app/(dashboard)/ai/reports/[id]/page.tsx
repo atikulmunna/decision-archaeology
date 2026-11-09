@@ -1,13 +1,27 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
+import { ArrowLeft, LoaderCircle } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import { BiasReportView } from '@/components/ai/BiasReportView'
-import Link from 'next/link'
+import { Callout } from '@/components/ui/Callout'
 import type { BiasEntry } from '@/lib/ai-schema'
 
 export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string }> }
+
+function BackLink() {
+  return (
+    <Link
+      href="/ai/reports"
+      className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted hover:text-ink"
+    >
+      <ArrowLeft aria-hidden="true" size={12} strokeWidth={1.5} />
+      Reports
+    </Link>
+  )
+}
 
 export default async function ReportDetailPage({ params }: Params) {
   const { id } = await params
@@ -24,15 +38,13 @@ export default async function ReportDetailPage({ params }: Params) {
 
   if (report.status === 'PENDING' || report.status === 'RUNNING') {
     return (
-      <div className="flex flex-col gap-4">
-        <Link href="/ai/reports" className="text-sm text-gray-400 hover:text-indigo-600">
-          ← Reports
-        </Link>
-        <div className="rounded-2xl border border-gray-200 bg-white p-12 text-center shadow-sm">
-          <div className="text-4xl animate-spin inline-block">⚙️</div>
-          <p className="mt-4 font-semibold text-gray-700">Generating your report…</p>
-          <p className="mt-1 text-sm text-gray-400">
-            The AI is analysing your decisions. This takes 30 to 90 seconds. Refresh to check progress.
+      <div className="flex flex-col gap-6">
+        <BackLink />
+        <div className="flex flex-col items-center gap-3 rounded-sm border border-rule bg-surface px-6 py-12 text-center">
+          <LoaderCircle aria-hidden="true" size={24} strokeWidth={1.5} className="text-muted motion-safe:animate-spin" />
+          <p className="font-display text-2xl text-ink">Generating your report</p>
+          <p className="text-sm text-muted">
+            The AI is analyzing your decisions. This takes 30 to 90 seconds. Refresh to check progress.
           </p>
         </div>
       </div>
@@ -41,39 +53,30 @@ export default async function ReportDetailPage({ params }: Params) {
 
   if (report.status === 'FAILED') {
     return (
-      <div className="flex flex-col gap-4">
-        <Link href="/ai/reports" className="text-sm text-gray-400 hover:text-indigo-600">
-          ← Reports
-        </Link>
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
-          <p className="font-semibold text-red-700">Report generation failed</p>
-          <p className="mt-1 text-sm text-red-500">
-            {(report as { errorMessage?: string }).errorMessage ?? 'Unknown error. Please try again.'}
-          </p>
-        </div>
+      <div className="flex flex-col gap-6">
+        <BackLink />
+        <Callout tone="danger" title="Report generation failed">
+          {report.errorMessage ?? 'Unknown error. Please try again.'}
+        </Callout>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Link href="/ai/reports" className="text-sm text-gray-400 hover:text-indigo-600">
-        ← Reports
-      </Link>
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <BiasReportView
-          report={{
-            id: report.id,
-            summary: report.summary,
-            findings: (report.findings as BiasEntry[]) ?? [],
-            calibrationInsight: report.calibrationInsight,
-            flaggedFindings: (report.flaggedFindings as string[]) ?? [],
-            createdAt: report.createdAt,
-            decisionCount: report.decisionCount,
-            modelsUsed: report.modelsUsed,
-          }}
-        />
-      </div>
+    <div className="flex flex-col gap-6">
+      <BackLink />
+      <BiasReportView
+        report={{
+          id: report.id,
+          summary: report.summary,
+          findings: (report.findings as BiasEntry[]) ?? [],
+          calibrationInsight: report.calibrationInsight,
+          flaggedFindings: (report.flaggedFindings as string[]) ?? [],
+          createdAt: report.createdAt,
+          decisionCount: report.decisionCount,
+          modelsUsed: report.modelsUsed,
+        }}
+      />
     </div>
   )
 }

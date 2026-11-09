@@ -16,8 +16,6 @@ const EMOJI = /\p{Extended_Pictographic}/gu
 
 /** Files not yet moved onto the Field Archive system. Page tasks remove entries. */
 const PENDING_MIGRATION: string[] = [
-  'src/app/(dashboard)/ai/reports/[id]/page.tsx',
-  'src/app/(dashboard)/ai/reports/page.tsx',
   'src/app/(dashboard)/calibration/page.tsx',
   'src/app/(dashboard)/decisions/[id]/page.tsx',
   'src/app/(dashboard)/decisions/loading.tsx',
@@ -26,10 +24,6 @@ const PENDING_MIGRATION: string[] = [
   'src/app/(dashboard)/loading.tsx',
   'src/app/(dashboard)/shared/[shareId]/page.tsx',
   'src/app/global-error.tsx',
-  'src/components/ai/AIDisclosureBanner.tsx',
-  'src/components/ai/BiasReportCard.tsx',
-  'src/components/ai/BiasReportView.tsx',
-  'src/components/ai/GenerateReportButton.tsx',
   'src/components/calibration/CalibrationWidget.tsx',
   'src/components/decisions/AddOutcomeForm.tsx',
   'src/components/decisions/AttachmentManager.tsx',

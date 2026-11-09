@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 
 export function GenerateReportButton() {
   const router = useRouter()
@@ -29,15 +30,14 @@ export function GenerateReportButton() {
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={pending}
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pending ? 'Generating…' : '+ Generate report'}
-      </button>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      <Button onClick={handleGenerate} loading={pending}>
+        {pending ? 'Generating' : 'Generate report'}
+      </Button>
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
     </div>
   )
 }
