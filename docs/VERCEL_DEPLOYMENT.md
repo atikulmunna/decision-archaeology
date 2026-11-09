@@ -26,8 +26,7 @@ Add the following values in Vercel Project Settings -> Environment Variables.
 - `CLERK_WEBHOOK_SECRET`
 - `DATABASE_URL`
 - `NEXT_PUBLIC_APP_URL`
-- `NVIDIA_API_KEY`
-- `MISTRAL_API_KEY`
+- `OPENROUTER_API_KEY`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `QSTASH_TOKEN`
@@ -40,6 +39,8 @@ Add the following values in Vercel Project Settings -> Environment Variables.
 
 ### Optional for the current app
 
+- `OPENROUTER_COST_TIER` (default `medium`)
+- `OPENROUTER_ALLOWED_MODELS` (comma-separated model patterns)
 - `R2_PUBLIC_URL`
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`

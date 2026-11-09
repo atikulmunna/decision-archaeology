@@ -157,9 +157,7 @@ Users can export records in portable formats and import historical data using te
 
 ### AI And Communication
 
-- NVIDIA NIM
-- Mistral
-- OpenAI SDK client utilities present in the codebase
+- OpenRouter (Auto Router, schema-validated structured outputs)
 - Resend for email
 - Svix for Clerk webhook verification
 
@@ -174,12 +172,12 @@ Users can export records in portable formats and import historical data using te
 
 The most important folders:
 
-- [`src/app`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/app): App Router pages, layouts, and API route handlers
-- [`src/components`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/components): UI and product feature components
-- [`src/lib`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/lib): shared business logic, integrations, validation, and utilities
-- [`src/__tests__`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/__tests__): unit and integration-style tests
-- [`prisma`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/prisma): schema and database definitions
-- [`docs`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/docs): deployment and supporting docs
+- [`src/app`](src/app): App Router pages, layouts, and API route handlers
+- [`src/components`](src/components): UI and product feature components
+- [`src/lib`](src/lib): shared business logic, integrations, validation, and utilities
+- [`src/__tests__`](src/__tests__): unit and integration-style tests
+- [`prisma`](prisma): schema and database definitions
+- [`docs`](docs): deployment and supporting docs
 
 ## Key Routes
 
@@ -273,8 +271,9 @@ CLERK_WEBHOOK_SECRET=
 DATABASE_URL=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-NVIDIA_API_KEY=
-MISTRAL_API_KEY=
+OPENROUTER_API_KEY=
+OPENROUTER_COST_TIER=medium
+OPENROUTER_ALLOWED_MODELS=
 
 RESEND_API_KEY=
 RESEND_FROM_EMAIL=
@@ -344,9 +343,9 @@ If you are new to the codebase, this is the fastest way to understand it.
 
 Open:
 
-- [`src/app/page.tsx`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/app/page.tsx)
-- [`src/app/(dashboard)/decisions/page.tsx`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/app/(dashboard)/decisions/page.tsx)
-- [`src/app/(dashboard)/decisions/new/page.tsx`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/app/(dashboard)/decisions/new/page.tsx)
+- [`src/app/page.tsx`](src/app/page.tsx)
+- [`src/app/(dashboard)/decisions/page.tsx`](src/app/(dashboard)/decisions/page.tsx)
+- [`src/app/(dashboard)/decisions/new/page.tsx`](src/app/(dashboard)/decisions/new/page.tsx)
 
 This shows the public landing page, the main archive view, and the entry point into the capture flow.
 
@@ -354,7 +353,7 @@ This shows the public landing page, the main archive view, and the entry point i
 
 Open:
 
-- [`src/components/decisions/DecisionCaptureForm.tsx`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/components/decisions/DecisionCaptureForm.tsx)
+- [`src/components/decisions/DecisionCaptureForm.tsx`](src/components/decisions/DecisionCaptureForm.tsx)
 
 This is one of the most important files in the project. It handles:
 
@@ -369,8 +368,8 @@ This is one of the most important files in the project. It handles:
 
 Open:
 
-- [`src/app/api/decisions/route.ts`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/app/api/decisions/route.ts)
-- [`src/app/api/decisions/[id]/route.ts`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/app/api/decisions/[id]/route.ts)
+- [`src/app/api/decisions/route.ts`](src/app/api/decisions/route.ts)
+- [`src/app/api/decisions/[id]/route.ts`](src/app/api/decisions/[id]/route.ts)
 
 This shows how the app:
 
@@ -384,10 +383,10 @@ This shows how the app:
 
 Open:
 
-- [`src/lib/decisions.ts`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/lib/decisions.ts)
-- [`src/lib/locks.ts`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/lib/locks.ts)
-- [`src/lib/prisma.ts`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/lib/prisma.ts)
-- [`src/lib/validations/decision.ts`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/lib/validations/decision.ts)
+- [`src/lib/decisions.ts`](src/lib/decisions.ts)
+- [`src/lib/locks.ts`](src/lib/locks.ts)
+- [`src/lib/prisma.ts`](src/lib/prisma.ts)
+- [`src/lib/validations/decision.ts`](src/lib/validations/decision.ts)
 
 This is where the core domain logic lives.
 
@@ -404,10 +403,10 @@ Then explore:
 
 Useful files:
 
-- [`src/components/decisions/AttachmentManager.tsx`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/components/decisions/AttachmentManager.tsx)
-- [`src/components/decisions/OutcomeHistory.tsx`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/components/decisions/OutcomeHistory.tsx)
-- [`src/components/decisions/DecisionDetail.tsx`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/components/decisions/DecisionDetail.tsx)
-- [`src/app/api/ai/reports/route.ts`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/src/app/api/ai/reports/route.ts)
+- [`src/components/decisions/AttachmentManager.tsx`](src/components/decisions/AttachmentManager.tsx)
+- [`src/components/decisions/OutcomeHistory.tsx`](src/components/decisions/OutcomeHistory.tsx)
+- [`src/components/decisions/DecisionDetail.tsx`](src/components/decisions/DecisionDetail.tsx)
+- [`src/app/api/ai/reports/route.ts`](src/app/api/ai/reports/route.ts)
 
 ## Deployment
 
@@ -425,7 +424,7 @@ Recommended deployment flow:
 
 Detailed deployment notes are in:
 
-- [`docs/VERCEL_DEPLOYMENT.md`](/c:/Users/Munna/Documents/GitSync/decision-archaeology/docs/VERCEL_DEPLOYMENT.md)
+- [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md)
 
 ## Hosted Smoke Test Checklist
 
