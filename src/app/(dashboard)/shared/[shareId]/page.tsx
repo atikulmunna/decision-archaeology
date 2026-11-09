@@ -3,7 +3,14 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { CommentThread } from '@/components/sharing/CommentThread'
 import { OutcomeHistory } from '@/components/decisions/OutcomeHistory'
-import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/outcomes'
+import { Lock } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
+import { Callout } from '@/components/ui/Callout'
+import { Card } from '@/components/ui/Card'
+import { CatalogNumber } from '@/components/ui/CatalogNumber'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { OUTCOME_LABELS, OUTCOME_TONES } from '@/lib/outcomes'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision | Decision Archaeology' }
@@ -43,76 +50,67 @@ export default async function SharedDecisionPage({ params }: Params) {
     : []
   const authorMap = Object.fromEntries(authors.map((author) => [author.id, author]))
 
+  const fields = [
+    { label: 'Summary', value: d.summary },
+    { label: 'Context', value: d.context },
+    { label: 'Alternatives considered', value: d.alternatives },
+    { label: 'Chosen option', value: d.chosenOption },
+    { label: 'Reasoning', value: d.reasoning },
+    d.predictedOutcome ? { label: 'Predicted outcome', value: d.predictedOutcome } : null,
+    d.uncertainties ? { label: 'Uncertainties', value: d.uncertainties } : null,
+  ].filter((field): field is { label: string; value: string } => Boolean(field))
+
   return (
-    <div className="flex flex-col gap-6 max-w-2xl mx-auto py-8 px-4">
-      {/* Header */}
-      <div>
-        <p className="text-sm text-gray-400 mb-1">
-          Shared by <strong>{share.owner.displayName ?? 'someone'}</strong>
-        </p>
-        <h1 className="text-2xl font-bold text-gray-900">{d.title}</h1>
-        <p className="text-xs text-gray-400 mt-1">
-          {new Date(d.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-          {d.domainTag && ` · ${d.domainTag}`}
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow={`Shared by ${share.owner.displayName ?? 'someone'}`}
+        title={d.title}
+        meta={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <CatalogNumber value={d.catalogNumber} />
+            <span>{new Date(d.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+            {d.domainTag && <span>{d.domainTag}</span>}
+            {d.confidenceLevel && <span>Confidence {d.confidenceLevel}/10</span>}
+          </span>
+        }
+      />
 
       {latestOutcome && (
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-emerald-900">
-              Latest update from the owner
-            </p>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${OUTCOME_COLORS[latestOutcome.outcomeRating]}`}>
-              {OUTCOME_LABELS[latestOutcome.outcomeRating]}
-            </span>
-            <span className="text-xs text-emerald-700">
-              {new Date(latestOutcome.createdAt).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </span>
+        <Callout tone="success" title="Latest update from the owner">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={OUTCOME_TONES[latestOutcome.outcomeRating]}>{OUTCOME_LABELS[latestOutcome.outcomeRating]}</Badge>
+              <span className="font-mono text-[11px] text-muted">
+                {new Date(latestOutcome.createdAt).toLocaleDateString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap break-words">{latestOutcome.whatHappened}</p>
           </div>
-          <p className="mt-2 text-sm text-emerald-950">{latestOutcome.whatHappened}</p>
-        </div>
+        </Callout>
       )}
 
-      {/* Locked fields: read-only */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex flex-col gap-5">
-        {[
-          { label: 'Summary', value: d.summary },
-          { label: 'Context', value: d.context },
-          { label: 'Alternatives considered', value: d.alternatives },
-          { label: 'Chosen option', value: d.chosenOption },
-          { label: 'Reasoning', value: d.reasoning },
-          d.predictedOutcome ? { label: 'Predicted outcome', value: d.predictedOutcome } : null,
-          d.uncertainties ? { label: 'Uncertainties', value: d.uncertainties } : null,
-        ]
-          .filter(Boolean)
-          .map((field) => (
-            <div key={field!.label}>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">
-                {field!.label}
-              </p>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{field!.value}</p>
-            </div>
-          ))}
-
-        {d.confidenceLevel && (
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-1">Confidence</p>
-            <p className="text-sm text-gray-800">{d.confidenceLevel}/10</p>
-          </div>
-        )}
-      </div>
-
-      {/* Supplementary notes (if any) */}
-      {d.supplementaryNotes && (
-        <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-400 mb-1">Owner notes</p>
-          <p className="text-sm text-blue-800">{d.supplementaryNotes}</p>
+      <Card as="section" className="flex flex-col gap-5 p-6">
+        <div className="flex items-center gap-2 text-muted">
+          <Lock aria-hidden="true" size={14} strokeWidth={1.5} />
+          <Eyebrow>Sealed record</Eyebrow>
         </div>
+        {fields.map((field) => (
+          <div key={field.label}>
+            <Eyebrow>{field.label}</Eyebrow>
+            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{field.value}</p>
+          </div>
+        ))}
+      </Card>
+
+      {d.supplementaryNotes && (
+        <Card as="section" className="p-4">
+          <Eyebrow>Owner notes</Eyebrow>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink-2">{d.supplementaryNotes}</p>
+        </Card>
       )}
 
       <OutcomeHistory
@@ -122,7 +120,6 @@ export default async function SharedDecisionPage({ params }: Params) {
         emptyMessage="No outcome updates yet. You can request one if the expected timeframe has already passed."
       />
 
-      {/* Comment thread */}
       <CommentThread
         decisionId={d.id}
         shareId={shareId}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { Users } from 'lucide-react'
 
 interface Collaborator {
   id: string
@@ -53,8 +54,11 @@ export function SharePanel({ decisionId, initialShares }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h3 className="font-semibold text-gray-900 mb-4">👥 Collaborators</h3>
+    <div className="rounded-sm border border-rule bg-surface p-5">
+      <h3 className="mb-4 flex items-center gap-2 font-display text-2xl text-ink">
+        <Users aria-hidden="true" size={18} strokeWidth={1.5} />
+        Collaborators
+      </h3>
 
       {/* Existing shares */}
       {shares.length > 0 && (
@@ -71,15 +75,15 @@ export function SharePanel({ decisionId, initialShares }: Props) {
                     height={28}
                   />
                 ) : (
-                  <div className="h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                  <div className="h-7 w-7 rounded-full bg-sunken flex items-center justify-center text-xs font-bold text-signal-ink">
                     {(s.collaborator.displayName ?? s.collaborator.email)[0].toUpperCase()}
                   </div>
                 )}
-                <span className="text-sm text-gray-700">{s.collaborator.displayName ?? s.collaborator.email}</span>
+                <span className="text-sm text-ink-2">{s.collaborator.displayName ?? s.collaborator.email}</span>
               </div>
               <button
                 onClick={() => revoke(s.shareId)}
-                className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                className="text-xs text-danger hover:text-ink transition-colors"
               >
                 Revoke
               </button>
@@ -97,22 +101,22 @@ export function SharePanel({ decisionId, initialShares }: Props) {
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && invite()}
             placeholder="colleague@example.com"
-            className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="flex-1 rounded-sm border border-rule bg-sunken px-3 py-2 text-sm focus:border-ink"
           />
           <button
             onClick={invite}
             disabled={loading || !email.trim()}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+            className="rounded-sm bg-primary px-3 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-50 transition-colors"
           >
             {loading ? '…' : 'Invite'}
           </button>
         </div>
       )}
 
-      {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
-      {success && <p className="mt-2 text-xs text-emerald-600">{success}</p>}
+      {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+      {success && <p className="mt-2 text-xs text-signal-ink">{success}</p>}
       {shares.length >= 5 && (
-        <p className="mt-2 text-xs text-gray-400">Maximum 5 collaborators reached.</p>
+        <p className="mt-2 text-xs text-muted">Maximum 5 collaborators reached.</p>
       )}
     </div>
   )

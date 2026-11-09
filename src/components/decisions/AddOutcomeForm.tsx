@@ -1,18 +1,19 @@
 'use client'
 
 import { useState } from 'react'
+import { ChevronDown, ChevronUp, ChevronsDown, ChevronsUp, Equal, Hourglass, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
 import type { OutcomeUpdate } from '@prisma/client'
 
 const RATING_OPTIONS = [
-  { value: 'MUCH_BETTER', emoji: '🚀' },
-  { value: 'SLIGHTLY_BETTER', emoji: '📈' },
-  { value: 'AS_EXPECTED', emoji: '✓' },
-  { value: 'SLIGHTLY_WORSE', emoji: '📉' },
-  { value: 'MUCH_WORSE', emoji: '💥' },
-  { value: 'TOO_EARLY_TO_TELL', emoji: '⏳' },
+  { value: 'MUCH_BETTER', Icon: ChevronsUp },
+  { value: 'SLIGHTLY_BETTER', Icon: ChevronUp },
+  { value: 'AS_EXPECTED', Icon: Equal },
+  { value: 'SLIGHTLY_WORSE', Icon: ChevronDown },
+  { value: 'MUCH_WORSE', Icon: ChevronsDown },
+  { value: 'TOO_EARLY_TO_TELL', Icon: Hourglass },
 ] as const
 
 type Rating = (typeof RATING_OPTIONS)[number]['value']
@@ -67,33 +68,35 @@ export function AddOutcomeForm({ decisionId, onAdded }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full rounded-xl border border-dashed border-indigo-300 bg-indigo-50 py-3 text-sm font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-rule py-3 font-mono text-[11px] uppercase tracking-[0.09em] text-ink-2 transition-colors hover:border-ink hover:text-ink"
       >
-        + Log an outcome update
+        <Plus aria-hidden="true" size={14} strokeWidth={1.5} />
+        Log an outcome update
       </button>
     )
   }
 
   return (
-    <div className="rounded-xl border border-indigo-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 font-semibold text-gray-900">Log outcome update</h3>
+    <div className="rounded-sm border border-rule bg-surface p-5">
+      <h3 className="mb-4 font-display text-2xl text-ink">Log an outcome update</h3>
 
       {/* Rating selector */}
       <div className="mb-4">
-        <p className="mb-2 text-sm font-medium text-gray-700">How did it go?</p>
+        <p className="mb-2 text-sm font-medium text-ink-2">How did it go?</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {RATING_OPTIONS.map(({ value, emoji }) => (
+          {RATING_OPTIONS.map(({ value, Icon }) => (
             <button
               key={value}
               type="button"
+              aria-pressed={rating === value}
               onClick={() => setRating(value)}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all ${
+              className={`flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition-colors duration-150 ${
                 rating === value
-                  ? 'border-indigo-500 bg-indigo-50 font-semibold text-indigo-700'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                  ? 'border-ink bg-ink text-paper'
+                  : 'border-rule text-ink-2 hover:border-ink hover:bg-sunken'
               }`}
             >
-              <span>{emoji}</span>
+              <Icon aria-hidden="true" size={14} strokeWidth={1.5} className="shrink-0" />
               <span className="truncate">{OUTCOME_LABELS[value]}</span>
             </button>
           ))}

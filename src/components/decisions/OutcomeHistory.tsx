@@ -1,5 +1,8 @@
 import type { OutcomeUpdate } from '@prisma/client'
-import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/outcomes'
+import { Badge } from '@/components/ui/Badge'
+import { Card } from '@/components/ui/Card'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { OUTCOME_LABELS, OUTCOME_TONES } from '@/lib/outcomes'
 
 type Props = {
   outcomes: OutcomeUpdate[]
@@ -14,32 +17,30 @@ export function OutcomeHistory({ outcomes, emptyMessage, title, description }: P
       {(title || description) && (
         <div className="mb-3">
           {title && (
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            <Eyebrow>
               {title} ({outcomes.length})
-            </h2>
+            </Eyebrow>
           )}
-          {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
+          {description && <p className="mt-1 text-sm text-muted">{description}</p>}
         </div>
       )}
 
       {outcomes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
+        <div className="rounded-sm border border-dashed border-rule bg-surface p-6 text-center text-sm text-muted">
           {emptyMessage}
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <ol className="flex flex-col gap-3">
           {outcomes.map((outcome, index) => (
-            <div key={outcome.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="mb-2 flex items-center justify-between gap-3">
+            <Card as="li" key={outcome.id} className="p-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                    Update {index + 1}
+                  <span className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+                    Update {String(index + 1).padStart(2, '0')}
                   </span>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${OUTCOME_COLORS[outcome.outcomeRating]}`}>
-                    {OUTCOME_LABELS[outcome.outcomeRating]}
-                  </span>
+                  <Badge tone={OUTCOME_TONES[outcome.outcomeRating]}>{OUTCOME_LABELS[outcome.outcomeRating]}</Badge>
                 </div>
-                <span className="text-xs text-gray-400">
+                <span className="font-mono text-[11px] text-muted">
                   {new Date(outcome.createdAt).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
@@ -47,16 +48,16 @@ export function OutcomeHistory({ outcomes, emptyMessage, title, description }: P
                   })}
                 </span>
               </div>
-              <p className="text-sm text-gray-800">{outcome.whatHappened}</p>
+              <p className="whitespace-pre-wrap break-words text-sm text-ink">{outcome.whatHappened}</p>
               {outcome.lessonsLearned && (
-                <div className="mt-3 border-t border-gray-100 pt-3">
-                  <p className="mb-1 text-xs font-semibold text-gray-400">Lessons learned</p>
-                  <p className="text-sm text-gray-700">{outcome.lessonsLearned}</p>
+                <div className="mt-3 border-t border-rule pt-3">
+                  <Eyebrow>Lessons learned</Eyebrow>
+                  <p className="mt-1 text-sm text-ink-2">{outcome.lessonsLearned}</p>
                 </div>
               )}
-            </div>
+            </Card>
           ))}
-        </div>
+        </ol>
       )}
     </section>
   )

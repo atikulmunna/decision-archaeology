@@ -57,30 +57,30 @@ export default async function DecisionDetailPage({ params }: Params) {
   return (
     <div className="flex flex-col gap-4">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-400">
-        <Link prefetch href="/decisions" className="hover:text-indigo-600 transition-colors">
+      <nav className="flex items-center gap-2 text-sm text-muted">
+        <Link prefetch href="/decisions" className="hover:text-ink transition-colors">
           ← Decisions
         </Link>
         <span>/</span>
-        <span className="text-gray-600 truncate max-w-xs">{record.title}</span>
+        <span className="text-ink-2 truncate max-w-xs">{record.title}</span>
       </nav>
 
       <div className="flex flex-wrap gap-2">
         <a
           href={`/api/decisions/${record.id}/export?format=json`}
-          className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center justify-center rounded-sm border border-rule px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-sunken"
         >
           Export JSON
         </a>
         <a
           href={`/api/decisions/${record.id}/export?format=markdown`}
-          className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="inline-flex items-center justify-center rounded-sm border border-rule px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-sunken"
         >
           Export Markdown
         </a>
       </div>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-sm border border-rule bg-surface p-6">
         <DecisionDetail
           decision={record}
           collaboration={{

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { OUTCOME_LABELS, OUTCOME_COLORS } from '@/lib/outcomes'
+import { OUTCOME_LABELS, OUTCOME_TONES } from '@/lib/outcomes'
 import type { OutcomeRating } from '@prisma/client'
 
 describe('OUTCOME_LABELS', () => {
@@ -12,18 +12,19 @@ describe('OUTCOME_LABELS', () => {
     for (const r of ratings) expect(OUTCOME_LABELS[r]).toBeTruthy()
   })
 
-  it('has a color class for every OutcomeRating value', () => {
-    for (const r of ratings) expect(OUTCOME_COLORS[r]).toBeTruthy()
+  it('has a badge tone for every OutcomeRating value', () => {
+    for (const r of ratings) expect(OUTCOME_TONES[r]).toBeTruthy()
   })
 
-  it('positive outcomes use green/emerald color classes', () => {
-    expect(OUTCOME_COLORS['MUCH_BETTER']).toContain('emerald')
-    expect(OUTCOME_COLORS['SLIGHTLY_BETTER']).toContain('green')
+  it('marks the best outcome with signal and the worst with danger', () => {
+    expect(OUTCOME_TONES['MUCH_BETTER']).toBe('signal')
+    expect(OUTCOME_TONES['MUCH_WORSE']).toBe('danger')
   })
 
-  it('negative outcomes use red/amber color classes', () => {
-    expect(OUTCOME_COLORS['MUCH_WORSE']).toContain('red')
-    expect(OUTCOME_COLORS['SLIGHTLY_WORSE']).toContain('amber')
+  it('keeps the two extremes visually distinct from the middle', () => {
+    const middle = OUTCOME_TONES['AS_EXPECTED']
+    expect(OUTCOME_TONES['MUCH_BETTER']).not.toBe(middle)
+    expect(OUTCOME_TONES['MUCH_WORSE']).not.toBe(middle)
   })
 })
 

@@ -18,20 +18,10 @@ const EMOJI = /\p{Extended_Pictographic}/gu
 /** Files not yet moved onto the Field Archive system. Page tasks remove entries. */
 const PENDING_MIGRATION: string[] = [
   'src/lib/calibration.ts',
-  'src/lib/outcomes.ts',
   'src/app/(dashboard)/calibration/page.tsx',
-  'src/app/(dashboard)/decisions/[id]/page.tsx',
   'src/app/(dashboard)/error.tsx',
-  'src/app/(dashboard)/shared/[shareId]/page.tsx',
   'src/app/global-error.tsx',
   'src/components/calibration/CalibrationWidget.tsx',
-  'src/components/decisions/AddOutcomeForm.tsx',
-  'src/components/decisions/AttachmentManager.tsx',
-  'src/components/decisions/DecisionDetail.tsx',
-  'src/components/decisions/OutcomeHistory.tsx',
-  'src/components/decisions/SupplementaryNotesEditor.tsx',
-  'src/components/sharing/CommentThread.tsx',
-  'src/components/sharing/SharePanel.tsx',
 ]
 
 export function findDesignViolations(source: string): string[] {

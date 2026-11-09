@@ -115,18 +115,18 @@ export function AttachmentManager({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-sm border border-rule bg-surface p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-semibold text-gray-900">Attachments</h3>
-          <p className="mt-1 text-sm text-gray-500">
+          <h3 className="font-semibold text-ink">Attachments</h3>
+          <p className="mt-1 text-sm text-muted">
             Add up to {ATTACHMENT_LIMITS.maxAttachments} PDFs or images, {ATTACHMENT_LIMITS.maxBytes / (1024 * 1024)}MB each.
           </p>
         </div>
         {!readOnly && (
           <label
             htmlFor={inputId}
-            className={`cursor-pointer rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 ${loading || remainingSlots === 0 ? 'pointer-events-none opacity-50' : ''}`}
+            className={`cursor-pointer rounded-sm bg-primary px-3 py-2 text-sm font-medium text-on-primary transition-colors hover:opacity-90 ${loading || remainingSlots === 0 ? 'pointer-events-none opacity-50' : ''}`}
           >
             {loading ? 'Uploading…' : 'Add files'}
           </label>
@@ -147,10 +147,10 @@ export function AttachmentManager({
         />
       )}
 
-      {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-3 text-sm text-danger">{error}</p>}
 
       {attachments.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-400">
+        <div className="mt-4 rounded-sm border border-dashed border-rule bg-sunken p-4 text-sm text-muted">
           No attachments yet.
         </div>
       ) : (
@@ -158,13 +158,13 @@ export function AttachmentManager({
           {attachments.map((attachment) => (
             <div
               key={attachment.key}
-              className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-sm border border-rule px-3 py-2"
             >
               <a
                 href={attachment.url}
                 target="_blank"
                 rel="noreferrer"
-                className="truncate text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="truncate text-sm font-medium text-signal-ink hover:text-ink"
               >
                 {attachment.name}
               </a>
@@ -172,7 +172,7 @@ export function AttachmentManager({
                 <button
                   type="button"
                   onClick={() => void handleRemove(attachment.key)}
-                  className="text-xs font-medium text-red-500 transition-colors hover:text-red-600"
+                  className="text-xs font-medium text-danger transition-colors hover:text-ink"
                 >
                   Remove
                 </button>
@@ -183,7 +183,7 @@ export function AttachmentManager({
       )}
 
       {!readOnly && (
-        <p className="mt-3 text-xs text-gray-400">
+        <p className="mt-3 text-xs text-muted">
           {remainingSlots} of {ATTACHMENT_LIMITS.maxAttachments} attachment slots remaining.
         </p>
       )}

@@ -8,7 +8,12 @@ import {
   getLatestApprovedCorrection,
   type CorrectionField,
 } from '@/lib/corrections'
+import { Lock } from 'lucide-react'
+import { Badge, type BadgeTone } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { Callout } from '@/components/ui/Callout'
+import { CatalogNumber } from '@/components/ui/CatalogNumber'
+import { PageHeader } from '@/components/ui/PageHeader'
 import { Textarea } from '@/components/ui/Textarea'
 import { AddOutcomeForm } from './AddOutcomeForm'
 import { AttachmentManager } from './AttachmentManager'
@@ -61,20 +66,13 @@ const OPTIONAL_FIELDS: { key: keyof DecisionRecord; label: string }[] = [
   { key: 'predictedOutcome', label: 'Predicted Outcome' },
 ]
 
-const DOMAIN_COLORS: Record<string, string> = {
-  CAREER: 'bg-violet-100 text-violet-700',
-  FINANCE: 'bg-emerald-100 text-emerald-700',
-  HEALTH: 'bg-rose-100 text-rose-700',
-  RELATIONSHIPS: 'bg-pink-100 text-pink-700',
-  CREATIVE: 'bg-amber-100 text-amber-700',
-  OTHER: 'bg-gray-100 text-gray-600',
+const CORRECTION_STATUS_TONES: Record<string, BadgeTone> = {
+  PENDING: 'neutral',
+  APPROVED: 'signal',
+  REJECTED: 'outline',
 }
 
-const CORRECTION_STATUS_STYLES: Record<string, string> = {
-  PENDING: 'bg-amber-100 text-amber-700',
-  APPROVED: 'bg-emerald-100 text-emerald-700',
-  REJECTED: 'bg-gray-200 text-gray-600',
-}
+const sectionLabel = 'mb-3 font-mono text-[11px] uppercase tracking-[0.09em] text-muted'
 
 export function DecisionDetail({
   decision,
@@ -183,47 +181,42 @@ export function DecisionDetail({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Header */}
-      <div>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {decision.domainTag && (
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${DOMAIN_COLORS[decision.domainTag] ?? 'bg-gray-100 text-gray-600'}`}>
-              {decision.domainTag.charAt(0) + decision.domainTag.slice(1).toLowerCase()}
+      <div className="flex flex-col gap-3">
+        <PageHeader
+          title={decision.title}
+          meta={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <CatalogNumber value={decision.catalogNumber} />
+              <span>Recorded {createdAt}</span>
+              {lockedAt && <span>Sealed {lockedAt}</span>}
+              {decision.confidenceLevel && <span>Confidence {decision.confidenceLevel}/10</span>}
             </span>
-          )}
-          {decision.customTags.map((t) => (
-            <span key={t} className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs text-indigo-600">#{t}</span>
-          ))}
-          {decision.confidenceLevel && (
-            <span className="ml-auto text-sm text-gray-400">
-              Confidence: <span className="font-semibold text-gray-700">{decision.confidenceLevel}/10</span>
-            </span>
-          )}
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900">{decision.title}</h1>
-        <p className="mt-1 text-sm text-gray-400">Recorded {createdAt}</p>
-        {lockedAt && (
-          <p className="mt-0.5 text-xs text-gray-400">🔒 Locked {lockedAt}</p>
+          }
+        />
+        {(decision.domainTag || decision.customTags.length > 0) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {decision.domainTag && (
+              <Badge tone="ink">{decision.domainTag.charAt(0) + decision.domainTag.slice(1).toLowerCase()}</Badge>
+            )}
+            {decision.customTags.map((t) => (
+              <Badge key={t} tone="outline">
+                #{t}
+              </Badge>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Lock status banner */}
       {decision.isLocked ? (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
-          <span>🔒</span>
-          <span>Core fields are <strong>permanently locked</strong>. Supplementary notes can still be edited.</span>
-        </div>
+        <Callout title="Core fields are sealed">Supplementary notes, outcomes and typo corrections can still be added.</Callout>
       ) : (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
-          <span>⏳</span>
-          <span>Fields are <strong>not yet locked</strong>. Editing is still possible.</span>
-        </div>
+        <Callout tone="warning" title="Edit window open">The core fields are not sealed yet, so editing is still possible.</Callout>
       )}
 
-      {/* Locked core fields */}
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
-          Core Fields {decision.isLocked && '🔒'}
+        <h2 className={`${sectionLabel} flex items-center gap-1.5`}>
+          {decision.isLocked && <Lock aria-hidden="true" size={12} strokeWidth={1.5} />}
+          Core fields
         </h2>
         <div className="flex flex-col gap-4">
           {LOCKED_FIELDS.map(({ key, label }) => {
@@ -231,18 +224,15 @@ export function DecisionDetail({
             if (!value) return null
             const approvedCorrection = approvedCorrections[key]
             return (
-              <div key={key} className={`rounded-xl p-4 ${decision.isLocked ? 'border border-gray-200 bg-gray-50' : 'border border-white bg-white shadow-sm'}`}>
-                <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-gray-500">
-                  {decision.isLocked && <span>🔒</span>}
-                  {label}
-                </p>
-                <p className="whitespace-pre-wrap text-sm text-gray-800">{String(value)}</p>
+              <div key={key} className="rounded-sm border border-rule bg-surface p-4">
+                <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{label}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{String(value)}</p>
                 {approvedCorrection && (
-                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  <div className="mt-3 rounded-sm border border-ink bg-highlight p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-signal-ink">
                       Approved typo correction
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-900">
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-signal-ink">
                       {approvedCorrection.correctedText}
                     </p>
                   </div>
@@ -268,22 +258,22 @@ export function DecisionDetail({
       {decision.isLocked && (
         <section className="flex flex-col gap-4">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
               Correction Requests
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-muted">
               Locked fields keep the original wording forever. If you spot a typo, submit a small spelling or punctuation correction and preserve the change in the audit trail.
             </p>
           </div>
 
           {activeCorrectionField && (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+            <div className="rounded-sm border border-rule bg-sunken p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold text-indigo-900">
+                  <p className="text-sm font-semibold text-signal-ink">
                     Request correction for {getCorrectionFieldLabel(activeCorrectionField)}
                   </p>
-                  <p className="mt-1 text-xs text-indigo-700">
+                  <p className="mt-1 text-xs text-signal-ink">
                     Keep this to a small typo fix. Larger wording changes should stay in supplementary notes.
                   </p>
                 </div>
@@ -301,11 +291,11 @@ export function DecisionDetail({
               </div>
 
               <div className="mt-4 flex flex-col gap-4">
-                <div className="rounded-lg border border-indigo-100 bg-white p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <div className="rounded-sm border border-rule bg-surface p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                     Original text
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-800">
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
                     {String(decision[activeCorrectionField] ?? '')}
                   </p>
                 </div>
@@ -327,7 +317,7 @@ export function DecisionDetail({
                   className="min-h-[80px]"
                 />
 
-                {correctionError && <p className="text-sm text-red-600">{correctionError}</p>}
+                {correctionError && <p className="text-sm text-danger">{correctionError}</p>}
 
                 <div className="flex justify-end">
                   <Button
@@ -344,29 +334,25 @@ export function DecisionDetail({
           )}
 
           {correctionNotice && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            <div className="rounded-sm border border-ink bg-highlight px-4 py-3 text-sm text-signal-ink">
               {correctionNotice}
             </div>
           )}
 
           {corrections.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center text-sm text-gray-400">
+            <div className="rounded-sm border border-dashed border-rule bg-surface p-6 text-center text-sm text-muted">
               No correction requests yet.
             </div>
           ) : (
             <div className="flex flex-col gap-3">
               {corrections.map((correction) => (
-                <div key={correction.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <div key={correction.id} className="rounded-sm border border-rule bg-surface p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-gray-800">
+                    <p className="text-sm font-semibold text-ink">
                       {getCorrectionFieldLabel(correction.fieldName)}
                     </p>
-                    <span
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${CORRECTION_STATUS_STYLES[correction.status] ?? 'bg-gray-100 text-gray-600'}`}
-                    >
-                      {correction.status}
-                    </span>
-                    <span className="text-xs text-gray-400">
+                    <Badge tone={CORRECTION_STATUS_TONES[correction.status] ?? 'neutral'}>{correction.status}</Badge>
+                    <span className="text-xs text-muted">
                       {new Date(correction.createdAt).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -376,26 +362,26 @@ export function DecisionDetail({
                   </div>
 
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-lg bg-gray-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <div className="rounded-sm bg-sunken p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                         Original
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-ink">
                         {correction.originalText}
                       </p>
                     </div>
-                    <div className="rounded-lg bg-emerald-50 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                    <div className="rounded-sm bg-highlight p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-signal-ink">
                         Requested correction
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-900">
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-signal-ink">
                         {correction.correctedText}
                       </p>
                     </div>
                   </div>
 
                   {correction.reason && (
-                    <p className="mt-3 text-sm text-gray-600">
+                    <p className="mt-3 text-sm text-ink-2">
                       Reason: {correction.reason}
                     </p>
                   )}
@@ -431,15 +417,15 @@ export function DecisionDetail({
       {/* Optional fields */}
       {OPTIONAL_FIELDS.some(({ key }) => !!decision[key]) && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">Additional Context</h2>
+          <h2 className={sectionLabel}>Additional Context</h2>
           <div className="flex flex-col gap-4">
             {OPTIONAL_FIELDS.map(({ key, label }) => {
               const value = decision[key]
               if (!value) return null
               return (
-                <div key={key} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <p className="mb-1.5 text-xs font-semibold text-gray-500">{label}</p>
-                  <p className="whitespace-pre-wrap text-sm text-gray-800">{String(value)}</p>
+                <div key={key} className="rounded-sm border border-rule bg-surface p-4">
+                  <p className="mb-1.5 text-xs font-semibold text-muted">{label}</p>
+                  <p className="whitespace-pre-wrap text-sm text-ink">{String(value)}</p>
                 </div>
               )
             })}
@@ -448,7 +434,7 @@ export function DecisionDetail({
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-400">
+        <h2 className={sectionLabel}>
           Attachments
         </h2>
         <AttachmentManager decisionId={decision.id} />
@@ -474,10 +460,10 @@ export function DecisionDetail({
       {/* Collaboration */}
       <section className="flex flex-col gap-4">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
             Collaboration
           </h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="mt-1 text-sm text-muted">
             Manage who can review this decision and keep the discussion close to the record.
           </p>
         </div>
@@ -488,7 +474,7 @@ export function DecisionDetail({
           <div className="flex flex-col gap-4">
             {collaboration.discussions.map((discussion) => (
               <div key={discussion.shareId} className="flex flex-col gap-2">
-                <p className="text-sm font-medium text-gray-600">
+                <p className="text-sm font-medium text-ink-2">
                   Discussion with {discussion.collaboratorName}
                 </p>
                 <CommentThread

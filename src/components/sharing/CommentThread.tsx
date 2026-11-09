@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { Bell, MessagesSquare } from 'lucide-react'
 
 interface Comment {
   id: string
@@ -59,16 +60,24 @@ export function CommentThread({ decisionId, shareId, initialComments, currentUse
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm flex flex-col gap-4">
+    <div className="rounded-sm border border-rule bg-surface p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">💬 Discussion</h3>
+        <h3 className="flex items-center gap-2 font-display text-2xl text-ink">
+          <MessagesSquare aria-hidden="true" size={18} strokeWidth={1.5} />
+          Discussion
+        </h3>
         {isCollaborator && (
           <button
             onClick={requestCheckin}
             disabled={requesting || requested}
-            className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-sm border border-rule px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-ink-2 transition-colors hover:border-ink hover:text-ink disabled:opacity-50"
           >
-            {requested ? '✓ Requested' : requesting ? '…' : '🔔 Request update'}
+            {requested ? 'Requested' : requesting ? 'Requesting...' : (
+              <>
+                <Bell aria-hidden="true" size={12} strokeWidth={1.5} />
+                Request update
+              </>
+            )}
           </button>
         )}
       </div>
@@ -76,18 +85,18 @@ export function CommentThread({ decisionId, shareId, initialComments, currentUse
       {/* Comment list */}
       <div className="flex flex-col gap-3 max-h-80 overflow-y-auto pr-1">
         {comments.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-4">No comments yet. Start the discussion!</p>
+          <p className="text-sm text-muted text-center py-4">No comments yet. Start the discussion!</p>
         )}
         {comments.map((c) => {
           const isMe = c.author?.id === currentUserId
           return (
             <div key={c.id} className={`flex gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
-              <div className="h-7 w-7 shrink-0 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+              <div className="h-7 w-7 shrink-0 rounded-full bg-sunken flex items-center justify-center text-xs font-bold text-signal-ink">
                 {(c.author?.displayName ?? '?')[0].toUpperCase()}
               </div>
-              <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${isMe ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
+              <div className={`max-w-[80%] rounded-sm px-3 py-2 text-sm ${isMe ? 'bg-primary text-on-primary' : 'bg-sunken text-ink'}`}>
                 <p>{c.content}</p>
-                <p className={`text-xs mt-1 ${isMe ? 'text-indigo-200' : 'text-gray-400'}`}>
+                <p className={`text-xs mt-1 ${isMe ? 'text-signal-ink' : 'text-muted'}`}>
                   {c.author?.displayName ?? 'Unknown'} · {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
@@ -98,19 +107,19 @@ export function CommentThread({ decisionId, shareId, initialComments, currentUse
       </div>
 
       {/* Input */}
-      <div className="flex gap-2 border-t border-gray-100 pt-3">
+      <div className="flex gap-2 border-t border-rule pt-3">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postComment() } }}
           placeholder="Add a comment… (Enter to send)"
           rows={2}
-          className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="flex-1 rounded-sm border border-rule bg-sunken px-3 py-2 text-sm resize-none focus:border-ink"
         />
         <button
           onClick={postComment}
           disabled={posting || !content.trim()}
-          className="rounded-lg bg-indigo-600 px-3 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors self-end py-2"
+          className="rounded-sm bg-primary px-3 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-50 transition-colors self-end py-2"
         >
           {posting ? '…' : 'Send'}
         </button>
