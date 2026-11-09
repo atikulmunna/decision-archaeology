@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { AttachmentSummary } from '@/lib/attachments'
 import { ATTACHMENT_LIMITS } from '@/lib/attachments'
+import { buttonClasses } from '@/components/ui/Button'
 
 type Props = {
   decisionId?: string
@@ -118,7 +119,7 @@ export function AttachmentManager({
     <div className="rounded-sm border border-rule bg-surface p-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-semibold text-ink">Attachments</h3>
+          <h3 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">Attachments</h3>
           <p className="mt-1 text-sm text-muted">
             Add up to {ATTACHMENT_LIMITS.maxAttachments} PDFs or images, {ATTACHMENT_LIMITS.maxBytes / (1024 * 1024)}MB each.
           </p>
@@ -126,9 +127,9 @@ export function AttachmentManager({
         {!readOnly && (
           <label
             htmlFor={inputId}
-            className={`cursor-pointer rounded-sm bg-primary px-3 py-2 text-sm font-medium text-on-primary transition-colors hover:opacity-90 ${loading || remainingSlots === 0 ? 'pointer-events-none opacity-50' : ''}`}
+            className={`cursor-pointer ${buttonClasses({ variant: 'secondary', size: 'sm' })} ${loading || remainingSlots === 0 ? 'pointer-events-none opacity-50' : ''}`}
           >
-            {loading ? 'Uploading…' : 'Add files'}
+            {loading ? 'Uploading...' : 'Add files'}
           </label>
         )}
       </div>

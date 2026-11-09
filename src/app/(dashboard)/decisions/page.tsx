@@ -13,6 +13,7 @@ import { Callout } from '@/components/ui/Callout'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { archiveEmptyState } from '@/lib/archive-view'
 import type { DomainTag } from '@prisma/client'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
 import { getOrCreateDbUser } from '@/lib/db-user'
@@ -179,16 +180,26 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
       </Suspense>
 
       {records.length === 0 ? (
-        allCount === 0 && drafts.length === 0 ? (
-          <EmptyState
-            icon={Archive}
-            title="No decisions yet"
-            description="Start logging decisions to build your reasoning archive."
-            action={<Button href="/decisions/new">Log your first decision</Button>}
-          />
-        ) : (
-          <EmptyState icon={SearchX} title="No results" description="Try adjusting your filters or search query." />
-        )
+        {
+          'first-run': (
+            <EmptyState
+              icon={Archive}
+              title="No decisions yet"
+              description="Start logging decisions to build your reasoning archive."
+              action={<Button href="/decisions/new">Log your first decision</Button>}
+            />
+          ),
+          'drafts-only': (
+            <EmptyState
+              icon={Archive}
+              title="Nothing sealed yet"
+              description="Finish a draft above, or log a new decision, and it will appear here once sealed."
+            />
+          ),
+          'no-results': (
+            <EmptyState icon={SearchX} title="No results" description="Try adjusting your filters or search query." />
+          ),
+        }[archiveEmptyState({ sealedCount: allCount, draftCount: drafts.length, hasFilters: pageParams.toString() !== '' })]
       ) : (
         <div className="-mt-4 flex flex-col">
           {records.map((record) => (
