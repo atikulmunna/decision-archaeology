@@ -1,25 +1,83 @@
 @import "tailwindcss";
 
+/* Field Archive tokens. Values mirror src/lib/design/tokens.ts (kept in sync by a test). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  --paper: #F2F2F0;
+  --surface: #FFFFFF;
+  --sunken: #E8E8E4;
+  --ink: #121212;
+  --ink-2: #3A3A38;
+  --muted: #666662;
+  --rule: #DEDEDA;
+  --signal: #D6F55B;
+  --on-signal: #121212;
+  --primary: #121212;
+  --on-primary: #D6F55B;
+  --signal-ink: #3D6B12;
+  --highlight: #E3F99A;
+  --danger: #B42318;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0D0D0D;
+  --surface: #161616;
+  --sunken: #202020;
+  --ink: #ECECEA;
+  --ink-2: #BDBDBA;
+  --muted: #8A8A86;
+  --rule: #262626;
+  --signal: #D6F55B;
+  --on-signal: #121212;
+  --primary: #D6F55B;
+  --on-primary: #0D0D0D;
+  --signal-ink: #D6F55B;
+  --highlight: #3B4612;
+  --danger: #F97066;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-signal: var(--signal);
+  --color-on-signal: var(--on-signal);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-signal-ink: var(--signal-ink);
+  --color-highlight: var(--highlight);
+  --color-danger: var(--danger);
+
+  --font-display: var(--font-instrument-serif), Georgia, serif;
+  --font-sans: var(--font-inter-tight), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --radius-sm: 2px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--signal-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
