@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { IBM_Plex_Mono, Instrument_Serif, Inter_Tight } from 'next/font/google'
+import { cookies } from 'next/headers'
 import { ClerkProvider } from '@clerk/nextjs'
+import { parseThemePreference, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/design/theme'
 import './globals.css'
 
 const display = Instrument_Serif({
@@ -18,10 +20,15 @@ export const metadata: Metadata = {
     'Structured decision logging platform with outcome tracking, AI-powered bias detection, and calibration scoring.',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const preference = parseThemePreference((await cookies()).get(THEME_COOKIE)?.value)
+
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" data-theme={preference === 'system' ? undefined : preference} suppressHydrationWarning>
+        <head>
+          <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        </head>
         <body className={`${display.variable} ${sans.variable} ${mono.variable} font-sans antialiased`}>
           {children}
         </body>
