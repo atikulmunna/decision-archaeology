@@ -94,3 +94,39 @@ describe('canTransitionCorrection', () => {
     expect(canTransitionCorrection('APPROVED', 'REJECTED')).toBe(false)
   })
 })
+
+describe('isLikelyTypoCorrection review fixes', () => {
+  const longReasoning =
+    'I chose the Northwind offer because the salary is higher, the commute is shorter, and the manager seemed supportive during every interview round. The team has shipped steadily for three years, the product has real customers, and the equity terms are fair compared with what similar startups are offering right now.'
+
+  it('rejects removing one of two identical negations', () => {
+    expect(
+      isLikelyTypoCorrection(
+        'I will not move cities and I will not take the offer',
+        'I will not move cities and I will now take the offer'
+      )
+    ).toBe(false)
+  })
+
+  it('rejects adding a negation contraction written without an apostrophe', () => {
+    expect(isLikelyTypoCorrection('We can ship this month', 'We cant ship this month')).toBe(false)
+    expect(isLikelyTypoCorrection('I did call them back', 'I didnt call them back')).toBe(false)
+  })
+
+  it('rejects swapping several words when one word is also added', () => {
+    const rewritten = longReasoning
+      .replace('Northwind', 'Contoso')
+      .replace('higher', 'lower')
+      .replace('shorter', 'longer')
+      .replace('seemed supportive during every', 'seemed indifferent during every single')
+    expect(isLikelyTypoCorrection(longReasoning, rewritten)).toBe(false)
+  })
+
+  it('accepts removing a duplicated word', () => {
+    expect(isLikelyTypoCorrection('We decided to to move in spring', 'We decided to move in spring')).toBe(true)
+  })
+
+  it('accepts adding the apostrophe to a contraction', () => {
+    expect(isLikelyTypoCorrection('I dont want this role', "I don't want this role")).toBe(true)
+  })
+})

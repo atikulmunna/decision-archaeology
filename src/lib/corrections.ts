@@ -13,7 +13,9 @@ export type CorrectionField = (typeof CORRECTION_FIELDS)[number]['key']
 export type CorrectionStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
 export const CorrectionRequestSchema = z.object({
-  fieldName: z.enum(CORRECTION_FIELDS.map((field) => field.key) as [CorrectionField, ...CorrectionField[]]),
+  fieldName: z.enum(
+    CORRECTION_FIELDS.map((field) => field.key) as [CorrectionField, ...CorrectionField[]]
+  ),
   correctedText: z
     .string()
     .trim()
@@ -40,11 +42,12 @@ export function getCorrectionFieldLabel(fieldName: string): string {
   return CORRECTION_FIELDS.find((field) => field.key === fieldName)?.label ?? fieldName
 }
 
-export function getLatestApprovedCorrection(
-  corrections: CorrectionRequest[],
-  fieldName: string
-) {
-  return corrections.find((correction) => correction.fieldName === fieldName && correction.status === 'APPROVED') ?? null
+export function getLatestApprovedCorrection(corrections: CorrectionRequest[], fieldName: string) {
+  return (
+    corrections.find(
+      (correction) => correction.fieldName === fieldName && correction.status === 'APPROVED'
+    ) ?? null
+  )
 }
 
 function levenshteinDistance(a: string, b: string): number {
@@ -70,6 +73,9 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 const NEGATIONS = new Set(['not', 'no', 'never', 'none', 'nor', 'cannot', 'without'])
+// Contracted negations, with or without the apostrophe (didnt, can't, wont).
+const CONTRACTED_NEGATION =
+  /^(?:do|does|did|is|are|was|were|have|has|had|ca|can|could|would|should|wo|must|need|ai)n'?t$/
 const MAX_CHANGED_WORDS = 3
 const MAX_WORD_EDIT_DISTANCE = 2
 
@@ -88,9 +94,13 @@ function toComparableWords(text: string): string[] {
     .filter(Boolean)
 }
 
-function negationSet(words: string[]): string {
-  const negations = words.filter((word) => NEGATIONS.has(word) || word.endsWith("n't"))
-  return [...new Set(negations)].sort().join(' ')
+/** Every negation, counted (not deduplicated), with apostrophes removed. */
+function negationTokens(words: string[]): string {
+  return words
+    .filter((word) => NEGATIONS.has(word) || CONTRACTED_NEGATION.test(word) || word.endsWith("n't"))
+    .map((word) => word.replace(/'/g, ''))
+    .sort()
+    .join(' ')
 }
 
 function numericTokens(words: string[]): string {
@@ -101,8 +111,12 @@ function numericTokens(words: string[]): string {
     .join(' ')
 }
 
-function hasOnlyTypoLevelWordChanges(originalWords: string[], correctedWords: string[]): boolean {
-  let changed = 0
+function hasOnlyTypoLevelWordChanges(
+  originalWords: string[],
+  correctedWords: string[],
+  alreadyChanged = 0
+): boolean {
+  let changed = alreadyChanged
   for (let i = 0; i < originalWords.length; i += 1) {
     const before = originalWords[i]
     const after = correctedWords[i]
@@ -118,6 +132,27 @@ function hasOnlyTypoLevelWordChanges(originalWords: string[], correctedWords: st
   return true
 }
 
+/**
+ * Aligns the two word lists (allowing one inserted or deleted word, which counts
+ * as a change) and checks that every remaining difference is typo-sized.
+ */
+function alignsWithTypoLevelChanges(originalWords: string[], correctedWords: string[]): boolean {
+  if (originalWords.length === correctedWords.length) {
+    return hasOnlyTypoLevelWordChanges(originalWords, correctedWords)
+  }
+  if (Math.abs(originalWords.length - correctedWords.length) !== 1) return false
+
+  const [longer, shorter] =
+    originalWords.length > correctedWords.length
+      ? [originalWords, correctedWords]
+      : [correctedWords, originalWords]
+  for (let i = 0; i < longer.length; i += 1) {
+    const withoutOne = [...longer.slice(0, i), ...longer.slice(i + 1)]
+    if (hasOnlyTypoLevelWordChanges(withoutOne, shorter, 1)) return true
+  }
+  return false
+}
+
 export function isLikelyTypoCorrection(originalText: string, correctedText: string): boolean {
   const original = originalText.trim()
   const corrected = correctedText.trim()
@@ -131,14 +166,9 @@ export function isLikelyTypoCorrection(originalText: string, correctedText: stri
 
   const originalComparable = toComparableWords(original)
   const correctedComparable = toComparableWords(corrected)
-  if (negationSet(originalComparable) !== negationSet(correctedComparable)) return false
+  if (negationTokens(originalComparable) !== negationTokens(correctedComparable)) return false
   if (numericTokens(originalComparable) !== numericTokens(correctedComparable)) return false
-  if (
-    originalComparable.length === correctedComparable.length &&
-    !hasOnlyTypoLevelWordChanges(originalComparable, correctedComparable)
-  ) {
-    return false
-  }
+  if (!alignsWithTypoLevelChanges(originalComparable, correctedComparable)) return false
 
   const distance = levenshteinDistance(original.toLowerCase(), corrected.toLowerCase())
   const maxDistance = Math.max(12, Math.floor(original.length * 0.2))
@@ -146,6 +176,9 @@ export function isLikelyTypoCorrection(originalText: string, correctedText: stri
   return distance <= maxDistance
 }
 
-export function getCorrectableFieldValue(record: DecisionRecord, fieldName: CorrectionField): string {
+export function getCorrectableFieldValue(
+  record: DecisionRecord,
+  fieldName: CorrectionField
+): string {
   return record[fieldName] ?? ''
 }
