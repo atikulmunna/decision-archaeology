@@ -19,6 +19,8 @@ type DecisionWithOutcomes = DecisionRecord & { outcomes: OutcomeUpdate[] }
 
 export const MAX_DECISIONS_PER_REPORT = 60
 export const MIN_DECISIONS_PER_REPORT = 10
+// Each batch's reply (2 to 5 assumptions per decision) must fit the default 4096 output tokens.
+export const ASSUMPTION_BATCH_SIZE = 20
 
 export const PASS_NAMES = {
   assumptions: 'assumptions',
@@ -29,18 +31,24 @@ export const PASS_NAMES = {
 
 type Generate = typeof generateStructured
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size))
+  return chunks
+}
+
 function formatMonth(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
 /**
  * Four schema-typed passes routed through OpenRouter's Auto Router:
- * assumptions (low) → [biases (medium) ∥ calibration (low)] → synthesis (high).
+ * assumptions in parallel batches (low) → [biases (medium) ∥ calibration (low)] → synthesis (high).
  */
 export async function runBiasAnalysisPipeline(
   decisions: DecisionWithOutcomes[],
   deps: { generate?: Generate } = {}
-): Promise<{ report: BiasReportOutput; modelsUsed: string[] }> {
+): Promise<{ report: BiasReportOutput; modelsUsed: string[]; analyzedCount: number }> {
   if (decisions.length < MIN_DECISIONS_PER_REPORT) {
     throw new Error('At least 10 decisions are required to generate a bias report')
   }
@@ -48,7 +56,12 @@ export async function runBiasAnalysisPipeline(
   const generate = deps.generate ?? generateStructured
   const modelsUsed: string[] = []
 
-  async function pass<T>(schemaName: string, schema: z.ZodType<T>, costTier: CostTier, prompt: string) {
+  async function pass<T>(
+    schemaName: string,
+    schema: z.ZodType<T>,
+    costTier: CostTier,
+    prompt: string
+  ) {
     const messages: AIMessage[] = [{ role: 'user', content: prompt }]
     const { data, model } = await generate({ messages, schema, schemaName, costTier })
     if (!modelsUsed.includes(model)) modelsUsed.push(model)
@@ -62,16 +75,21 @@ export async function runBiasAnalysisPipeline(
     .reverse()
   const titlesById = Object.fromEntries(analyzed.map((d) => [d.id, d.title]))
 
-  const assumptions = await pass(
-    PASS_NAMES.assumptions,
-    AssumptionsSchema,
-    'low',
-    buildAssumptionExtractionPrompt(analyzed)
+  const batches = await Promise.all(
+    chunk(analyzed, ASSUMPTION_BATCH_SIZE).map((batch) =>
+      pass(PASS_NAMES.assumptions, AssumptionsSchema, 'low', buildAssumptionExtractionPrompt(batch))
+    )
   )
+  const assumptions = { decisions: batches.flatMap((batch) => batch.decisions) }
 
   const calibrationPrompt = buildCalibrationAnalysisPrompt(analyzed)
   const [biases, calibration] = await Promise.all([
-    pass(PASS_NAMES.biases, BiasFindingsSchema, 'medium', buildBiasDetectionPrompt(assumptions, titlesById)),
+    pass(
+      PASS_NAMES.biases,
+      BiasFindingsSchema,
+      'medium',
+      buildBiasDetectionPrompt(assumptions, titlesById)
+    ),
     calibrationPrompt
       ? pass(PASS_NAMES.calibration, CalibrationPatternsSchema, 'low', calibrationPrompt)
       : Promise.resolve(null),
@@ -87,5 +105,5 @@ export async function runBiasAnalysisPipeline(
     buildSynthesisPrompt({ biases, calibration, totalDecisions: analyzed.length, dateRange })
   )
 
-  return { report, modelsUsed }
+  return { report, modelsUsed, analyzedCount: analyzed.length }
 }

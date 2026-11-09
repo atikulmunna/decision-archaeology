@@ -5,6 +5,8 @@ import { readVerifiedJobBody } from '@/lib/jobs'
 import { logError } from '@/lib/observability'
 
 export const dynamic = 'force-dynamic'
+// Four routed LLM passes (plus possible repairs) can exceed the default function limit.
+export const maxDuration = 300
 
 export async function POST(req: NextRequest) {
   const result = await readVerifiedJobBody<{ reportId: string; userId: string }>(req)
@@ -39,7 +41,7 @@ async function runJob(reportId: string, userId: string) {
       .filter(Boolean)
 
     // Run the schema-validated OpenRouter pipeline
-    const { report, modelsUsed } = await runBiasAnalysisPipeline(decisions)
+    const { report, modelsUsed, analyzedCount } = await runBiasAnalysisPipeline(decisions)
 
     // Filter out biases the user has previously flagged as false positives
     const filteredBiases = report.biases.filter(
@@ -55,6 +57,7 @@ async function runJob(reportId: string, userId: string) {
         findings: filteredBiases as object[],
         calibrationInsight: report.calibrationInsight,
         modelsUsed,
+        decisionCount: analyzedCount,
         completedAt: new Date(),
       },
     })

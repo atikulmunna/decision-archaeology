@@ -3,6 +3,12 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { Client } from '@upstash/qstash'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import {
+  DISPATCH_FAILED_MESSAGE,
+  IN_PROGRESS_REPORT_STATUSES,
+  isReportStale,
+  STALE_REPORT_MESSAGE,
+} from '@/lib/reports'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,11 +56,16 @@ export async function POST() {
     )
   }
 
-  // Prevent duplicate in-progress report
+  // Prevent duplicate in-progress reports, but let an abandoned one go
   const inProgress = await prisma.biasReport.findFirst({
-    where: { userId: dbUser.id, status: { in: ['PENDING', 'RUNNING'] } },
+    where: { userId: dbUser.id, status: { in: [...IN_PROGRESS_REPORT_STATUSES] } },
   })
-  if (inProgress) {
+  if (inProgress && isReportStale(inProgress)) {
+    await prisma.biasReport.update({
+      where: { id: inProgress.id },
+      data: { status: 'FAILED', errorMessage: STALE_REPORT_MESSAGE },
+    })
+  } else if (inProgress) {
     return NextResponse.json(
       { error: 'A report is already being generated.', reportId: inProgress.id },
       { status: 409 }
@@ -65,6 +76,13 @@ export async function POST() {
   const report = await prisma.biasReport.create({
     data: { userId: dbUser.id, status: 'PENDING', decisionCount },
   })
+
+  // Only flips a report that never started; a job that ran keeps its own FAILED message.
+  const markDispatchFailed = () =>
+    prisma.biasReport.updateMany({
+      where: { id: report.id, status: 'PENDING' },
+      data: { status: 'FAILED', errorMessage: DISPATCH_FAILED_MESSAGE },
+    })
 
   // Queue the job
   const qstash = getQStash()
@@ -78,14 +96,19 @@ export async function POST() {
       })
     } catch (err) {
       console.error('[QStash] Failed to queue report generation:', err)
+      await markDispatchFailed()
     }
   } else {
     // In dev without QStash: call synchronously
-    await fetch(`${appUrl}/api/jobs/generate-report`, {
+    const response = await fetch(`${appUrl}/api/jobs/generate-report`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reportId: report.id, userId: dbUser.id }),
-    }).catch(console.error)
+    }).catch((err) => {
+      console.error('[reports] Failed to run report job:', err)
+      return null
+    })
+    if (!response?.ok) await markDispatchFailed()
   }
 
   return NextResponse.json({ reportId: report.id, status: 'PENDING' }, { status: 202 })

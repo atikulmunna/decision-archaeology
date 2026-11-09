@@ -114,9 +114,26 @@ describe('runBiasAnalysisPipeline', () => {
   it('analyzes only the 60 most recent decisions', async () => {
     expect(MAX_DECISIONS_PER_REPORT).toBe(60)
     await runBiasAnalysisPipeline(makeDecisions(200), { generate: fakeGenerate() })
-    const prompt = calls[0].messages[0].content
+    const prompt = calls
+      .filter((c) => c.schemaName === 'assumptions')
+      .map((c) => c.messages[0].content)
+      .join(' ')
     expect(prompt).toContain('"id":"d-199"')
     expect(prompt).toContain('"id":"d-140"')
     expect(prompt).not.toContain('"id":"d-139"')
+  })
+
+  it('splits assumption extraction into batches of 20 so replies fit the token budget', async () => {
+    await runBiasAnalysisPipeline(makeDecisions(60), { generate: fakeGenerate() })
+    const batches = calls.filter((c) => c.schemaName === 'assumptions')
+    expect(batches).toHaveLength(3)
+    for (const batch of batches) {
+      expect(batch.messages[0].content.match(/"id":"/g)).toHaveLength(20)
+    }
+  })
+
+  it('reports how many decisions were actually analyzed', async () => {
+    expect((await runBiasAnalysisPipeline(makeDecisions(200), { generate: fakeGenerate() })).analyzedCount).toBe(60)
+    expect((await runBiasAnalysisPipeline(makeDecisions(12), { generate: fakeGenerate() })).analyzedCount).toBe(12)
   })
 })
