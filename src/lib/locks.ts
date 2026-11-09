@@ -1,6 +1,6 @@
 const LOCK_WINDOW_MS = 5 * 60 * 1000
 
-type LockableDecision = {
+export type LockableDecision = {
   isLocked: boolean
   lockedAt: Date | null
   createdAt: Date

@@ -9,6 +9,11 @@ import {
   UpdateDraftSchema,
 } from '@/lib/validations/decision'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import {
+  authorizeDecisionPatch,
+  buildFinalizeTimestamps,
+  classifyDecisionPatch,
+} from '@/lib/decision-patch'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,10 +49,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const record = await prisma.decisionRecord.findFirst({ where: { id, userId: dbUser.id } })
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const body = await req.json()
+  const body: unknown = await req.json().catch(() => null)
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
+
+  const intent = classifyDecisionPatch(body as Record<string, unknown>, record)
+  const authorization = authorizeDecisionPatch(record, intent)
+  if (!authorization.ok) {
+    return NextResponse.json({ error: authorization.error }, { status: authorization.status })
+  }
 
   // Notes update: always allowed
-  if ('supplementaryNotes' in body && Object.keys(body).length === 1) {
+  if (intent === 'notes') {
     const parsed = UpdateNotesSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
@@ -59,7 +73,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json(updated)
   }
 
-  if (body.finalize === true) {
+  if (intent === 'finalize') {
     const parsed = FinalizeDecisionSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
@@ -87,14 +101,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         domainTag: parsed.data.domainTag ?? null,
         customTags: parsed.data.customTags,
         isDraft: false,
-        createdAt: record.isDraft ? new Date() : undefined,
+        ...buildFinalizeTimestamps(record, new Date()),
       },
     })
 
     return NextResponse.json(updated)
   }
 
-  if (record.isDraft) {
+  if (intent === 'draft') {
     const parsed = DraftDecisionSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
@@ -119,14 +133,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json(updated)
   }
 
-  // Core field update: only allowed while not locked
-  if (isDecisionLocked(record)) {
-    return NextResponse.json(
-      { error: 'Record is locked. Only supplementary notes can be updated.' },
-      { status: 403 }
-    )
-  }
-
+  // Core field update: authorizeDecisionPatch already rejected locked records
   const parsed = UpdateDraftSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })

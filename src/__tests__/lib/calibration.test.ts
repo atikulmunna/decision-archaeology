@@ -41,6 +41,7 @@ function makeDecision(
     supplementaryNotes: null,
     isImported: false,
     isDraft: false,
+    draftStartedAt: null,
     isLocked: true,
     lockedAt: new Date(),
     createdAt: new Date(),

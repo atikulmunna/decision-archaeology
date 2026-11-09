@@ -99,6 +99,7 @@ model DecisionRecord {
   // ── Metadata ──
   isImported  Boolean  @default(false)
   isDraft     Boolean  @default(true)
+  draftStartedAt DateTime? // when the draft was first saved; createdAt restarts at finalize
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
