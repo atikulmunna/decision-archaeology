@@ -1,29 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { runBiasAnalysisPipeline } from '@/lib/ai-pipeline'
-import { Receiver } from '@upstash/qstash'
+import { readVerifiedJobBody } from '@/lib/jobs'
 import { logError } from '@/lib/observability'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
-  // Verify QStash signature in production
-  if (process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY) {
-    const receiver = new Receiver({
-      currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY,
-      nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY,
-    })
-    const signature = req.headers.get('upstash-signature') ?? ''
-    const body = await req.text()
-    const isValid = await receiver.verify({ signature, body }).catch(() => false)
-    if (!isValid) return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-
-    const payload = JSON.parse(body) as { reportId: string; userId: string }
-    return runJob(payload.reportId, payload.userId)
-  }
-
-  const payload = await req.json()
-  return runJob(payload.reportId, payload.userId)
+  const result = await readVerifiedJobBody<{ reportId: string; userId: string }>(req)
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
+  return runJob(result.payload.reportId, result.payload.userId)
 }
 
 async function runJob(reportId: string, userId: string) {

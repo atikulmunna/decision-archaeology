@@ -52,7 +52,7 @@ export async function POST() {
 
   // Prevent duplicate in-progress report
   const inProgress = await prisma.biasReport.findFirst({
-    where: { userId: dbUser.id, status: 'PENDING' },
+    where: { userId: dbUser.id, status: { in: ['PENDING', 'RUNNING'] } },
   })
   if (inProgress) {
     return NextResponse.json(
