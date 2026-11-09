@@ -116,6 +116,18 @@ Clerk webhook URLs must be exact:
 
 ## 8. Database and Webhooks
 
+### Apply migrations before deploying new code
+
+The build (`next build`) does not touch the database. Prisma reads every column of a model, so code that expects a new column fails on every query against a database that does not have it yet. Apply pending migrations to the target database **before** (or at the same moment as) deploying the code that needs them:
+
+```bash
+DATABASE_URL="<target database url>" npx prisma migrate deploy
+```
+
+`migrate deploy` only applies committed migrations from `prisma/migrations` and never resets data. Do not run `prisma migrate dev` against production. Preview deployments that share the production database must not ship schema changes before this step.
+
+### Webhooks
+
 Before calling the deployment healthy:
 
 1. Sign up or sign in through Clerk on the deployed URL.
