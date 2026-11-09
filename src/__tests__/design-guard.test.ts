@@ -10,7 +10,8 @@ const SKIP = new Set([path.join(SRC, '__tests__'), path.join(SRC, 'generated')])
 
 const PALETTE_CLASS =
   /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|divide|placeholder|decoration|accent|caret|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g
-const ARBITRARY_HEX = /-\[#[0-9a-fA-F]{3,8}\]/g
+// Any hex color inside a Tailwind arbitrary value, e.g. text-[#f00] or bg-[linear-gradient(...,#fff,...)]
+const ARBITRARY_HEX = /\[[^\]"'\s]*#[0-9a-fA-F]{3,8}[^\]"'\s]*\]/g
 const EMOJI = /\p{Extended_Pictographic}/gu
 
 /** Files not yet moved onto the Field Archive system. Page tasks remove entries. */
@@ -71,6 +72,7 @@ describe('design guard', () => {
   it('detects each violation type', () => {
     expect(findDesignViolations('className="bg-gray-50"')).toHaveLength(1)
     expect(findDesignViolations('className="text-[#ff0000]"')).toHaveLength(1)
+    expect(findDesignViolations('className="bg-[linear-gradient(180deg,#f4efe6_0%,#fff_100%)]"')).toHaveLength(1)
     expect(findDesignViolations('<span>\u{1F512}</span>')).toHaveLength(1)
     expect(findDesignViolations('className="bg-paper text-ink"')).toEqual([])
   })

@@ -1,4 +1,5 @@
 import { SignIn } from '@clerk/nextjs'
+import { AuthLayout } from '@/components/shell/AuthLayout'
 
 export const metadata = {
   title: 'Sign In | Decision Archaeology',
@@ -6,8 +7,8 @@ export const metadata = {
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#f4efe6_0%,#f8fafc_40%,#ffffff_100%)] px-4 py-12">
+    <AuthLayout heading="Pick up where you left off.">
       <SignIn />
-    </div>
+    </AuthLayout>
   )
 }
