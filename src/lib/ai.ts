@@ -10,6 +10,7 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const AUTO_ROUTER_MODEL = 'openrouter/auto'
 const DEFAULT_COST_TIER: CostTier = 'medium'
 const DEFAULT_MAX_TOKENS = 4096
+const REQUEST_TIMEOUT_MS = 90_000
 
 export type AIMessage = { role: 'system' | 'user' | 'assistant'; content: string }
 export type CostTier = 'low' | 'medium' | 'high'
@@ -57,7 +58,10 @@ function parseAllowedModels(raw: string | undefined): string[] {
     .filter(Boolean)
 }
 
-type ChatCompletion = { model?: string; choices?: Array<{ message?: { content?: unknown } }> }
+type ChatCompletion = {
+  model?: string
+  choices?: Array<{ finish_reason?: string; message?: { content?: unknown } }>
+}
 
 type ParseOutcome<T> = { ok: true; data: T } | { ok: false; problems: string; raw: string }
 
@@ -69,7 +73,11 @@ function parseReply<T>(completion: ChatCompletion, schema: z.ZodType<T>): ParseO
   try {
     json = JSON.parse(raw)
   } catch (error) {
-    return { ok: false, raw, problems: `the reply was not valid JSON (${(error as Error).message})` }
+    return {
+      ok: false,
+      raw,
+      problems: `the reply was not valid JSON (${(error as Error).message})`,
+    }
   }
 
   const parsed = schema.safeParse(json)
@@ -96,35 +104,53 @@ export async function generateStructured<T>(opts: {
 
   const autoRouter: JsonObject = {
     id: 'auto-router',
-    cost_tier: opts.costTier ?? (env.OPENROUTER_COST_TIER as CostTier | undefined) ?? DEFAULT_COST_TIER,
+    cost_tier:
+      opts.costTier ?? (env.OPENROUTER_COST_TIER as CostTier | undefined) ?? DEFAULT_COST_TIER,
   }
   const allowedModels = parseAllowedModels(env.OPENROUTER_ALLOWED_MODELS)
   if (allowedModels.length > 0) autoRouter.allowed_models = allowedModels
 
   const jsonSchema = toStrictJsonSchema(opts.schema)
 
-  async function request(messages: AIMessage[]): Promise<ChatCompletion> {
-    const response = await fetchImpl(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
-        'X-Title': 'Decision Archaeology',
-      },
-      body: JSON.stringify({
-        model: AUTO_ROUTER_MODEL,
-        messages,
-        max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
-        temperature: 0.2,
-        response_format: {
-          type: 'json_schema',
-          json_schema: { name: opts.schemaName, strict: true, schema: jsonSchema },
+  const maxTokens = opts.maxTokens ?? DEFAULT_MAX_TOKENS
+
+  async function send(messages: AIMessage[]): Promise<Response> {
+    try {
+      return await fetchImpl(OPENROUTER_URL, {
+        method: 'POST',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000',
+          'X-Title': 'Decision Archaeology',
         },
-        provider: { require_parameters: true },
-        plugins: [autoRouter, { id: 'response-healing' }],
-      }),
-    })
+        body: JSON.stringify({
+          model: AUTO_ROUTER_MODEL,
+          messages,
+          max_tokens: maxTokens,
+          response_format: {
+            type: 'json_schema',
+            json_schema: { name: opts.schemaName, strict: true, schema: jsonSchema },
+          },
+          provider: { require_parameters: true },
+          plugins: [autoRouter, { id: 'response-healing' }],
+        }),
+      })
+    } catch (error) {
+      // AbortSignal.timeout rejects with a DOMException named TimeoutError
+      if ((error as { name?: unknown } | null)?.name === 'TimeoutError') {
+        throw new OpenRouterError(
+          408,
+          `OpenRouter request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds`
+        )
+      }
+      throw error
+    }
+  }
+
+  async function request(messages: AIMessage[]): Promise<ChatCompletion> {
+    const response = await send(messages)
 
     const payload = (await response.json().catch(() => ({}))) as ChatCompletion & {
       error?: { message?: string }
@@ -134,6 +160,12 @@ export async function generateStructured<T>(opts: {
       throw new OpenRouterError(
         response.status,
         `OpenRouter request failed (${response.status}): ${reason}`
+      )
+    }
+    // Truncated output cannot be healed or repaired; say so instead of retrying.
+    if (payload.choices?.[0]?.finish_reason === 'length') {
+      throw new Error(
+        `OpenRouter reply for ${opts.schemaName} was truncated at ${maxTokens} tokens`
       )
     }
     return payload
@@ -152,7 +184,8 @@ export async function generateStructured<T>(opts: {
     },
   ])
   const repairOutcome = parseReply(repair, opts.schema)
-  if (repairOutcome.ok) return { data: repairOutcome.data, model: repair.model ?? AUTO_ROUTER_MODEL }
+  if (repairOutcome.ok)
+    return { data: repairOutcome.data, model: repair.model ?? AUTO_ROUTER_MODEL }
 
   throw new Error(`OpenRouter returned invalid structured output for ${opts.schemaName}`)
 }

@@ -149,6 +149,49 @@ describe('generateStructured', () => {
     expect(error.message).toBe(`OpenRouter request failed (${status}): No eligible models`)
   })
 
+  it('does not send temperature, which require_parameters could use to exclude endpoints', async () => {
+    const f = vi.fn().mockResolvedValue(okReply({ answer: 'a', score: 1 }))
+    await generateStructured({ messages: [], schema: Schema, schemaName: 'p', fetchImpl: f, env })
+    expect(bodyOf(f)).not.toHaveProperty('temperature')
+  })
+
+  it('fails clearly without a repair when the reply was truncated', async () => {
+    const f = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        model: 'm',
+        choices: [{ finish_reason: 'length', message: { content: '{"answer":"cut' } }],
+      }),
+    })
+    await expect(
+      generateStructured({ messages: [], schema: Schema, schemaName: 'probe', maxTokens: 500, fetchImpl: f, env })
+    ).rejects.toThrow('OpenRouter reply for probe was truncated at 500 tokens')
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes an abort signal so a hung request cannot stall the job', async () => {
+    const f = vi.fn().mockResolvedValue(okReply({ answer: 'a', score: 1 }))
+    await generateStructured({ messages: [], schema: Schema, schemaName: 'p', fetchImpl: f, env })
+    expect(f.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('reports a timeout readably', async () => {
+    const f = vi
+      .fn()
+      .mockRejectedValue(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
+    const error = await generateStructured({
+      messages: [],
+      schema: Schema,
+      schemaName: 'p',
+      fetchImpl: f,
+      env,
+    }).catch((e) => e)
+    expect(error).toBeInstanceOf(OpenRouterError)
+    expect(error.status).toBe(408)
+    expect(error.message).toBe('OpenRouter request timed out after 90 seconds')
+  })
+
   it('fails fast without an API key', async () => {
     const f = vi.fn()
     await expect(
