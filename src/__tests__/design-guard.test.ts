@@ -26,7 +26,6 @@ const PENDING_MIGRATION: string[] = [
   'src/app/(dashboard)/loading.tsx',
   'src/app/(dashboard)/shared/[shareId]/page.tsx',
   'src/app/global-error.tsx',
-  'src/app/page.tsx',
   'src/components/ai/AIDisclosureBanner.tsx',
   'src/components/ai/BiasReportCard.tsx',
   'src/components/ai/BiasReportView.tsx',
