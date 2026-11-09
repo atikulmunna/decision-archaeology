@@ -98,6 +98,7 @@ model DecisionRecord {
 
   // ── Metadata ──
   isImported  Boolean  @default(false)
+  catalogNumber Int?   // per-user DA-0042 number, assigned when a record is finalized or imported
   isDraft     Boolean  @default(true)
   draftStartedAt DateTime? // when the draft was first saved; createdAt restarts at finalize
   createdAt   DateTime @default(now())
@@ -107,6 +108,7 @@ model DecisionRecord {
   collaborators     CollaboratorShare[]
   corrections       CorrectionRequest[]
 
+  @@unique([userId, catalogNumber])
   @@map("decision_records")
 }
 

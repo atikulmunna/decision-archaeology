@@ -42,6 +42,7 @@ function makeDecision(
     isImported: false,
     isDraft: false,
     draftStartedAt: null,
+    catalogNumber: null,
     isLocked: true,
     lockedAt: new Date(),
     createdAt: new Date(),
