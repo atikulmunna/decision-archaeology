@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { IBM_Plex_Mono, Instrument_Serif, Inter_Tight } from 'next/font/google'
 import { cookies } from 'next/headers'
 import { ClerkProvider } from '@clerk/nextjs'
+import { clerkAppearance } from '@/lib/design/clerk-appearance'
 import { parseThemePreference, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/design/theme'
 import './globals.css'
 
@@ -24,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const preference = parseThemePreference((await cookies()).get(THEME_COOKIE)?.value)
 
   return (
-    <ClerkProvider>
+    <ClerkProvider appearance={clerkAppearance}>
       <html lang="en" data-theme={preference === 'system' ? undefined : preference} suppressHydrationWarning>
         <head>
           <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
