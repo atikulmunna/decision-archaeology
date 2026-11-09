@@ -2,7 +2,9 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/Button'
+import { Button, buttonClasses } from '@/components/ui/Button'
+import { Callout } from '@/components/ui/Callout'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 
 type Props = {
   canImport: boolean
@@ -39,39 +41,26 @@ export function ExportImportPanel({ canImport }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <section className="flex flex-col gap-3 border-t border-rule pt-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-            Export & Import
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Export your archive as JSON or Markdown. Power users can also import historical decisions from a JSON or CSV template.
+          <Eyebrow>Export and import</Eyebrow>
+          <p className="mt-1 text-sm text-ink-2">
+            Export your archive as JSON or Markdown. Power users can also import historical decisions from a JSON or CSV
+            template.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a
-            href="/api/export?format=json"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <a href="/api/export?format=json" className={buttonClasses({ variant: 'secondary', size: 'sm' })}>
             Export JSON
           </a>
-          <a
-            href="/api/export?format=markdown"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <a href="/api/export?format=markdown" className={buttonClasses({ variant: 'secondary', size: 'sm' })}>
             Export Markdown
           </a>
-          <a
-            href="/api/import/template?format=json"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <a href="/api/import/template?format=json" className={buttonClasses({ variant: 'ghost', size: 'sm' })}>
             JSON template
           </a>
-          <a
-            href="/api/import/template?format=csv"
-            className="inline-flex items-center justify-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
+          <a href="/api/import/template?format=csv" className={buttonClasses({ variant: 'ghost', size: 'sm' })}>
             CSV template
           </a>
           <input
@@ -99,13 +88,13 @@ export function ExportImportPanel({ canImport }: Props) {
       </div>
 
       {!canImport && (
-        <p className="mt-3 text-sm text-amber-700">
-          Bulk import is currently enabled for Power users only.
+        <p className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+          Bulk import is currently enabled for Power users only
         </p>
       )}
 
-      {status && <p className="mt-3 text-sm text-emerald-700">{status}</p>}
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-    </div>
+      {status && <Callout tone="success">{status}</Callout>}
+      {error && <Callout tone="danger">{error}</Callout>}
+    </section>
   )
 }

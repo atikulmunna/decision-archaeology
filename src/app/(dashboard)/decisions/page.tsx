@@ -7,6 +7,12 @@ import { DraftDecisionCard } from '@/components/decisions/DraftDecisionCard'
 import { FilterBar } from '@/components/decisions/FilterBar'
 import { ExportImportPanel } from '@/components/decisions/ExportImportPanel'
 import Link from 'next/link'
+import { Archive, SearchX } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Callout } from '@/components/ui/Callout'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { PageHeader } from '@/components/ui/PageHeader'
 import type { DomainTag } from '@prisma/client'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
 import { getOrCreateDbUser } from '@/lib/db-user'
@@ -107,76 +113,55 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
   timer.end({ total, draftCount: drafts.length, archiveError })
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Your Decisions</h1>
-          <p className="text-sm text-gray-400">{total} record{total !== 1 ? 's' : ''}</p>
-        </div>
-        <Link
-          href="/decisions/new"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors"
-        >
-          + New Decision
-        </Link>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow="Your record"
+        title="Archive"
+        meta={`${allCount} sealed${drafts.length > 0 ? ` · ${drafts.length} draft${drafts.length === 1 ? '' : 's'}` : ''}`}
+        actions={<Button href="/decisions/new">Log decision</Button>}
+      />
 
-      {/* Milestone bar */}
       {allCount < BIAS_REPORT_THRESHOLD && (
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-sm font-medium text-indigo-700">
-              🧠 {allCount}/{BIAS_REPORT_THRESHOLD} decisions toward your first Bias Report
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm text-ink-2">
+              {allCount} of {BIAS_REPORT_THRESHOLD} decisions toward your first bias report
             </p>
-            <span className="text-xs font-semibold text-indigo-500">{progressPct}%</span>
+            <span className="font-mono text-[11px] text-muted">{progressPct}%</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-indigo-200">
-            <div
-              className="h-2 rounded-full bg-indigo-500 transition-all"
-              style={{ width: `${progressPct}%` }}
-            />
+          <div className="h-px w-full bg-rule">
+            <div className="h-px bg-ink" style={{ width: `${progressPct}%` }} />
           </div>
         </div>
       )}
 
       {milestone && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-amber-900">{milestone.title}</p>
-              <p className="mt-1 text-sm text-amber-800">{milestone.body}</p>
-            </div>
-            <Link
-              href={milestone.href}
-              className="inline-flex rounded-lg bg-amber-900 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800"
-            >
+        <Callout tone="success" title={milestone.title}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span>{milestone.body}</span>
+            <Button href={milestone.href} size="sm" variant="secondary">
               {milestone.cta}
-            </Link>
+            </Button>
           </div>
-        </div>
+        </Callout>
       )}
 
       {archiveError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          The dashboard archive could not load completely right now. You can still create a new decision while we retry the archive data.
-        </div>
+        <Callout tone="danger" title="The archive could not load completely">
+          You can still create a new decision while the archive data is retried.
+        </Callout>
       )}
 
       {drafts.length > 0 && (
         <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
-                Drafts
-              </h2>
-              <p className="text-sm text-gray-500">
-                Pick up where you left off before you lock anything in.
-              </p>
+              <Eyebrow>Drafts</Eyebrow>
+              <p className="mt-1 text-sm text-ink-2">Pick up where you left off before you seal anything.</p>
             </div>
             <Link
               href="/decisions/new"
-              className="text-sm font-medium text-amber-700 transition-colors hover:text-amber-800"
+              className="font-mono text-[11px] uppercase tracking-[0.09em] text-signal-ink hover:text-ink"
             >
               Start another draft
             </Link>
@@ -189,69 +174,48 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Se
         </section>
       )}
 
-      {/* Filters */}
       <Suspense fallback={null}>
         <FilterBar />
       </Suspense>
 
-      <ExportImportPanel canImport={dbUser.tier === 'POWER'} />
-
-      {/* Decision list */}
       {records.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
-          <span className="text-4xl">🏺</span>
-          {allCount === 0 && drafts.length === 0 ? (
-            <>
-              <p className="mt-3 font-semibold text-gray-700">No decisions yet</p>
-              <p className="mt-1 text-sm text-gray-400">
-                Start logging decisions to build your reasoning archive.
-              </p>
-              <Link
-                href="/decisions/new"
-                className="mt-4 inline-block rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-              >
-                Log your first decision
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="mt-3 font-semibold text-gray-700">No results</p>
-              <p className="mt-1 text-sm text-gray-400">Try adjusting your filters or search query.</p>
-            </>
-          )}
-        </div>
+        allCount === 0 && drafts.length === 0 ? (
+          <EmptyState
+            icon={Archive}
+            title="No decisions yet"
+            description="Start logging decisions to build your reasoning archive."
+            action={<Button href="/decisions/new">Log your first decision</Button>}
+          />
+        ) : (
+          <EmptyState icon={SearchX} title="No results" description="Try adjusting your filters or search query." />
+        )
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="-mt-4 flex flex-col">
           {records.map((record) => (
             <DecisionCard key={record.id} decision={record} searchQuery={q} />
           ))}
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
+        <nav aria-label="Pagination" className="flex items-center justify-center gap-3">
           {page > 1 && (
-            <Link
-              href={hrefForPage(page - 1)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-            >
-              ← Previous
-            </Link>
+            <Button href={hrefForPage(page - 1)} variant="secondary" size="sm">
+              Previous
+            </Button>
           )}
-          <span className="text-sm text-gray-500">
+          <span className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
             Page {page} of {totalPages}
           </span>
           {page < totalPages && (
-            <Link
-              href={hrefForPage(page + 1)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-            >
-              Next →
-            </Link>
+            <Button href={hrefForPage(page + 1)} variant="secondary" size="sm">
+              Next
+            </Button>
           )}
-        </div>
+        </nav>
       )}
+
+      <ExportImportPanel canImport={dbUser.tier === 'POWER'} />
     </div>
   )
 }

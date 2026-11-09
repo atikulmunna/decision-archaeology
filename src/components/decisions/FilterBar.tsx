@@ -3,6 +3,9 @@
 import { useCallback, useTransition } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useDebouncedCallback } from 'use-debounce'
+import { Search } from 'lucide-react'
+
+const control = 'rounded-sm border border-rule bg-surface px-3 py-1.5 text-sm text-ink placeholder:text-muted focus:border-ink'
 
 const DOMAIN_OPTIONS = ['CAREER', 'FINANCE', 'HEALTH', 'RELATIONSHIPS', 'CREATIVE', 'OTHER']
 const OUTCOME_OPTIONS = [
@@ -50,21 +53,26 @@ export function FilterBar() {
   const tag = searchParams.get('tag') ?? ''
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 border-b border-rule pb-4">
       {/* Search */}
-      <input
-        type="search"
-        defaultValue={q}
-        onChange={(e) => handleSearch(e.target.value)}
-        placeholder="Search decisions..."
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-      />
+      <div className="relative">
+        <Search aria-hidden="true" size={14} strokeWidth={1.5} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+        <input
+          type="search"
+          defaultValue={q}
+          onChange={(e) => handleSearch(e.target.value)}
+          placeholder="Search reasoning, outcomes, tags"
+          aria-label="Search decisions"
+          className={`${control} w-full py-2 pl-9`}
+        />
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <select
+          aria-label="Filter by domain"
           value={domain}
           onChange={(e) => updateParam('domain', e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className={control}
         >
           <option value="">All domains</option>
           {DOMAIN_OPTIONS.map((d) => (
@@ -75,9 +83,10 @@ export function FilterBar() {
         </select>
 
         <select
+          aria-label="Filter by outcome"
           value={outcome}
           onChange={(e) => updateParam('outcome', e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className={control}
         >
           {OUTCOME_OPTIONS.map((option) => (
             <option key={option.value || 'all'} value={option.value}>
@@ -90,7 +99,7 @@ export function FilterBar() {
           type="date"
           value={dateFrom}
           onChange={(e) => updateParam('dateFrom', e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className={control}
           aria-label="Filter from date"
         />
 
@@ -98,7 +107,7 @@ export function FilterBar() {
           type="date"
           value={dateTo}
           onChange={(e) => updateParam('dateTo', e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className={control}
           aria-label="Filter to date"
         />
 
@@ -109,7 +118,8 @@ export function FilterBar() {
           value={minConfidence}
           onChange={(e) => updateParam('minConfidence', e.target.value)}
           placeholder="Min confidence"
-          className="w-36 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          aria-label="Minimum confidence"
+          className={`${control} w-36`}
         />
 
         <input
@@ -117,7 +127,8 @@ export function FilterBar() {
           value={tag}
           onChange={(e) => updateParam('tag', e.target.value)}
           placeholder="Tag"
-          className="w-36 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          aria-label="Filter by tag"
+          className={`${control} w-36`}
         />
 
         {(q || domain || outcome || dateFrom || dateTo || minConfidence || tag) && (
@@ -125,7 +136,7 @@ export function FilterBar() {
             onClick={() => {
               startTransition(() => router.replace(pathname))
             }}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
+            className="rounded-sm px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted hover:bg-sunken hover:text-ink"
           >
             Clear filters
           </button>

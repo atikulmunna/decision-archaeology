@@ -1,19 +1,13 @@
 import Link from 'next/link'
 import type { DecisionRecord, OutcomeUpdate } from '@prisma/client'
-import { OUTCOME_COLORS, OUTCOME_LABELS } from '@/lib/outcomes'
+import { Lock } from 'lucide-react'
+import { Badge } from '@/components/ui/Badge'
+import { CatalogNumber } from '@/components/ui/CatalogNumber'
+import { OUTCOME_LABELS, OUTCOME_TONES } from '@/lib/outcomes'
 
 type Props = {
   decision: DecisionRecord & { outcomes: OutcomeUpdate[] }
   searchQuery?: string
-}
-
-const DOMAIN_COLORS: Record<string, string> = {
-  CAREER: 'bg-violet-100 text-violet-700',
-  FINANCE: 'bg-emerald-100 text-emerald-700',
-  HEALTH: 'bg-rose-100 text-rose-700',
-  RELATIONSHIPS: 'bg-pink-100 text-pink-700',
-  CREATIVE: 'bg-amber-100 text-amber-700',
-  OTHER: 'bg-gray-100 text-gray-600',
 }
 
 function highlightText(text: string, query?: string) {
@@ -33,7 +27,7 @@ function highlightText(text: string, query?: string) {
   return parts.map((part, index) => {
     const isMatch = tokens.some((token) => part.toLowerCase() === token.toLowerCase())
     return isMatch ? (
-      <mark key={`${part}-${index}`} className="rounded bg-amber-100 px-0.5 text-inherit">
+      <mark key={`${part}-${index}`} className="bg-highlight px-0.5 text-ink">
         {part}
       </mark>
     ) : (
@@ -53,56 +47,49 @@ export function DecisionCard({ decision, searchQuery }: Props) {
   return (
     <Link
       href={`/decisions/${decision.id}`}
-      className="group block rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-indigo-300 hover:shadow-md"
+      className="group block border-b border-rule py-4 transition-colors duration-150 hover:bg-surface sm:px-2"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+            <CatalogNumber value={decision.catalogNumber} />
+            <span>{date}</span>
             {decision.isLocked && (
-              <span className="text-gray-400 text-xs" title="Fields locked">🔒</span>
+              <span className="inline-flex items-center gap-1" title="Core fields sealed">
+                <Lock aria-hidden="true" size={11} strokeWidth={1.5} />
+                Sealed
+              </span>
             )}
-            <h3 className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
-              {highlightText(decision.title, searchQuery)}
-            </h3>
           </div>
-          <p className="text-xs text-gray-400">{date}</p>
+          <h3 className="mt-1 break-words font-display text-[22px] leading-snug text-ink">
+            {highlightText(decision.title, searchQuery)}
+          </h3>
         </div>
 
-        {/* Outcome badge */}
         <div className="shrink-0">
           {latestOutcome ? (
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${OUTCOME_COLORS[latestOutcome.outcomeRating]}`}>
-              {OUTCOME_LABELS[latestOutcome.outcomeRating]}
-            </span>
+            <Badge tone={OUTCOME_TONES[latestOutcome.outcomeRating]}>{OUTCOME_LABELS[latestOutcome.outcomeRating]}</Badge>
           ) : (
-            <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-              Pending outcome
-            </span>
+            <Badge>Pending outcome</Badge>
           )}
         </div>
       </div>
 
-      {/* Meta row */}
-      <div className="mt-3 flex items-center gap-2 flex-wrap">
+      <p className="mt-2 line-clamp-2 text-sm text-ink-2">{highlightText(decision.summary, searchQuery)}</p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         {decision.domainTag && (
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${DOMAIN_COLORS[decision.domainTag] ?? 'bg-gray-100 text-gray-600'}`}>
-            {decision.domainTag.charAt(0) + decision.domainTag.slice(1).toLowerCase()}
-          </span>
+          <Badge tone="ink">{decision.domainTag.charAt(0) + decision.domainTag.slice(1).toLowerCase()}</Badge>
         )}
         {decision.customTags.map((tag) => (
-          <span key={tag} className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs text-indigo-600">
+          <Badge key={tag} tone="outline">
             #{tag}
-          </span>
+          </Badge>
         ))}
         {decision.confidenceLevel && (
-          <span className="ml-auto text-xs text-gray-400">
-            Confidence: <span className="font-semibold text-gray-600">{decision.confidenceLevel}/10</span>
-          </span>
+          <span className="ml-auto font-mono text-[11px] text-muted">Confidence {decision.confidenceLevel}/10</span>
         )}
       </div>
-
-      {/* Summary preview */}
-      <p className="mt-2 text-sm text-gray-500 line-clamp-2">{highlightText(decision.summary, searchQuery)}</p>
     </Link>
   )
 }

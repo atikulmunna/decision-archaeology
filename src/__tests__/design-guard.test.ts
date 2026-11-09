@@ -6,7 +6,8 @@ import path from 'path'
 // palette classes or hex values, and icons are lucide-react, never emoji.
 const ROOT = path.resolve(__dirname, '../..')
 const SRC = path.join(ROOT, 'src')
-const SKIP = new Set([path.join(SRC, '__tests__'), path.join(SRC, 'generated')])
+// API routes are skipped: their only markup is inline-styled email HTML, a separate medium the tokens cannot reach.
+const SKIP = new Set([path.join(SRC, '__tests__'), path.join(SRC, 'generated'), path.join(SRC, 'app', 'api')])
 
 const PALETTE_CLASS =
   /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|divide|placeholder|decoration|accent|caret|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g
@@ -16,22 +17,17 @@ const EMOJI = /\p{Extended_Pictographic}/gu
 
 /** Files not yet moved onto the Field Archive system. Page tasks remove entries. */
 const PENDING_MIGRATION: string[] = [
+  'src/lib/calibration.ts',
+  'src/lib/outcomes.ts',
   'src/app/(dashboard)/calibration/page.tsx',
   'src/app/(dashboard)/decisions/[id]/page.tsx',
-  'src/app/(dashboard)/decisions/loading.tsx',
-  'src/app/(dashboard)/decisions/page.tsx',
   'src/app/(dashboard)/error.tsx',
-  'src/app/(dashboard)/loading.tsx',
   'src/app/(dashboard)/shared/[shareId]/page.tsx',
   'src/app/global-error.tsx',
   'src/components/calibration/CalibrationWidget.tsx',
   'src/components/decisions/AddOutcomeForm.tsx',
   'src/components/decisions/AttachmentManager.tsx',
-  'src/components/decisions/DecisionCard.tsx',
   'src/components/decisions/DecisionDetail.tsx',
-  'src/components/decisions/DraftDecisionCard.tsx',
-  'src/components/decisions/ExportImportPanel.tsx',
-  'src/components/decisions/FilterBar.tsx',
   'src/components/decisions/OutcomeHistory.tsx',
   'src/components/decisions/SupplementaryNotesEditor.tsx',
   'src/components/sharing/CommentThread.tsx',
@@ -46,12 +42,14 @@ export function findDesignViolations(source: string): string[] {
   ]
 }
 
-function allTsxFiles(dir = SRC): string[] {
+/** Every .tsx and .ts source file (class names also live in .ts helpers such as outcome color maps). */
+function allSourceFiles(dir = SRC): string[] {
   if (SKIP.has(dir)) return []
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) return allTsxFiles(full)
-    return entry.name.endsWith('.tsx') ? [path.relative(ROOT, full).split(path.sep).join('/')] : []
+    if (entry.isDirectory()) return allSourceFiles(full)
+    const isSource = (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts')) && !entry.name.endsWith('.d.ts')
+    return isSource ? [path.relative(ROOT, full).split(path.sep).join('/')] : []
   })
 }
 
@@ -67,7 +65,7 @@ describe('design guard', () => {
   })
 
   it('finds no violations outside the pending-migration list', () => {
-    const offenders = allTsxFiles()
+    const offenders = allSourceFiles()
       .filter((file) => !PENDING_MIGRATION.includes(file))
       .filter((file) => findDesignViolations(read(file)).length > 0)
     expect(offenders).toEqual([])
