@@ -15,19 +15,16 @@ const PALETTE_CLASS =
 const ARBITRARY_HEX = /\[[^\]"'\s]*#[0-9a-fA-F]{3,8}[^\]"'\s]*\]/g
 const EMOJI = /\p{Extended_Pictographic}/gu
 
-/** Files not yet moved onto the Field Archive system. Page tasks remove entries. */
-const PENDING_MIGRATION: string[] = [
-  'src/lib/calibration.ts',
-  'src/app/(dashboard)/calibration/page.tsx',
-  'src/app/(dashboard)/error.tsx',
-  'src/app/global-error.tsx',
-  'src/components/calibration/CalibrationWidget.tsx',
-]
+// A hex color as a string literal, e.g. stroke="#e5e7eb" or a ternary of hex values in an SVG prop.
+const QUOTED_HEX = /(['"`])#[0-9a-fA-F]{3,8}\1/g
+// The token map is the one place hex values are allowed.
+const TOKEN_SOURCE = 'src/lib/design/tokens.ts'
 
 export function findDesignViolations(source: string): string[] {
   return [
     ...(source.match(PALETTE_CLASS) ?? []),
     ...(source.match(ARBITRARY_HEX) ?? []),
+    ...(source.match(QUOTED_HEX) ?? []),
     ...(source.match(EMOJI) ?? []),
   ]
 }
@@ -51,18 +48,15 @@ describe('design guard', () => {
     expect(findDesignViolations('className="text-[#ff0000]"')).toHaveLength(1)
     expect(findDesignViolations('className="bg-[linear-gradient(180deg,#f4efe6_0%,#fff_100%)]"')).toHaveLength(1)
     expect(findDesignViolations('<span>\u{1F512}</span>')).toHaveLength(1)
+    expect(findDesignViolations('<circle stroke="#e5e7eb" />')).toHaveLength(1)
+    expect(findDesignViolations("stroke={ok ? '#10b981' : '#ef4444'}")).toHaveLength(2)
     expect(findDesignViolations('className="bg-paper text-ink"')).toEqual([])
   })
 
-  it('finds no violations outside the pending-migration list', () => {
+  it('finds no violations in any source file', () => {
     const offenders = allSourceFiles()
-      .filter((file) => !PENDING_MIGRATION.includes(file))
+      .filter((file) => file !== TOKEN_SOURCE)
       .filter((file) => findDesignViolations(read(file)).length > 0)
     expect(offenders).toEqual([])
-  })
-
-  it('lists only files that still need migration', () => {
-    const stale = PENDING_MIGRATION.filter((file) => findDesignViolations(read(file)).length === 0)
-    expect(stale).toEqual([])
   })
 })

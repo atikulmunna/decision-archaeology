@@ -1,6 +1,7 @@
 'use client'
 
-import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 
 export default function DashboardError({
   error,
@@ -10,35 +11,23 @@ export default function DashboardError({
   reset: () => void
 }) {
   return (
-    <div className="rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-600">
-        Dashboard Error
-      </p>
-      <h1 className="mt-3 text-2xl font-semibold text-gray-950">
-        We couldn&apos;t load this dashboard view.
-      </h1>
-      <p className="mt-4 text-sm leading-7 text-gray-600">
-        The rest of the app is still intact. Try reloading this page, and if it keeps failing, check the server logs using the digest below.
+    <div role="alert" className="flex flex-col gap-4 rounded-sm border border-danger bg-surface p-8">
+      <Eyebrow className="text-danger">Dashboard error</Eyebrow>
+      <h1 className="font-display text-[32px] leading-tight text-ink">We could not load this view.</h1>
+      <p className="text-sm leading-relaxed text-ink-2">
+        The rest of the app is still intact. Try reloading this page, and if it keeps failing, check the server logs
+        using the digest below.
       </p>
       {error.digest && (
-        <div className="mt-5 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
-          Error digest: <span className="font-mono text-gray-900">{error.digest}</span>
-        </div>
+        <p className="rounded-sm bg-sunken px-4 py-3 font-mono text-xs text-ink-2">Error digest: {error.digest}</p>
       )}
-      <div className="mt-6 flex gap-3">
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-        >
+      <div className="flex flex-wrap gap-3">
+        <Button type="button" onClick={reset}>
           Retry
-        </button>
-        <Link
-          href="/decisions/new"
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
+        </Button>
+        <Button href="/decisions/new" variant="secondary">
           New decision
-        </Link>
+        </Button>
       </div>
     </div>
   )

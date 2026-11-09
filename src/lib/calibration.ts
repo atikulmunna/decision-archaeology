@@ -84,9 +84,17 @@ export function scoreLabel(score: number | null): string {
   return 'Poor calibration'
 }
 
+/** Text token for a calibration score (Field Archive). */
 export function scoreColor(score: number | null): string {
-  if (score === null) return 'text-gray-400'
-  if (score >= 80) return 'text-emerald-600'
-  if (score >= 60) return 'text-amber-600'
-  return 'text-red-600'
+  if (score === null) return 'text-muted'
+  if (score >= 80) return 'text-signal-ink'
+  if (score >= 60) return 'text-ink'
+  return 'text-danger'
+}
+
+/** SVG stroke token for the calibration gauge arc. */
+export function scoreStroke(score: number): string {
+  if (score >= 80) return 'stroke-signal-ink'
+  if (score >= 60) return 'stroke-ink'
+  return 'stroke-danger'
 }

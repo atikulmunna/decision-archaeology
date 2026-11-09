@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import Link from 'next/link'
 import { render, screen } from '@testing-library/react'
 import { Badge } from '@/components/ui/Badge'
 import { Callout } from '@/components/ui/Callout'
@@ -48,7 +49,7 @@ describe('display primitives', () => {
         <EmptyState
           title="No decisions yet"
           description="Log your first one."
-          action={<a href="/decisions/new">Log a decision</a>}
+          action={<Link href="/decisions/new">Log a decision</Link>}
         />
       </>
     )

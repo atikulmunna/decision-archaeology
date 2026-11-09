@@ -4,6 +4,7 @@ import {
   getClosedPredictedDecisions,
   scoreLabel,
   scoreColor,
+  scoreStroke,
 } from '@/lib/calibration'
 import type { OutcomeUpdate, DecisionRecord } from '@prisma/client'
 
@@ -147,15 +148,27 @@ describe('scoreLabel', () => {
 })
 
 describe('scoreColor', () => {
-  it('returns gray for null score', () => {
-    expect(scoreColor(null)).toContain('gray')
+  it('returns muted text for a missing score', () => {
+    expect(scoreColor(null)).toBe('text-muted')
   })
 
-  it('returns emerald for high scores', () => {
-    expect(scoreColor(80)).toContain('emerald')
+  it('returns signal-ink for high scores', () => {
+    expect(scoreColor(80)).toBe('text-signal-ink')
   })
 
-  it('returns red for low scores', () => {
-    expect(scoreColor(10)).toContain('red')
+  it('returns ink for middling scores', () => {
+    expect(scoreColor(65)).toBe('text-ink')
+  })
+
+  it('returns danger for low scores', () => {
+    expect(scoreColor(10)).toBe('text-danger')
+  })
+})
+
+describe('scoreStroke', () => {
+  it('maps scores to SVG stroke tokens', () => {
+    expect(scoreStroke(85)).toBe('stroke-signal-ink')
+    expect(scoreStroke(65)).toBe('stroke-ink')
+    expect(scoreStroke(30)).toBe('stroke-danger')
   })
 })

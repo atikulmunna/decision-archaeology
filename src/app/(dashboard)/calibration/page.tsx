@@ -7,6 +7,7 @@ import {
 } from '@/lib/calibration'
 import { CalibrationWidget } from '@/components/calibration/CalibrationWidget'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import { PageHeader } from '@/components/ui/PageHeader'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,13 +32,12 @@ export default async function CalibrationPage() {
   const closedDecisions = getClosedPredictedDecisions(records).length
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Calibration Score</h1>
-        <p className="mt-1 text-sm text-gray-400">
-          How accurately your predictions match your actual outcomes.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow="Your record"
+        title="Calibration"
+        meta="How accurately your predictions match your actual outcomes"
+      />
       <CalibrationWidget
         data={{
           score,

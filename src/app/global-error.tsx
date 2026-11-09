@@ -1,7 +1,11 @@
 'use client'
 
-import Link from 'next/link'
+import './globals.css'
+import { Button } from '@/components/ui/Button'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { THEME_INIT_SCRIPT } from '@/lib/design/theme'
 
+/** Renders outside the root layout, so it loads the tokens and theme script itself. */
 export default function GlobalError({
   error,
   reset,
@@ -10,38 +14,29 @@ export default function GlobalError({
   reset: () => void
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-gray-50">
-        <main className="mx-auto flex min-h-screen max-w-2xl items-center px-6 py-16">
-          <div className="w-full rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-red-600">
-              Application Error
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold text-gray-950">
-              Something went wrong while loading the app.
-            </h1>
-            <p className="mt-4 text-sm leading-7 text-gray-600">
-              Please try again. If this keeps happening, check the server logs and use the digest below to trace the failure.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
+      <body className="min-h-screen bg-paper text-ink">
+        <main className="mx-auto flex min-h-screen max-w-2xl items-center px-4 py-16">
+          <div role="alert" className="flex w-full flex-col gap-4 rounded-sm border border-danger bg-surface p-8">
+            <Eyebrow className="text-danger">Application error</Eyebrow>
+            <h1 className="font-display text-[36px] leading-tight">Something went wrong while loading the app.</h1>
+            <p className="text-sm leading-relaxed text-ink-2">
+              Please try again. If this keeps happening, check the server logs and use the digest below to trace the
+              failure.
             </p>
             {error.digest && (
-              <div className="mt-6 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                Error digest: <span className="font-mono text-gray-900">{error.digest}</span>
-              </div>
+              <p className="rounded-sm bg-sunken px-4 py-3 font-mono text-xs text-ink-2">Error digest: {error.digest}</p>
             )}
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={reset}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-              >
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" onClick={reset}>
                 Try again
-              </button>
-              <Link
-                href="/"
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
+              </Button>
+              <Button href="/" variant="secondary">
                 Return home
-              </Link>
+              </Button>
             </div>
           </div>
         </main>
