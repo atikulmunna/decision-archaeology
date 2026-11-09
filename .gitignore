@@ -41,3 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# local-only planning docs (never commit)
+CLAUDE.md
+*srs*
+*SRS*
+tasks.md
+TASKS.md
