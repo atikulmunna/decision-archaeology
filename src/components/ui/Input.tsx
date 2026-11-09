@@ -6,26 +6,43 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   hint?: string
 }
 
+export const fieldClasses = (error?: string) =>
+  `w-full rounded-sm border bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted transition-colors duration-150 focus:border-ink ${
+    error ? 'border-danger' : 'border-rule'
+  }`
+
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, className = '', id, ...props }, ref) => (
-    <div className="flex flex-col gap-1">
-      {label && (
-        <label htmlFor={id} className="text-sm font-medium text-gray-700">
-          {label}
-          {props.required && <span className="ml-1 text-red-500">*</span>}
-        </label>
-      )}
-      <input
-        ref={ref}
-        id={id}
-        className={`rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-          error ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'
-        } ${className}`}
-        {...props}
-      />
-      {error && <p className="text-xs text-red-500">{error}</p>}
-      {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
-    </div>
-  )
+  ({ label, error, hint, className = '', id, ...props }, ref) => {
+    const errorId = id ? `${id}-error` : undefined
+    const hintId = id ? `${id}-hint` : undefined
+    return (
+      <div className="flex flex-col gap-1">
+        {label && (
+          <label htmlFor={id} className="text-sm font-medium text-ink-2">
+            {label}
+            {props.required && <span className="ml-1 text-danger">*</span>}
+          </label>
+        )}
+        <input
+          ref={ref}
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : hint ? hintId : undefined}
+          className={`${fieldClasses(error)} ${className}`}
+          {...props}
+        />
+        {error && (
+          <p id={errorId} className="text-xs text-danger">
+            {error}
+          </p>
+        )}
+        {hint && !error && (
+          <p id={hintId} className="text-xs text-muted">
+            {hint}
+          </p>
+        )}
+      </div>
+    )
+  }
 )
 Input.displayName = 'Input'

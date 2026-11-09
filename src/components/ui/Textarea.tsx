@@ -1,4 +1,5 @@
 import { TextareaHTMLAttributes, forwardRef } from 'react'
+import { fieldClasses } from './Input'
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string
@@ -9,34 +10,46 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
 }
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ label, error, hint, charCount, minChars, className = '', id, ...props }, ref) => (
-    <div className="flex flex-col gap-1">
-      {label && (
-        <label htmlFor={id} className="text-sm font-medium text-gray-700">
-          {label}
-          {props.required && <span className="ml-1 text-red-500">*</span>}
-        </label>
-      )}
-      <textarea
-        ref={ref}
-        id={id}
-        className={`min-h-[100px] rounded-lg border px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y ${
-          error ? 'border-red-400 focus:ring-red-400' : 'border-gray-300'
-        } ${className}`}
-        {...props}
-      />
-      <div className="flex items-center justify-between">
-        <div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          {hint && !error && <p className="text-xs text-gray-500">{hint}</p>}
-        </div>
-        {charCount !== undefined && minChars && (
-          <p className={`text-xs ${charCount >= minChars ? 'text-green-600' : 'text-gray-400'}`}>
-            {charCount}/{minChars}+ chars
-          </p>
+  ({ label, error, hint, charCount, minChars, className = '', id, ...props }, ref) => {
+    const errorId = id ? `${id}-error` : undefined
+    const hintId = id ? `${id}-hint` : undefined
+    return (
+      <div className="flex flex-col gap-1">
+        {label && (
+          <label htmlFor={id} className="text-sm font-medium text-ink-2">
+            {label}
+            {props.required && <span className="ml-1 text-danger">*</span>}
+          </label>
         )}
+        <textarea
+          ref={ref}
+          id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : hint ? hintId : undefined}
+          className={`${fieldClasses(error)} min-h-[100px] resize-y ${className}`}
+          {...props}
+        />
+        <div className="flex items-center justify-between">
+          <div>
+            {error && (
+              <p id={errorId} className="text-xs text-danger">
+                {error}
+              </p>
+            )}
+            {hint && !error && (
+              <p id={hintId} className="text-xs text-muted">
+                {hint}
+              </p>
+            )}
+          </div>
+          {charCount !== undefined && minChars && (
+            <p className={`font-mono text-[11px] ${charCount >= minChars ? 'text-signal-ink' : 'text-muted'}`}>
+              {charCount}/{minChars}+
+            </p>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 )
 Textarea.displayName = 'Textarea'
