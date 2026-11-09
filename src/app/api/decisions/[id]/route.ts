@@ -14,6 +14,12 @@ import {
   buildFinalizeTimestamps,
   classifyDecisionPatch,
 } from '@/lib/decision-patch'
+import {
+  CATALOG_CONFLICT_MESSAGE,
+  CatalogNumberConflictError,
+  withCatalogNumberRetry,
+} from '@/lib/catalog'
+import { getMaxCatalogNumber } from '@/lib/catalog-db'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +70,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (intent === 'notes') {
     const parsed = UpdateNotesSchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+      return NextResponse.json(
+        { error: 'Validation failed', issues: parsed.error.issues },
+        { status: 400 }
+      )
     }
     const updated = await prisma.decisionRecord.update({
       where: { id },
@@ -82,30 +91,39 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       )
     }
 
-    const updated = await prisma.decisionRecord.update({
-      where: { id },
-      data: {
-        title: parsed.data.title,
-        summary: parsed.data.summary,
-        context: parsed.data.context,
-        alternatives: parsed.data.alternatives,
-        chosenOption: parsed.data.chosenOption,
-        reasoning: parsed.data.reasoning,
-        values: parsed.data.values,
-        uncertainties: parsed.data.uncertainties,
-        predictedOutcome: parsed.data.predictedOutcome,
-        predictedTimeframe: parsed.data.predictedTimeframe
-          ? new Date(parsed.data.predictedTimeframe)
-          : null,
-        confidenceLevel: parsed.data.confidenceLevel,
-        domainTag: parsed.data.domainTag ?? null,
-        customTags: parsed.data.customTags,
-        isDraft: false,
-        ...buildFinalizeTimestamps(record, new Date()),
-      },
-    })
+    const finalizeData = {
+      title: parsed.data.title,
+      summary: parsed.data.summary,
+      context: parsed.data.context,
+      alternatives: parsed.data.alternatives,
+      chosenOption: parsed.data.chosenOption,
+      reasoning: parsed.data.reasoning,
+      values: parsed.data.values,
+      uncertainties: parsed.data.uncertainties,
+      predictedOutcome: parsed.data.predictedOutcome,
+      predictedTimeframe: parsed.data.predictedTimeframe
+        ? new Date(parsed.data.predictedTimeframe)
+        : null,
+      confidenceLevel: parsed.data.confidenceLevel,
+      domainTag: parsed.data.domainTag ?? null,
+      customTags: parsed.data.customTags,
+      isDraft: false,
+      ...buildFinalizeTimestamps(record, new Date()),
+    }
 
-    return NextResponse.json(updated)
+    try {
+      const updated = await withCatalogNumberRetry(
+        (catalogNumber) =>
+          prisma.decisionRecord.update({ where: { id }, data: { ...finalizeData, catalogNumber } }),
+        () => getMaxCatalogNumber(dbUser.id)
+      )
+      return NextResponse.json(updated)
+    } catch (error) {
+      if (error instanceof CatalogNumberConflictError) {
+        return NextResponse.json({ error: CATALOG_CONFLICT_MESSAGE }, { status: 409 })
+      }
+      throw error
+    }
   }
 
   if (intent === 'draft') {
@@ -136,7 +154,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Core field update: authorizeDecisionPatch already rejected locked records
   const parsed = UpdateDraftSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Validation failed', issues: parsed.error.issues }, { status: 400 })
+    return NextResponse.json(
+      { error: 'Validation failed', issues: parsed.error.issues },
+      { status: 400 }
+    )
   }
 
   const updated = await prisma.decisionRecord.update({

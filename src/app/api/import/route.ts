@@ -9,6 +9,13 @@ import {
   parseCsv,
   parseImportPayload,
 } from '@/lib/portability'
+import {
+  CATALOG_CONFLICT_MESSAGE,
+  CatalogNumberConflictError,
+  numberImportBatch,
+  withCatalogNumberRetry,
+} from '@/lib/catalog'
+import { getMaxCatalogNumber } from '@/lib/catalog-db'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,20 +43,29 @@ export async function POST(req: NextRequest) {
     const text = await file.text()
     const isCsv = file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv'
     const parsed = isCsv
-      ? parseImportPayload({ decisions: normalizeCsvImport(parseCsv(text)), schemaVersion: '1.0.0', exportedAt: new Date().toISOString() })
+      ? parseImportPayload({
+          decisions: normalizeCsvImport(parseCsv(text)),
+          schemaVersion: '1.0.0',
+          exportedAt: new Date().toISOString(),
+        })
       : parseImportPayload(JSON.parse(text))
 
     const data = await importPortableDecisions(dbUser, parsed.decisions)
-    await prisma.$transaction(
-      data.map((decision) =>
-        prisma.decisionRecord.create({
-          data: decision,
-        })
-      )
+    await withCatalogNumberRetry(
+      (start) =>
+        prisma.$transaction(
+          numberImportBatch(data, start).map((decision) =>
+            prisma.decisionRecord.create({ data: decision })
+          )
+        ),
+      () => getMaxCatalogNumber(dbUser.id)
     )
 
     return NextResponse.json({ imported: parsed.decisions.length }, { status: 201 })
   } catch (error) {
+    if (error instanceof CatalogNumberConflictError) {
+      return NextResponse.json({ error: CATALOG_CONFLICT_MESSAGE }, { status: 409 })
+    }
     return NextResponse.json({ error: getImportErrorMessage(error) }, { status: 422 })
   }
 }

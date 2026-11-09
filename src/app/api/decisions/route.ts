@@ -5,6 +5,12 @@ import { DomainTag } from '@prisma/client'
 import { getDecisions } from '@/lib/decisions'
 import { CreateDecisionSchema, DraftDecisionSchema } from '@/lib/validations/decision'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import {
+  CATALOG_CONFLICT_MESSAGE,
+  CatalogNumberConflictError,
+  withCatalogNumberRetry,
+} from '@/lib/catalog'
+import { getMaxCatalogNumber } from '@/lib/catalog-db'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +24,9 @@ export async function POST(req: NextRequest) {
 
   // Free tier: max 20 records
   if (dbUser.tier === 'FREE') {
-    const count = await prisma.decisionRecord.count({ where: { userId: dbUser.id, isDraft: false } })
+    const count = await prisma.decisionRecord.count({
+      where: { userId: dbUser.id, isDraft: false },
+    })
     if (count >= 20) {
       return NextResponse.json(
         { error: 'Free tier limit reached. Upgrade to Pro for unlimited records.' },
@@ -42,27 +50,41 @@ export async function POST(req: NextRequest) {
   }
 
   const data = parsed.data
-  const record = await prisma.decisionRecord.create({
-    data: {
-      userId: dbUser.id,
-      title: data.title ?? '',
-      summary: data.summary ?? '',
-      context: data.context ?? '',
-      alternatives: data.alternatives ?? '',
-      chosenOption: data.chosenOption ?? '',
-      reasoning: data.reasoning ?? '',
-      values: data.values,
-      uncertainties: data.uncertainties,
-      predictedOutcome: data.predictedOutcome,
-      predictedTimeframe: data.predictedTimeframe ? new Date(data.predictedTimeframe) : null,
-      confidenceLevel: data.confidenceLevel,
-      domainTag: data.domainTag ?? null,
-      customTags: data.customTags ?? [],
-      isDraft: saveAsDraft,
-    },
-  })
+  const createData = {
+    userId: dbUser.id,
+    title: data.title ?? '',
+    summary: data.summary ?? '',
+    context: data.context ?? '',
+    alternatives: data.alternatives ?? '',
+    chosenOption: data.chosenOption ?? '',
+    reasoning: data.reasoning ?? '',
+    values: data.values,
+    uncertainties: data.uncertainties,
+    predictedOutcome: data.predictedOutcome,
+    predictedTimeframe: data.predictedTimeframe ? new Date(data.predictedTimeframe) : null,
+    confidenceLevel: data.confidenceLevel,
+    domainTag: data.domainTag ?? null,
+    customTags: data.customTags ?? [],
+    isDraft: saveAsDraft,
+  }
 
-  return NextResponse.json(record, { status: saveAsDraft ? 200 : 201 })
+  if (saveAsDraft) {
+    const draft = await prisma.decisionRecord.create({ data: createData })
+    return NextResponse.json(draft, { status: 200 })
+  }
+
+  try {
+    const record = await withCatalogNumberRetry(
+      (catalogNumber) => prisma.decisionRecord.create({ data: { ...createData, catalogNumber } }),
+      () => getMaxCatalogNumber(dbUser.id)
+    )
+    return NextResponse.json(record, { status: 201 })
+  } catch (error) {
+    if (error instanceof CatalogNumberConflictError) {
+      return NextResponse.json({ error: CATALOG_CONFLICT_MESSAGE }, { status: 409 })
+    }
+    throw error
+  }
 }
 
 // GET /api/decisions: list user's records (paginated)
