@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  buildNormalizationPrompt,
+  buildAssumptionExtractionPrompt,
   buildBiasDetectionPrompt,
   buildCalibrationAnalysisPrompt,
   buildSynthesisPrompt,
@@ -34,24 +34,25 @@ function makeDecision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
   } as DecisionRecord
 }
 
-describe('buildNormalizationPrompt', () => {
+describe('buildAssumptionExtractionPrompt', () => {
   it('includes all key decision fields', () => {
-    const prompt = buildNormalizationPrompt([makeDecision()])
+    const prompt = buildAssumptionExtractionPrompt([makeDecision()])
     expect(prompt).toContain('Accept senior role at Acme')
     expect(prompt).toContain('Deciding whether to accept the offer')
     expect(prompt).toContain('Better salary and growth')
   })
 
-  it('numbers decisions sequentially', () => {
-    const prompt = buildNormalizationPrompt([makeDecision(), makeDecision({ id: '2', title: 'Decision 2' })])
-    expect(prompt).toContain('[Decision 1]')
-    expect(prompt).toContain('[Decision 2]')
+  it('embeds decision text safely and labels decisions by id', () => {
+    const reasoning = 'He said "go"\nthen \ left'
+    const prompt = buildAssumptionExtractionPrompt([makeDecision({ id: 'abc', reasoning })])
+    expect(prompt).toContain('"id":"abc"')
+    expect(prompt).toContain(JSON.stringify(reasoning))
   })
 })
 
 describe('buildBiasDetectionPrompt', () => {
   it('includes all 8 cognitive bias names from the taxonomy', () => {
-    const prompt = buildBiasDetectionPrompt('{"assumptions":[]}')
+    const prompt = buildBiasDetectionPrompt({ decisions: [] }, {})
     expect(prompt).toContain('Overconfidence Bias')
     expect(prompt).toContain('Confirmation Bias')
     expect(prompt).toContain('Sunk Cost Fallacy')
@@ -62,11 +63,13 @@ describe('buildBiasDetectionPrompt', () => {
     expect(prompt).toContain('Anchoring Bias')
   })
 
-  it('requests severity levels in the output schema', () => {
-    const prompt = buildBiasDetectionPrompt('{}')
-    expect(prompt).toContain('MILD')
-    expect(prompt).toContain('MODERATE')
-    expect(prompt).toContain('STRONG')
+  it('names affected decisions by title', () => {
+    const prompt = buildBiasDetectionPrompt(
+      { decisions: [{ decisionId: 'abc', assumptions: ['Rates stay low'] }] },
+      { abc: 'Refinance the house' }
+    )
+    expect(prompt).toContain('Refinance the house')
+    expect(prompt).toContain('Rates stay low')
   })
 })
 
@@ -95,8 +98,8 @@ describe('buildCalibrationAnalysisPrompt', () => {
 describe('buildSynthesisPrompt', () => {
   it('includes decision count and date range', () => {
     const prompt = buildSynthesisPrompt({
-      biasesJson: '{}',
-      calibrationJson: '{}',
+      biases: { biases: [] },
+      calibration: null,
       totalDecisions: 12,
       dateRange: 'Jan 2025 to Mar 2025',
     })
@@ -104,15 +107,18 @@ describe('buildSynthesisPrompt', () => {
     expect(prompt).toContain('Jan 2025 to Mar 2025')
   })
 
-  it('requests JSON output with expected fields', () => {
+  it('includes bias findings and calibration patterns', () => {
     const prompt = buildSynthesisPrompt({
-      biasesJson: '{}',
-      calibrationJson: '{}',
-      totalDecisions: 5,
+      biases: {
+        biases: [
+          { name: 'Optimism Bias', severity: 'MODERATE', evidence: 'e', affectedDecisions: ['A'], reframe: 'r' },
+        ],
+      },
+      calibration: { patterns: [{ description: 'Underestimates timelines', frequency: 'frequent', affectedDecisions: ['A'] }] },
+      totalDecisions: 12,
       dateRange: 'Jan 2025',
     })
-    expect(prompt).toContain('"summary"')
-    expect(prompt).toContain('"biases"')
-    expect(prompt).toContain('"calibrationInsight"')
+    expect(prompt).toContain('Optimism Bias')
+    expect(prompt).toContain('Underestimates timelines')
   })
 })

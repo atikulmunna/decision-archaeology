@@ -38,11 +38,11 @@ async function runJob(reportId: string, userId: string) {
       .flatMap((r) => (r.flaggedFindings as string[]) ?? [])
       .filter(Boolean)
 
-    // Run the 5-pass pipeline
-    const result = await runBiasAnalysisPipeline(decisions)
+    // Run the schema-validated OpenRouter pipeline
+    const { report, modelsUsed } = await runBiasAnalysisPipeline(decisions)
 
     // Filter out biases the user has previously flagged as false positives
-    const filteredBiases = result.biases.filter(
+    const filteredBiases = report.biases.filter(
       (bias) => !flaggedBiases.some((f) => f.toLowerCase().includes(bias.name.toLowerCase()))
     )
 
@@ -51,9 +51,10 @@ async function runJob(reportId: string, userId: string) {
       where: { id: reportId },
       data: {
         status: 'COMPLETE',
-        summary: result.summary,
+        summary: report.summary,
         findings: filteredBiases as object[],
-        calibrationInsight: result.calibrationInsight,
+        calibrationInsight: report.calibrationInsight,
+        modelsUsed,
         completedAt: new Date(),
       },
     })

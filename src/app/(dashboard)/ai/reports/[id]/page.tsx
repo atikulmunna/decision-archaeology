@@ -70,6 +70,7 @@ export default async function ReportDetailPage({ params }: Params) {
             flaggedFindings: (report.flaggedFindings as string[]) ?? [],
             createdAt: report.createdAt,
             decisionCount: report.decisionCount,
+            modelsUsed: report.modelsUsed,
           }}
         />
       </div>

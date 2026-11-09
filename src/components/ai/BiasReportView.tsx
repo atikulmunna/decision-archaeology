@@ -10,6 +10,7 @@ interface Report {
   flaggedFindings: string[]
   createdAt: Date
   decisionCount: number
+  modelsUsed: string[]
 }
 
 export function BiasReportView({ report }: { report: Report }) {
@@ -30,6 +31,11 @@ export function BiasReportView({ report }: { report: Report }) {
           <div>
             <h2 className="text-lg font-bold text-gray-900">Bias Analysis</h2>
             <p className="text-sm text-gray-400">{date} · {report.decisionCount} decisions analysed</p>
+            {report.modelsUsed.length > 0 && (
+              <p className="mt-1 text-xs text-gray-400">
+                Analyzed by {report.modelsUsed.join(', ')} via OpenRouter Auto Router
+              </p>
+            )}
           </div>
           <div className="flex gap-3 text-center shrink-0">
             {strongCount > 0 && (

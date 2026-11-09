@@ -1,35 +1,52 @@
 import type { DecisionRecord, OutcomeUpdate } from '@prisma/client'
+import type {
+  AssumptionsOutput,
+  BiasFindingsOutput,
+  CalibrationPatternsOutput,
+} from '@/lib/ai-schema'
 
 type DecisionWithOutcomes = DecisionRecord & { outcomes: OutcomeUpdate[] }
 
-// ── Pass 1: Normalization ─────────────────────────────────────────────────
-export function buildNormalizationPrompt(decisions: DecisionRecord[]): string {
-  const texts = decisions
-    .map(
-      (d, i) =>
-        `[Decision ${i + 1}] Title: ${d.title}\nSummary: ${d.summary}\nContext: ${d.context}\nReasoning: ${d.reasoning}\nAlternatives: ${d.alternatives}\nChosen: ${d.chosenOption}`
-    )
-    .join('\n\n')
+// Output shape is enforced by the JSON Schema sent with each request, so these
+// prompts describe the task only. Decision text is embedded with JSON.stringify
+// so quotes, backslashes and newlines in user content cannot break the prompt.
 
-  return `You are a decision analysis assistant. Your task is to normalize the following decision records into clean, consistent language. Fix grammar, remove hedging words, and standardize phrasing. Do NOT change the meaning. Return each decision as a JSON object with all fields preserved. Output JSON only, no explanation.
+// ── Pass 1: Assumption Extraction ──────────────────────────────────────────
+export function buildAssumptionExtractionPrompt(decisions: DecisionRecord[]): string {
+  const records = decisions
+    .map((d) =>
+      JSON.stringify({
+        id: d.id,
+        title: d.title,
+        summary: d.summary,
+        context: d.context,
+        alternatives: d.alternatives,
+        chosenOption: d.chosenOption,
+        reasoning: d.reasoning,
+        values: d.values ?? null,
+        uncertainties: d.uncertainties ?? null,
+      })
+    )
+    .join('\n')
+
+  return `You are a decision analysis expert. Each line below is one decision record as JSON. Extract the KEY IMPLICIT ASSUMPTIONS underlying each decision: things the decision-maker believed to be true but did not explicitly state.
+
+For each decision, list 2 to 5 specific implicit assumptions and return them under that decision's "id" as decisionId. Do not paraphrase the record's meaning.
 
 DECISIONS:
-${texts}`
+${records}`
 }
 
-// ── Pass 2: Assumption Extraction ─────────────────────────────────────────
-export function buildAssumptionExtractionPrompt(normalizedDecisions: string): string {
-  return `You are a decision analysis expert. Analyze the following decision records and extract the KEY IMPLICIT ASSUMPTIONS underlying each decision: things the decision-maker believed to be true but did not explicitly state.
+// ── Pass 2: Bias Detection ─────────────────────────────────────────────────
+export function buildBiasDetectionPrompt(
+  assumptions: AssumptionsOutput,
+  titlesById: Record<string, string>
+): string {
+  const labelled = assumptions.decisions.map((entry) => ({
+    decisionTitle: titlesById[entry.decisionId] ?? entry.decisionId,
+    assumptions: entry.assumptions,
+  }))
 
-For each decision, list 2-5 implicit assumptions. Be specific. Format your response as JSON:
-{ "assumptions": [{ "decisionIndex": number, "decisionTitle": string, "assumptions": string[] }] }
-
-NORMALIZED DECISIONS:
-${normalizedDecisions}`
-}
-
-// ── Pass 3: Bias Detection ─────────────────────────────────────────────────
-export function buildBiasDetectionPrompt(assumptionsJson: string): string {
   return `You are a cognitive bias analyst. Review the following assumptions extracted from a person's decision history and identify which cognitive biases are present.
 
 Use only these bias categories from the taxonomy:
@@ -42,19 +59,13 @@ Use only these bias categories from the taxonomy:
 - Optimism Bias: unrealistic expectations of positive outcomes
 - Anchoring Bias: over-relying on the first piece of information
 
-For each identified bias, specify:
-- severity: "MILD" | "MODERATE" | "STRONG"
-- evidence: quote or reference the specific assumptions that reveal it
-- affectedDecisions: the decision titles it appears in
-
-Return JSON only:
-{ "biases": [{ "name": string, "severity": string, "evidence": string, "affectedDecisions": string[], "reframe": string }] }
+For each identified bias, give a severity (MILD, MODERATE or STRONG), evidence that quotes or references the specific assumptions that reveal it, the titles of the affected decisions, and a short constructive reframe.
 
 ASSUMPTIONS:
-${assumptionsJson}`
+${JSON.stringify(labelled, null, 2)}`
 }
 
-// ── Pass 4: Calibration Analysis ──────────────────────────────────────────
+// ── Pass 3: Calibration Analysis ───────────────────────────────────────────
 export function buildCalibrationAnalysisPrompt(decisions: DecisionWithOutcomes[]): string {
   const withOutcomes = decisions
     .filter((d) => d.outcomes.length > 0 && d.predictedOutcome)
@@ -70,48 +81,36 @@ export function buildCalibrationAnalysisPrompt(decisions: DecisionWithOutcomes[]
 
   return `Analyze the gap between predicted and actual outcomes in the following decisions. Identify patterns in how well predictions matched reality.
 
-Note recurring themes: consistent over-optimism, under-estimation of complexity, domain-specific blind spots, etc.
-
-Return JSON only:
-{ "patterns": [{ "description": string, "frequency": "occasional" | "frequent" | "consistent", "affectedDecisions": string[] }] }
+Note recurring themes: consistent over-optimism, under-estimation of complexity, domain-specific blind spots, etc. Rate each pattern's frequency as occasional, frequent or consistent, and list the affected decision titles.
 
 DATA:
 ${JSON.stringify(withOutcomes, null, 2)}`
 }
 
-// ── Pass 5: Synthesis ─────────────────────────────────────────────────────
+// ── Pass 4: Synthesis ──────────────────────────────────────────────────────
 export function buildSynthesisPrompt(opts: {
-  biasesJson: string
-  calibrationJson: string
+  biases: BiasFindingsOutput
+  calibration: CalibrationPatternsOutput | null
   totalDecisions: number
   dateRange: string
 }): string {
+  const calibration = opts.calibration
+    ? JSON.stringify(opts.calibration, null, 2)
+    : 'No decisions have both a prediction and a recorded outcome yet. Set calibrationInsight to null.'
+
   return `You are a personal decision coach writing a Bias Report for a user. Synthesize the following analysis into a clear, empathetic, and actionable report.
 
 Guidelines:
-- Write in second person ("You tend to…")
-- Be honest but constructive, and frame weaknesses as growth opportunities  
-- Keep the overall summary to 3-4 sentences
+- Write in second person ("You tend to...")
+- Be honest but constructive, and frame weaknesses as growth opportunities
+- Keep the overall summary to 3 or 4 sentences
 - Do NOT be preachy or repetitive
-
-Return JSON only:
-{
-  "summary": string,
-  "biases": [{
-    "name": string,
-    "severity": "MILD" | "MODERATE" | "STRONG",
-    "evidence": string,
-    "affectedDecisions": string[],
-    "reframe": string
-  }],
-  "calibrationInsight": string | null
-}
 
 ANALYSIS PERIOD: ${opts.dateRange} (${opts.totalDecisions} decisions)
 
 BIAS FINDINGS:
-${opts.biasesJson}
+${JSON.stringify(opts.biases, null, 2)}
 
 CALIBRATION PATTERNS:
-${opts.calibrationJson}`
+${calibration}`
 }

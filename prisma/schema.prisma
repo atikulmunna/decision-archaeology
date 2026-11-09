@@ -134,6 +134,7 @@ model BiasReport {
   findings      Json?            // BiasEntry[]
   calibrationInsight String?
   flaggedFindings Json?          // string[]
+  modelsUsed    String[]         @default([]) // models picked by the OpenRouter Auto Router
   completedAt   DateTime?
   errorMessage  String?
   createdAt     DateTime         @default(now())
