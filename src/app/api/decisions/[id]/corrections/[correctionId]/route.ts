@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { CorrectionStatusSchema } from '@/lib/corrections'
+import {
+  canTransitionCorrection,
+  CorrectionStatusSchema,
+  isLikelyTypoCorrection,
+  type CorrectionStatus,
+} from '@/lib/corrections'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +36,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json(
       { error: 'Validation failed', issues: parsed.error.issues },
       { status: 400 }
+    )
+  }
+
+  if (!canTransitionCorrection(correction.status as CorrectionStatus, parsed.data.status)) {
+    return NextResponse.json({ error: 'This correction has already been reviewed.' }, { status: 409 })
+  }
+
+  if (
+    parsed.data.status === 'APPROVED' &&
+    !isLikelyTypoCorrection(correction.originalText, correction.correctedText)
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          'Correction requests are limited to small spelling or punctuation fixes and cannot change the meaning of the original record.',
+      },
+      { status: 422 }
     )
   }
 
