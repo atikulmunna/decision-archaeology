@@ -45,6 +45,8 @@ function makeDecision(
     isImported: false,
     isDraft: false,
     draftStartedAt: null,
+    sealHash: null,
+    sealedAt: null,
     catalogNumber: null,
     isLocked: true,
     lockedAt: new Date(),

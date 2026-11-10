@@ -1,6 +1,8 @@
 import type { CorrectionRequest, DecisionRecord, OutcomeUpdate } from '@prisma/client'
 import { DEMO_NOW, daysBefore } from './clock'
 import { DEMO_SEEDS, type DemoDecisionSeed } from './seed'
+import { buildSealPayload } from '@/lib/seal'
+import { computeSealHashSync } from '@/lib/seal-node'
 
 export const DEMO_USER_ID = 'demo-user'
 
@@ -55,7 +57,7 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
     Math.max(createdAt.getTime(), ...outcomes.map((o) => o.createdAt.getTime()), ...corrections.map((c) => c.createdAt.getTime()))
   )
 
-  return {
+  const record = {
     id,
     userId: DEMO_USER_ID,
     title: seed.title,
@@ -83,9 +85,13 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
       seed.deliberationMinutes === undefined ? null : new Date(createdAt.getTime() - seed.deliberationMinutes * MINUTE_MS),
     createdAt,
     updatedAt,
+    sealHash: null as string | null,
+    sealedAt: null as Date | null,
     outcomes,
     corrections,
   }
+  // Demo seals are taken at finalization, so they are never retroactive.
+  return { ...record, sealHash: computeSealHashSync(buildSealPayload(record)), sealedAt: createdAt }
 }
 
 /** The whole demo archive, oldest first, as the same Prisma shapes the app renders. */

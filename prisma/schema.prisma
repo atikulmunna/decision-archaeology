@@ -99,6 +99,8 @@ model DecisionRecord {
   // ── Metadata ──
   isImported  Boolean  @default(false)
   catalogNumber Int?   // per-user DA-0042 number, assigned when a record is finalized or imported
+  sealHash    String?   // SHA-256 of buildSealPayload() (src/lib/seal.ts), rewritten on every write that changes sealed fields
+  sealedAt    DateTime? // when sealHash was computed; later than the lock deadline means a retroactive seal
   isDraft     Boolean  @default(true)
   draftStartedAt DateTime? // when the draft was first saved; createdAt restarts at finalize
   createdAt   DateTime @default(now())

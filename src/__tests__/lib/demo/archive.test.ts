@@ -5,6 +5,7 @@ import { DEMO_NOW, daysBefore } from '@/lib/demo/clock'
 import { SPECIMEN_EXCERPT, SPECIMEN_KEY, SPECIMEN_SENTENCE } from '@/lib/demo/seed'
 import { computeCalibrationScore, getClosedPredictedDecisions } from '@/lib/calibration'
 import { isLikelyTypoCorrection } from '@/lib/corrections'
+import { isRetroactiveSeal, verifySeal } from '@/lib/seal'
 
 describe('buildDemoArchive', () => {
   it('builds 24 sealed records with stable ids and catalog numbers in creation order', () => {
@@ -75,5 +76,13 @@ describe('buildDemoArchive', () => {
 
   it('is deterministic', () => {
     expect(buildDemoArchive()).toEqual(buildDemoArchive())
+  })
+
+  it('seals every demo record so it verifies, and none is retroactive', async () => {
+    for (const decision of buildDemoArchive()) {
+      expect(decision.sealHash).toMatch(/^[0-9a-f]{64}$/)
+      expect(await verifySeal(decision, decision.sealHash!)).toBe(true)
+      expect(isRetroactiveSeal(decision)).toBe(false)
+    }
   })
 })
