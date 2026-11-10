@@ -2,22 +2,12 @@ import 'server-only'
 
 import { prisma } from '@/lib/prisma'
 import { normalizeDecisionLockState } from '@/lib/locks'
-import { DomainTag, Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { logError } from '@/lib/observability'
 import { createTimer } from '@/lib/timing'
+import { matchesOutcomeFilter, type DecisionFilters } from '@/lib/archive-view'
 
-export type DecisionFilters = {
-  q?: string
-  domain?: DomainTag
-  dateFrom?: string
-  dateTo?: string
-  outcome?: 'pending' | 'has' | 'positive' | 'negative' | 'expected' | 'too_early'
-  minConfidence?: number
-  maxConfidence?: number
-  tag?: string
-  page?: number
-  limit?: number
-}
+export type { DecisionFilters } from '@/lib/archive-view'
 
 export async function getDecisions(userId: string, filters: DecisionFilters = {}) {
   const timer = createTimer('data.getDecisions', {
@@ -242,18 +232,7 @@ export async function getDecisions(userId: string, filters: DecisionFilters = {}
       prisma.decisionRecord.count({ where: fallbackWhere }),
     ])
 
-    const filtered = records.filter((record) => {
-      const latestOutcome = record.outcomes[0]?.outcomeRating
-
-      if (outcome === 'pending') return !latestOutcome
-      if (outcome === 'has') return Boolean(latestOutcome)
-      if (outcome === 'positive') return latestOutcome === 'MUCH_BETTER' || latestOutcome === 'SLIGHTLY_BETTER'
-      if (outcome === 'negative') return latestOutcome === 'SLIGHTLY_WORSE' || latestOutcome === 'MUCH_WORSE'
-      if (outcome === 'expected') return latestOutcome === 'AS_EXPECTED'
-      if (outcome === 'too_early') return latestOutcome === 'TOO_EARLY_TO_TELL'
-
-      return true
-    })
+    const filtered = records.filter((record) => matchesOutcomeFilter(record.outcomes[0]?.outcomeRating, outcome))
 
     return {
       records: filtered.map((record) => normalizeDecisionLockState(record)),
