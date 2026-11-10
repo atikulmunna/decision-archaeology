@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SealPanel } from '@/components/seal/SealPanel'
 import { demoDecisionIdForKey } from '@/lib/demo/archive'
@@ -72,6 +72,23 @@ describe('SealPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Download' }))
     expect(await blobs[0].text()).toBe(buildSealPayload(specimen))
     expect(screen.getByText(/sha256sum DA-0007-seal\.json/)).toBeInTheDocument()
+  })
+
+  it('keeps the download URL alive after the click so slower browsers can save the file', () => {
+    vi.useFakeTimers()
+    const revoke = vi.fn()
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:seal'), revokeObjectURL: revoke }))
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    try {
+      render(<SealPanel record={specimen} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Show what is sealed' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+      expect(revoke).not.toHaveBeenCalled()
+      vi.runAllTimers()
+      expect(revoke).toHaveBeenCalledWith('blob:seal')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('verifies text stored with Windows line endings', async () => {

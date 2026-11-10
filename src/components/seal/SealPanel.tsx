@@ -3,14 +3,9 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { getDecisionLockDeadline } from '@/lib/locks'
-import { buildSealPayload, computeSealHash, isRetroactiveSeal, sealFileName, type SealableDecision } from '@/lib/seal'
+import { buildSealPayload, computeSealHash, isRetroactiveSeal, sealFileName, type SealRecord } from '@/lib/seal'
 
-export type SealRecord = SealableDecision & {
-  sealHash: string | null
-  sealedAt: Date | null
-  isImported: boolean
-  isLocked: boolean
-}
+export type { SealRecord } from '@/lib/seal'
 
 const label = 'font-mono text-[11px] uppercase tracking-[0.09em]'
 const hashText = 'break-all font-mono text-xs text-ink-2'
@@ -94,7 +89,8 @@ export function SealPanel({
     link.href = url
     link.download = fileName
     link.click()
-    URL.revokeObjectURL(url)
+    // Some browsers start the save after click() returns, so keep the URL alive for a while.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
   return (
