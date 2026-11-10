@@ -20,6 +20,7 @@ import {
   withCatalogNumberRetry,
 } from '@/lib/catalog'
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
+import { afterUpdate, sealFields } from '@/lib/seal'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,6 +83,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json(updated)
   }
 
+  const now = new Date()
+
   if (intent === 'finalize') {
     const parsed = FinalizeDecisionSchema.safeParse(body)
     if (!parsed.success) {
@@ -108,13 +111,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       domainTag: parsed.data.domainTag ?? null,
       customTags: parsed.data.customTags,
       isDraft: false,
-      ...buildFinalizeTimestamps(record, new Date()),
+      ...buildFinalizeTimestamps(record, now),
     }
 
     try {
       const updated = await withCatalogNumberRetry(
-        (catalogNumber) =>
-          prisma.decisionRecord.update({ where: { id }, data: { ...finalizeData, catalogNumber } }),
+        async (catalogNumber) => {
+          const seal = await sealFields(afterUpdate(record, { ...finalizeData, catalogNumber }), now)
+          return prisma.decisionRecord.update({ where: { id }, data: { ...finalizeData, catalogNumber, ...seal } })
+        },
         () => getMaxCatalogNumber(dbUser.id)
       )
       return NextResponse.json(updated)
@@ -160,14 +165,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     )
   }
 
+  const coreData = {
+    ...parsed.data,
+    predictedTimeframe: parsed.data.predictedTimeframe
+      ? new Date(parsed.data.predictedTimeframe)
+      : undefined,
+  }
+  // Prisma skips undefined fields, so the seal covers the record as this update leaves it.
   const updated = await prisma.decisionRecord.update({
     where: { id },
-    data: {
-      ...parsed.data,
-      predictedTimeframe: parsed.data.predictedTimeframe
-        ? new Date(parsed.data.predictedTimeframe)
-        : undefined,
-    },
+    data: { ...coreData, ...(await sealFields(afterUpdate(record, coreData), now)) },
   })
   return NextResponse.json(updated)
 }

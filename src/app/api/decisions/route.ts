@@ -11,6 +11,7 @@ import {
   withCatalogNumberRetry,
 } from '@/lib/catalog'
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
+import { asCreated, sealFields } from '@/lib/seal'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,9 +74,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(draft, { status: 200 })
   }
 
+  // The finalization time is set here, not by the database default, so the seal covers the stored value.
+  const now = new Date()
   try {
     const record = await withCatalogNumberRetry(
-      (catalogNumber) => prisma.decisionRecord.create({ data: { ...createData, catalogNumber } }),
+      async (catalogNumber) => {
+        const finalized = { ...createData, catalogNumber, createdAt: now }
+        return prisma.decisionRecord.create({ data: { ...finalized, ...(await sealFields(asCreated(finalized), now)) } })
+      },
       () => getMaxCatalogNumber(dbUser.id)
     )
     return NextResponse.json(record, { status: 201 })

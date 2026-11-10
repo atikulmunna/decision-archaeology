@@ -80,6 +80,21 @@ export async function sealFields(record: SealableDecision, now: Date): Promise<{
   return { sealHash: await computeSealHash(buildSealPayload(record)), sealedAt: now }
 }
 
+type Defined<T> = { [K in keyof T]: Exclude<T[K], undefined> }
+
+type Created<T> = { [K in keyof T]: undefined extends T[K] ? Exclude<T[K], undefined> | null : T[K] }
+
+/** A Prisma create stores omitted optional fields as null: the record the create produces. */
+export function asCreated<T extends object>(data: T): Created<T> {
+  return Object.fromEntries(Object.entries(data).map(([key, value]) => [key, value === undefined ? null : value])) as Created<T>
+}
+
+/** A Prisma update leaves undefined fields unchanged: the record the update produces. */
+export function afterUpdate<R extends object, U extends object>(record: R, data: U): R & Defined<U> {
+  const set = Object.fromEntries(Object.entries(data).filter(([, value]) => value !== undefined))
+  return { ...record, ...set } as R & Defined<U>
+}
+
 /** A seal computed after the record locked (the backfill) cannot vouch for the wording at finalization. */
 export function isRetroactiveSeal(record: { sealedAt: Date | null; createdAt: Date }): boolean {
   if (!record.sealedAt) return false
