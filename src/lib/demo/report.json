@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-11-10T11:29:07.575Z",
+  "decisionCount": 24,
+  "summary": "You bring exceptional ambition and strong instincts to your professional journey, but you tend to anchor heavily on best-case scenarios and assume frictionless execution across complex ventures. While your optimism fuels decisive action, it frequently leads you to underestimate the time, operational drag, and relational friction involved in high-stakes commitments. By adopting systematic buffers and testing assumptions against downside base rates, you can protect your energy and capital without diminishing your forward momentum.",
+  "findings": [
+    {
+      "name": "Optimism Bias",
+      "severity": "STRONG",
+      "evidence": "You consistently presume best-case scenarios across financial and relational choices, such as assuming startup equity will yield massive liquidity without dilution, non-paying pilots prove commercial viability, and personal loans or team transfers carry minimal relational fallout.",
+      "affectedDecisions": [
+        "Trade some salary for more Northwind equity?",
+        "Exercise my vested Northwind options early?",
+        "Leave Northwind to co-found Fernhill with Dana?",
+        "Give our first customer a 40 percent discount?",
+        "Move to the platform team at Halcyon?",
+        "Lend a close friend money for their deposit?"
+      ],
+      "reframe": "Evaluate high-stakes ventures against historical base rates and downside risks rather than ideal trajectories, explicitly accounting for dilution, customer churn, and repayment friction."
+    },
+    {
+      "name": "Planning Fallacy",
+      "severity": "STRONG",
+      "evidence": "You systematically underestimate the time, complexity, and ongoing bandwidth demanded by initiatives, from predicting two engineers can reproduce full billing logic in six weeks to assuming twelve months of self-funded runway is sufficient.",
+      "affectedDecisions": [
+        "Push to rewrite the billing service instead of patching it?",
+        "Leave Northwind to co-found Fernhill with Dana?",
+        "Hire a generalist engineer before a designer?",
+        "Start seeing a therapist every two weeks?",
+        "Take the Thursday evening pottery class?",
+        "Start a small podcast about building Fernhill?"
+      ],
+      "reframe": "Apply systematic safety buffers to your time and resource commitments, breaking broad scopes into incremental, testable deliverables rather than expecting frictionless execution."
+    },
+    {
+      "name": "Overconfidence Bias",
+      "severity": "MODERATE",
+      "evidence": "You tend to overestimate individual control over intricate systems, assuming a comprehensive billing rewrite will avoid accounting regressions, that imported governance models will be readily embraced, or that preparation alone can prevent physical running injuries.",
+      "affectedDecisions": [
+        "Push to rewrite the billing service instead of patching it?",
+        "Volunteer to own the on-call rotation redesign?",
+        "Sign up for the autumn half marathon?",
+        "Say yes to giving the speech at my sister's wedding?"
+      ],
+      "reframe": "Acknowledge the boundaries of personal control over complex external systems by running low-risk trial phases and designing structured mitigation mechanisms."
+    },
+    {
+      "name": "Availability Heuristic",
+      "severity": "MODERATE",
+      "evidence": "You often generalize vivid, easily accessible personal anecdotes into universal blueprints, such as borrowing a friend's marathon regimen, picking a therapist solely on peer endorsement, or transplanting on-call structures from a prior employer without local adaptation.",
+      "affectedDecisions": [
+        "Sign up for the autumn half marathon?",
+        "Start seeing a therapist every two weeks?",
+        "Volunteer to own the on-call rotation redesign?"
+      ],
+      "reframe": "Benchmark important decisions against objective domain standards and your specific situation rather than relying on readily recalled anecdotes or past precedents."
+    },
+    {
+      "name": "Confirmation Bias",
+      "severity": "MILD",
+      "evidence": "You occasionally latch onto single explanations that validate your preferred interventions, such as diagnosing churn risk as missing features rather than usability obstacles, or viewing sleep disruptions strictly through caffeine and screen time while downplaying broader startup pressures.",
+      "affectedDecisions": [
+        "Hire a generalist engineer before a designer?",
+        "Stop working after 10pm?",
+        "Cut caffeine to one cup a day?"
+      ],
+      "reframe": "Actively seek disconfirming data and explore competing explanations before locking in corrective actions for complex operational and personal challenges."
+    }
+  ],
+  "calibrationInsight": "You exhibit strong calibration when managing structured financial baselines and operational routines, yet you consistently underestimate the positive personal upside of wellness investments and interpersonal vulnerability. Bringing the same grounded realism you apply to emergency funds into your project timelines and personal bandwidth will help you achieve sustainable, compounding progress.",
+  "modelsUsed": [
+    "google/gemini-3.8-flash"
+  ]
+}

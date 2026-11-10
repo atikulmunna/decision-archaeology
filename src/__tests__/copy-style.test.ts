@@ -6,7 +6,7 @@ import path from 'path'
 const BANNED = /[\u2013\u2014]/
 const ROOT = path.resolve(__dirname, '../..')
 const SCAN_DIRS = ['src']
-const SCAN_FILES = ['README.md', 'docs/VERCEL_DEPLOYMENT.md']
+const SCAN_FILES = ['README.md', 'docs/VERCEL_DEPLOYMENT.md', 'src/lib/demo/report.json']
 const SKIP_DIRS = new Set([path.join(ROOT, 'src', 'generated')])
 const EXTENSIONS = new Set(['.ts', '.tsx', '.css', '.md'])
 

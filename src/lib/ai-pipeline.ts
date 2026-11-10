@@ -29,7 +29,7 @@ export const PASS_NAMES = {
   synthesis: 'bias_report',
 } as const
 
-type Generate = typeof generateStructured
+export type Generate = typeof generateStructured
 
 function chunk<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = []
