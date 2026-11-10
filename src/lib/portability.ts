@@ -2,8 +2,9 @@ import { z } from 'zod'
 import type { DecisionRecord, OutcomeUpdate, User, Tier } from '@prisma/client'
 import { CreateDecisionSchema, DomainTagEnum } from '@/lib/validations/decision'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
+import { buildSealPayload, isRetroactiveSeal, SEAL_VERSION } from '@/lib/seal'
 
-export const EXPORT_SCHEMA_VERSION = '1.0.0'
+export const EXPORT_SCHEMA_VERSION = '1.1.0'
 
 const OutcomeRatingEnum = z.enum([
   'MUCH_BETTER',
@@ -44,7 +45,22 @@ export const PortableArchiveSchema = z.object({
 
 export type PortableDecision = z.infer<typeof PortableDecisionSchema>
 
-export function toPortableDecision(record: DecisionWithOutcomes): PortableDecision {
+/** A record's seal as exported: enough to verify it offline by hashing `payload`. */
+export type PortableSeal = { version: string; hash: string; sealedAt: string; retroactive: boolean; payload: string }
+
+export function toPortableSeal(record: DecisionRecord): PortableSeal | null {
+  if (!record.sealHash || !record.sealedAt) return null
+  return {
+    version: SEAL_VERSION,
+    hash: record.sealHash,
+    sealedAt: record.sealedAt.toISOString(),
+    retroactive: isRetroactiveSeal(record),
+    payload: buildSealPayload(record),
+  }
+}
+
+// Imports parse with PortableDecisionSchema, which strips unknown keys, so an exported seal is never imported.
+export function toPortableDecision(record: DecisionWithOutcomes): PortableDecision & { seal: PortableSeal | null } {
   return {
     title: record.title,
     summary: record.summary,
@@ -67,6 +83,7 @@ export function toPortableDecision(record: DecisionWithOutcomes): PortableDecisi
       lessonsLearned: outcome.lessonsLearned ?? undefined,
       createdAt: outcome.createdAt.toISOString(),
     })),
+    seal: toPortableSeal(record),
   }
 }
 
@@ -126,6 +143,17 @@ export function buildDecisionMarkdown(record: DecisionWithOutcomes) {
   }
   if (record.customTags.length > 0) {
     lines.push('', '## Tags', '', record.customTags.map((tag) => `- ${tag}`).join('\n'))
+  }
+  const seal = toPortableSeal(record)
+  if (seal) {
+    lines.push(
+      '',
+      '## Seal',
+      '',
+      `- Fingerprint (SHA-256): \`${seal.hash}\``,
+      `- Sealed: ${seal.sealedAt}${seal.retroactive ? ' (retroactive)' : ''}`,
+      '- Verify: hash the payload in the JSON export, for example with sha256sum.'
+    )
   }
   if (record.outcomes.length > 0) {
     lines.push('', '## Outcome History', '')

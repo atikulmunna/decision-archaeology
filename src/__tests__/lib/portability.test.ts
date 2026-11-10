@@ -5,7 +5,11 @@ import {
   normalizeCsvImport,
   parseCsv,
 } from '@/lib/portability'
-import type { DecisionRecord, OutcomeUpdate } from '@prisma/client'
+import { importPortableDecisions, parseImportPayload, toPortableDecision } from '@/lib/portability'
+import type { DecisionRecord, OutcomeUpdate, User } from '@prisma/client'
+import { demoDecisionIdForKey } from '@/lib/demo/archive'
+import { getDemoDecision } from '@/lib/demo/queries'
+import { computeSealHash } from '@/lib/seal'
 
 function createDecision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
   return {
@@ -88,5 +92,48 @@ describe('parseCsv / normalizeCsvImport', () => {
 
     expect(normalized[0].customTags).toEqual(['relocation', 'career'])
     expect(normalized[0].outcomes[0].outcomeRating).toBe('SLIGHTLY_BETTER')
+  })
+})
+
+describe('seals in exports and imports', () => {
+  const sealedRecord = () => ({ ...getDemoDecision(demoDecisionIdForKey('northwind-offer'))!, outcomes: [] })
+
+  it('exports a seal whose payload re-hashes to the stored hash', async () => {
+    const record = sealedRecord()
+    const seal = toPortableDecision(record).seal!
+    expect(seal).toMatchObject({
+      version: 'da-seal-v1',
+      hash: record.sealHash,
+      sealedAt: record.sealedAt!.toISOString(),
+      retroactive: false,
+    })
+    expect(await computeSealHash(seal.payload)).toBe(seal.hash)
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.1.0')
+  })
+
+  it('exports null for unsealed records and adds a Seal block only for sealed ones', () => {
+    const sealed = sealedRecord()
+    const unsealed = { ...sealed, sealHash: null, sealedAt: null }
+    expect(toPortableDecision(unsealed).seal).toBeNull()
+    const markdown = buildDecisionMarkdown(sealed)
+    expect(markdown).toContain('## Seal')
+    expect(markdown).toContain(`- Fingerprint (SHA-256): \`${sealed.sealHash}\``)
+    expect(markdown).toContain(`- Sealed: ${sealed.sealedAt!.toISOString()}`)
+    expect(markdown).toContain('- Verify: hash the payload in the JSON export, for example with sha256sum.')
+    expect(buildDecisionMarkdown(unsealed)).not.toContain('## Seal')
+  })
+
+  it('marks retroactive seals in Markdown', () => {
+    const retro = { ...sealedRecord(), sealedAt: new Date('2026-11-11T09:00:00.000Z') }
+    expect(toPortableDecision(retro).seal!.retroactive).toBe(true)
+    expect(buildDecisionMarkdown(retro)).toContain('- Sealed: 2026-11-11T09:00:00.000Z (retroactive)')
+  })
+
+  it('drops any seal when importing an export', async () => {
+    const parsed = parseImportPayload(JSON.parse(JSON.stringify(buildArchiveExport([sealedRecord()]))))
+    expect(parsed.decisions[0]).not.toHaveProperty('seal')
+    const rows = await importPortableDecisions({ id: 'u1' } as User, parsed.decisions)
+    expect(rows[0]).not.toHaveProperty('sealHash')
+    expect(rows[0]).not.toHaveProperty('sealedAt')
   })
 })
