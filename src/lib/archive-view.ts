@@ -54,8 +54,9 @@ export function matchesOutcomeFilter(latest: OutcomeRating | undefined, filter: 
   }
 }
 
+/** Raw URL params. Next passes a repeated key (`?q=a&q=b`) as an array. */
 export type ArchiveSearchParams = Partial<
-  Record<'q' | 'domain' | 'outcome' | 'dateFrom' | 'dateTo' | 'minConfidence' | 'tag' | 'page', string>
+  Record<'q' | 'domain' | 'outcome' | 'dateFrom' | 'dateTo' | 'minConfidence' | 'tag' | 'page', string | string[]>
 >
 
 const PAGE_SIZE = 20
@@ -68,6 +69,10 @@ function isOutcomeFilter(value: string): value is OutcomeFilter {
   return (OUTCOME_FILTERS as readonly string[]).includes(value)
 }
 
+function firstValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value
+}
+
 function validDate(value: string | undefined): string | undefined {
   return value && !Number.isNaN(Date.parse(value)) ? value : undefined
 }
@@ -76,11 +81,14 @@ function validDate(value: string | undefined): string | undefined {
  * Turns raw archive search params into filters, dropping anything invalid
  * rather than failing, plus the serialized filters for pagination links.
  */
-export function parseArchiveSearchParams(params: ArchiveSearchParams): {
+export function parseArchiveSearchParams(raw: ArchiveSearchParams): {
   filters: DecisionFilters
   pageParams: string
   hasFilters: boolean
 } {
+  const params = Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, firstValue(value)])) as Partial<
+    Record<keyof ArchiveSearchParams, string>
+  >
   const parsedPage = Number.parseInt(params.page ?? '', 10)
   const parsedConfidence = Number.parseInt(params.minConfidence ?? '', 10)
 

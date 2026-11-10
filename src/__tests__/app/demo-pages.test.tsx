@@ -66,6 +66,15 @@ describe('demo archive page', () => {
   })
 })
 
+describe('demo archive page with repeated keys', () => {
+  it('renders when a search key repeats instead of crashing', async () => {
+    const markup = await html(DemoArchivePage({ searchParams: Promise.resolve({ q: ['Northwind', 'senior'], tag: ['job-offer', 'x'] }) }))
+    // The title is split by search highlighting, so match the record link instead.
+    expect(markup).toContain('href="/demo/decisions/demo-0007"')
+    expect(markup).not.toContain('Cut caffeine to one cup a day?')
+  })
+})
+
 describe('demo decision page', () => {
   it('renders a demo decision read-only', async () => {
     const markup = await html(DemoDecisionPage({ params: Promise.resolve({ id: demoDecisionIdForKey('northwind-offer') }) }))

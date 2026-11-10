@@ -64,4 +64,10 @@ describe('parseArchiveSearchParams', () => {
         .pageParams
     ).toBe('outcome=has&dateFrom=2026-01-01&dateTo=2026-06-30&minConfidence=6&tag=sleep')
   })
+
+  it('takes the first value when a search key repeats', () => {
+    const { filters, pageParams } = parseArchiveSearchParams({ q: ['Northwind', 'other'], tag: ['equity', 'x'], page: ['2', '9'] })
+    expect(filters).toMatchObject({ q: 'Northwind', tag: 'equity', page: 2 })
+    expect(pageParams).toBe('q=Northwind&tag=equity')
+  })
 })
