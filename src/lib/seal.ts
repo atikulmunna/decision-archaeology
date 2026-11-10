@@ -1,0 +1,95 @@
+import type { DecisionRecord } from '@prisma/client'
+import { formatCatalogNumber } from '@/lib/catalog'
+import { getDecisionLockDeadline } from '@/lib/locks'
+
+/**
+ * The Seal: a SHA-256 fingerprint of everything that locks on a decision.
+ * This module runs unchanged on the server (which stamps the seal) and in the
+ * browser (which verifies it), so both sides hash exactly the same payload.
+ */
+
+export const SEAL_VERSION = 'da-seal-v1'
+
+export type SealableDecision = Pick<
+  DecisionRecord,
+  | 'catalogNumber'
+  | 'createdAt'
+  | 'title'
+  | 'summary'
+  | 'context'
+  | 'alternatives'
+  | 'chosenOption'
+  | 'reasoning'
+  | 'values'
+  | 'uncertainties'
+  | 'predictedOutcome'
+  | 'predictedTimeframe'
+  | 'confidenceLevel'
+  | 'domainTag'
+  | 'customTags'
+>
+
+/** Same words, same bytes: Unicode NFC, and CRLF or lone CR line endings become LF. */
+function canonicalText(value: string): string {
+  return value.normalize('NFC').replace(/\r\n?/g, '\n')
+}
+
+function canonicalOptional(value: string | null | undefined): string | null {
+  return value === null || value === undefined ? null : canonicalText(value)
+}
+
+/** The exact text that gets hashed: pretty-printed JSON in a fixed key order, no trailing newline. */
+export function buildSealPayload(record: SealableDecision): string {
+  const ordered = {
+    seal: SEAL_VERSION,
+    catalogNumber: record.catalogNumber ?? null,
+    finalizedAt: new Date(record.createdAt).toISOString(),
+    title: canonicalText(record.title),
+    summary: canonicalText(record.summary),
+    context: canonicalText(record.context),
+    alternatives: canonicalText(record.alternatives),
+    chosenOption: canonicalText(record.chosenOption),
+    reasoning: canonicalText(record.reasoning),
+    values: canonicalOptional(record.values),
+    uncertainties: canonicalOptional(record.uncertainties),
+    predictedOutcome: canonicalOptional(record.predictedOutcome),
+    predictedTimeframe: record.predictedTimeframe ? new Date(record.predictedTimeframe).toISOString() : null,
+    confidenceLevel: record.confidenceLevel ?? null,
+    domainTag: record.domainTag ?? null,
+    customTags: (record.customTags ?? []).map(canonicalText),
+  }
+  return JSON.stringify(ordered, null, 2)
+}
+
+function toHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** SHA-256 of the payload's UTF-8 bytes via Web Crypto, as lowercase hex. */
+export async function computeSealHash(payload: string): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(payload))
+  return toHex(digest)
+}
+
+export async function verifySeal(record: SealableDecision, expectedHash: string): Promise<boolean> {
+  return (await computeSealHash(buildSealPayload(record))) === expectedHash
+}
+
+/** The values a write spreads into its data so the stored seal covers what it stores. */
+export async function sealFields(record: SealableDecision, now: Date): Promise<{ sealHash: string; sealedAt: Date }> {
+  return { sealHash: await computeSealHash(buildSealPayload(record)), sealedAt: now }
+}
+
+/** A seal computed after the record locked (the backfill) cannot vouch for the wording at finalization. */
+export function isRetroactiveSeal(record: { sealedAt: Date | null; createdAt: Date }): boolean {
+  if (!record.sealedAt) return false
+  return new Date(record.sealedAt).getTime() > getDecisionLockDeadline({ createdAt: new Date(record.createdAt) }).getTime()
+}
+
+export function shortSealHash(hash: string): string {
+  return `${hash.slice(0, 4)}…${hash.slice(-4)}`
+}
+
+export function sealFileName(catalogNumber: number | null): string {
+  return catalogNumber === null ? 'decision-seal.json' : `${formatCatalogNumber(catalogNumber)}-seal.json`
+}
