@@ -9,6 +9,10 @@ import { Card } from '@/components/ui/Card'
 import { CatalogNumber } from '@/components/ui/CatalogNumber'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { SealBadge } from '@/components/seal/SealBadge'
+import { SealPanel } from '@/components/seal/SealPanel'
+import { normalizeDecisionLockState } from '@/lib/locks'
+import { isRetroactiveSeal } from '@/lib/seal'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision | Decision Archaeology' }
@@ -37,7 +41,8 @@ export default async function SharedDecisionPage({ params }: Params) {
   })
   if (!share) notFound()
 
-  const d = share.decision
+  // isLocked is only persisted when the owner's countdown fires, so derive it here.
+  const d = normalizeDecisionLockState(share.decision)
   const latestOutcome = d.outcomes[d.outcomes.length - 1] ?? null
   const authorIds = [...new Set(share.comments.map((comment) => comment.authorId))]
   const authors = authorIds.length > 0
@@ -63,6 +68,11 @@ export default async function SharedDecisionPage({ params }: Params) {
       <PageHeader
         eyebrow={`Shared by ${share.owner.displayName ?? 'someone'}`}
         title={d.title}
+        actions={
+          d.sealHash && d.isLocked ? (
+            <SealBadge hash={d.sealHash} catalogNumber={d.catalogNumber} retroactive={isRetroactiveSeal(d)} />
+          ) : undefined
+        }
         meta={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <CatalogNumber value={d.catalogNumber} />
@@ -72,6 +82,8 @@ export default async function SharedDecisionPage({ params }: Params) {
           </span>
         }
       />
+
+      <SealPanel record={d} />
 
       {latestOutcome && <LatestOutcomeNotice outcome={latestOutcome} />}
 

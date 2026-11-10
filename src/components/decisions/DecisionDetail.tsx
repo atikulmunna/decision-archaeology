@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { DecisionRecord, OutcomeUpdate, CorrectionRequest } from '@prisma/client'
 import {
   CORRECTION_FIELDS,
@@ -20,6 +20,11 @@ import { AttachmentManager } from './AttachmentManager'
 import { OutcomeHistory } from './OutcomeHistory'
 import { SupplementaryNotesEditor } from './SupplementaryNotesEditor'
 import { SharePanel } from '@/components/sharing/SharePanel'
+import { SealBadge } from '@/components/seal/SealBadge'
+import { SealPanel } from '@/components/seal/SealPanel'
+import { getDecisionLockDeadline } from '@/lib/locks'
+import { isRetroactiveSeal } from '@/lib/seal'
+import { tamperReasoning } from '@/lib/tamper'
 import { CommentThread } from '@/components/sharing/CommentThread'
 
 type Decision = DecisionRecord & {
@@ -85,12 +90,21 @@ export function DecisionDetail({
   collaboration,
   readOnly = false,
   timeZone,
+  tamperTest = false,
 }: {
   decision: Decision
   collaboration?: CollaborationData
   readOnly?: boolean
   timeZone?: string
+  /** Demo only: a toggle that changes one word in the browser so the seal visibly fails. */
+  tamperTest?: boolean
 }) {
+  const [tampered, setTampered] = useState(false)
+  const tamper = tamperTest && tampered ? tamperReasoning(decision.reasoning) : null
+  const sealRecord = useMemo(
+    () => (tamper ? { ...decision, reasoning: tamper.text } : decision),
+    [decision, tamper?.text] // eslint-disable-line react-hooks/exhaustive-deps
+  )
   const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
   const [corrections, setCorrections] = useState<CorrectionRequest[]>(decision.corrections)
   const [activeCorrectionField, setActiveCorrectionField] = useState<CorrectionField | null>(null)
@@ -195,6 +209,19 @@ export function DecisionDetail({
       <div className="flex flex-col gap-3">
         <PageHeader
           title={decision.title}
+          actions={
+            decision.sealHash && decision.isLocked ? (
+              <SealBadge
+                hash={decision.sealHash}
+                catalogNumber={decision.catalogNumber}
+                retroactive={isRetroactiveSeal(decision)}
+              />
+            ) : decision.sealHash ? (
+              <span className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+                {`Seal final at ${getDecisionLockDeadline(decision).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`}
+              </span>
+            ) : undefined
+          }
           meta={
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <CatalogNumber value={decision.catalogNumber} />
@@ -218,8 +245,17 @@ export function DecisionDetail({
         )}
       </div>
 
+      <SealPanel
+        record={sealRecord}
+        approvedCorrections={corrections.filter((correction) => correction.status === 'APPROVED').length}
+        tampered={tamper !== null}
+        onTamperedChange={tamperTest ? setTampered : undefined}
+      />
+
       {decision.isLocked ? (
-        <Callout title="Core fields are sealed">Supplementary notes, outcomes and typo corrections can still be added.</Callout>
+        decision.sealHash ? null : (
+          <Callout title="Core fields are sealed">Supplementary notes, outcomes and typo corrections can still be added.</Callout>
+        )
       ) : (
         <Callout tone="warning" title="Edit window open">The core fields are not sealed yet, so editing is still possible.</Callout>
       )}
@@ -237,7 +273,17 @@ export function DecisionDetail({
             return (
               <div key={key} className="rounded-sm border border-rule bg-surface p-4">
                 <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{label}</p>
-                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{String(value)}</p>
+                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">
+                  {key === 'reasoning' && tamper ? (
+                    <>
+                      {tamper.text.slice(0, tamper.start)}
+                      <mark className="bg-highlight px-0.5 text-danger">{tamper.text.slice(tamper.start, tamper.end)}</mark>
+                      {tamper.text.slice(tamper.end)}
+                    </>
+                  ) : (
+                    String(value)
+                  )}
+                </p>
                 {approvedCorrection && (
                   <div className="mt-3 rounded-sm border border-ink bg-highlight p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-signal-ink">

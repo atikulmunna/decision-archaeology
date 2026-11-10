@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/Textarea'
 import { StepIndicator } from '@/components/ui/StepIndicator'
 import { TimeCapsuleConfirmation } from './TimeCapsuleConfirmation'
 import { CountdownTimer } from './CountdownTimer'
+import { SealedNotice } from './SealedNotice'
 import { AttachmentManager } from './AttachmentManager'
 import { StarterDecisionWizard } from './StarterDecisionWizard'
 import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
@@ -42,7 +43,12 @@ export function DecisionCaptureForm({
   const [form, setForm] = useState<FormState>({ customTags: [] })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
-  const [savedRecord, setSavedRecord] = useState<{ id: string; createdAt: string } | null>(null)
+  const [savedRecord, setSavedRecord] = useState<{
+    id: string
+    createdAt: string
+    catalogNumber: number | null
+    sealHash: string | null
+  } | null>(null)
   const [isLocked, setIsLocked] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'restored'>('idle')
@@ -281,7 +287,12 @@ export function DecisionCaptureForm({
       draftRef.current = record.id
       setActiveDecisionId(record.id)
       window.localStorage.removeItem(DRAFT_STORAGE_KEY)
-      setSavedRecord({ id: record.id, createdAt: record.createdAt })
+      setSavedRecord({
+        id: record.id,
+        createdAt: record.createdAt,
+        catalogNumber: record.catalogNumber ?? null,
+        sealHash: record.sealHash ?? null,
+      })
       setStep(5)
       router.prefetch(`/decisions/${record.id}`)
     } catch (error) {
@@ -318,7 +329,7 @@ export function DecisionCaptureForm({
             onLocked={() => setIsLocked(true)}
           />
         ) : (
-          <Callout title="Core fields are now sealed.">Supplementary notes and outcomes can still be added.</Callout>
+          <SealedNotice hash={savedRecord.sealHash} catalogNumber={savedRecord.catalogNumber} />
         )}
 
         <div className="flex flex-wrap gap-3">
