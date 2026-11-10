@@ -165,6 +165,18 @@ describe('sealing on writes', () => {
     expect(sealedAt).toBeInstanceOf(Date)
   })
 
+  it('never seals an imported record, even through a core edit', async () => {
+    // Imported records never lock, so the core path stays open to them forever.
+    const imported = { ...lockedRecord, isImported: true, isLocked: false, sealHash: null, sealedAt: null }
+    findFirst.mockResolvedValue(imported)
+    update.mockImplementation(async ({ data }: { data: Data }) => ({ ...imported, ...data }))
+    await PATCH(patchRequest({ title: 'A corrected title for this import' }), params('d1'))
+    const data = update.mock.calls[0][0].data
+    expect(data.title).toBe('A corrected title for this import')
+    expect(data.sealHash).toBeNull()
+    expect(data.sealedAt).toBeNull()
+  })
+
   it('leaves the seal alone on notes updates', async () => {
     findFirst.mockResolvedValue(lockedRecord)
     update.mockImplementation(echo)

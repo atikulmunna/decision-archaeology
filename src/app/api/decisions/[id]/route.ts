@@ -174,7 +174,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Prisma skips undefined fields, so the seal covers the record as this update leaves it.
   const updated = await prisma.decisionRecord.update({
     where: { id },
-    data: { ...coreData, ...(await sealFields(afterUpdate(record, coreData), now)) },
+    // Imported records are exempt from the time lock, so they never carry a seal.
+    data: {
+      ...coreData,
+      ...(record.isImported
+        ? { sealHash: null, sealedAt: null }
+        : await sealFields(afterUpdate(record, coreData), now)),
+    },
   })
   return NextResponse.json(updated)
 }
