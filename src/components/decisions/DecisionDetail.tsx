@@ -232,7 +232,7 @@ export function DecisionDetail({
                     <p className="text-xs font-semibold uppercase tracking-wide text-signal-ink">
                       Approved typo correction
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-sm text-signal-ink">
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-signal-ink">
                       {approvedCorrection.correctedText}
                     </p>
                   </div>
@@ -295,7 +295,7 @@ export function DecisionDetail({
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                     Original text
                   </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-ink">
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">
                     {String(decision[activeCorrectionField] ?? '')}
                   </p>
                 </div>
@@ -366,7 +366,7 @@ export function DecisionDetail({
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                         Original
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-ink">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink">
                         {correction.originalText}
                       </p>
                     </div>
@@ -374,7 +374,7 @@ export function DecisionDetail({
                       <p className="text-xs font-semibold uppercase tracking-wide text-signal-ink">
                         Requested correction
                       </p>
-                      <p className="mt-1 whitespace-pre-wrap text-sm text-signal-ink">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-signal-ink">
                         {correction.correctedText}
                       </p>
                     </div>
@@ -425,7 +425,7 @@ export function DecisionDetail({
               return (
                 <div key={key} className="rounded-sm border border-rule bg-surface p-4">
                   <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{label}</p>
-                  <p className="whitespace-pre-wrap text-sm text-ink">{String(value)}</p>
+                  <p className="whitespace-pre-wrap break-words text-sm text-ink">{String(value)}</p>
                 </div>
               )
             })}

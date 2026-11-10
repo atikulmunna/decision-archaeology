@@ -74,4 +74,11 @@ describe('display primitives', () => {
     expect(screen.getByRole('article').className).toMatch(/border-rule/)
     expect(screen.getByText('Reasoning').className).toMatch(/font-mono/)
   })
+
+  it('lets badges wrap unbroken text instead of overflowing narrow screens', () => {
+    render(<Badge tone="outline">https://example.com/a?v=averyveryverylongunbrokenquerystringpastedasatitle</Badge>)
+    const badge = screen.getByText(/averyvery/)
+    expect(badge.className).toMatch(/max-w-full/)
+    expect(badge.className).toMatch(/wrap-anywhere/)
+  })
 })
