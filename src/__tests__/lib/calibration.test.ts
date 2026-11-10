@@ -6,6 +6,8 @@ import {
   scoreColor,
   scoreStroke,
 } from '@/lib/calibration'
+import { summarizeCalibration } from '@/lib/calibration'
+import { buildDemoArchive } from '@/lib/demo/archive'
 import type { OutcomeUpdate, DecisionRecord } from '@prisma/client'
 
 function makeOutcome(rating: OutcomeUpdate['outcomeRating'], id = '1'): OutcomeUpdate {
@@ -170,5 +172,20 @@ describe('scoreStroke', () => {
     expect(scoreStroke(85)).toBe('stroke-signal-ink')
     expect(scoreStroke(65)).toBe('stroke-ink')
     expect(scoreStroke(30)).toBe('stroke-danger')
+  })
+})
+
+describe('summarizeCalibration', () => {
+  it('summarizes the demo archive calibration', () => {
+    expect(summarizeCalibration(buildDemoArchive())).toMatchObject({
+      score: 71,
+      closedDecisions: 14,
+      totalDecisions: 24,
+      minRequired: 5,
+    })
+  })
+
+  it('withholds the score below the minimum', () => {
+    expect(summarizeCalibration(buildDemoArchive().slice(0, 3))).toMatchObject({ score: null, totalDecisions: 3 })
   })
 })

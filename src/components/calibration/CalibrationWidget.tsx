@@ -1,15 +1,7 @@
-import { scoreLabel, scoreColor, scoreStroke } from '@/lib/calibration'
+import { scoreLabel, scoreColor, scoreStroke, type CalibrationData } from '@/lib/calibration'
 import type { DomainTag } from '@prisma/client'
 import { Card } from '@/components/ui/Card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
-
-interface CalibrationData {
-  score: number | null
-  byDomain: Partial<Record<DomainTag, number | null>>
-  closedDecisions: number
-  totalDecisions: number
-  minRequired: number
-}
 
 function ScoreGauge({ score }: { score: number | null }) {
   const display = score === null ? '?' : `${score}`

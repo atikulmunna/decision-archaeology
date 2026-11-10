@@ -19,9 +19,10 @@ interface Props {
   reportId: string
   index: number
   alreadyFlagged?: boolean
+  readOnly?: boolean
 }
 
-export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false }: Props) {
+export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false, readOnly = false }: Props) {
   const [flagged, setFlagged] = useState(alreadyFlagged)
   const [flagging, setFlagging] = useState(false)
   const [showFlagForm, setShowFlagForm] = useState(false)
@@ -52,7 +53,7 @@ export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false }
             <h3 className="font-display text-[26px] leading-tight text-ink">{bias.name}</h3>
             <Badge tone={severity.tone}>{severity.label}</Badge>
           </div>
-          {!flagged ? (
+          {readOnly ? null : !flagged ? (
             <Button variant="ghost" size="sm" onClick={() => setShowFlagForm((v) => !v)}>
               <Flag aria-hidden="true" size={12} strokeWidth={1.5} />
               Flag
@@ -82,7 +83,7 @@ export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false }
           <p className="mt-1 font-display text-lg italic leading-snug text-ink">{bias.reframe}</p>
         </div>
 
-        {showFlagForm && !flagged && (
+        {showFlagForm && !flagged && !readOnly && (
           <div className="flex flex-col gap-2 rounded-sm border border-rule bg-sunken p-3">
             <Textarea
               id={`flag-${reportId}-${index}`}

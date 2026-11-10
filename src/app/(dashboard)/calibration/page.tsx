@@ -1,13 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import {
-  computeCalibrationScore,
-  computeCalibrationByDomain,
-  getClosedPredictedDecisions,
-} from '@/lib/calibration'
-import { CalibrationWidget } from '@/components/calibration/CalibrationWidget'
+import { summarizeCalibration } from '@/lib/calibration'
+import { CalibrationView } from '@/components/calibration/CalibrationView'
 import { getOrCreateDbUser } from '@/lib/db-user'
-import { PageHeader } from '@/components/ui/PageHeader'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,26 +22,5 @@ export default async function CalibrationPage() {
     include: { outcomes: true },
   })
 
-  const score = computeCalibrationScore(records)
-  const byDomain = computeCalibrationByDomain(records)
-  const closedDecisions = getClosedPredictedDecisions(records).length
-
-  return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        eyebrow="Your record"
-        title="Calibration"
-        meta="How accurately your predictions match your actual outcomes"
-      />
-      <CalibrationWidget
-        data={{
-          score,
-          byDomain,
-          closedDecisions,
-          totalDecisions: records.length,
-          minRequired: 5,
-        }}
-      />
-    </div>
-  )
+  return <CalibrationView eyebrow="Your record" data={summarizeCalibration(records)} />
 }

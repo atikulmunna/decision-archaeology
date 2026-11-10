@@ -5,7 +5,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Stat } from '@/components/ui/Stat'
 import type { BiasEntry } from '@/lib/ai-schema'
 
-interface Report {
+/** The report as the view renders it, from a saved BiasReport row or the demo report file. */
+export type ReportViewData = {
   id: string
   summary: string | null
   findings: BiasEntry[]
@@ -18,7 +19,15 @@ interface Report {
 
 const SEVERITY_ORDER: Record<BiasEntry['severity'], number> = { STRONG: 0, MODERATE: 1, MILD: 2 }
 
-export function BiasReportView({ report }: { report: Report }) {
+export function BiasReportView({
+  report,
+  readOnly = false,
+  provenance,
+}: {
+  report: ReportViewData
+  readOnly?: boolean
+  provenance?: string
+}) {
   const date = new Date(report.createdAt).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -41,6 +50,10 @@ export function BiasReportView({ report }: { report: Report }) {
         <p className="-mt-4 font-mono text-[11px] tracking-[0.04em] text-muted">
           Analyzed by {report.modelsUsed.join(', ')} via OpenRouter Auto Router
         </p>
+      )}
+
+      {provenance && (
+        <p className="-mt-6 font-mono text-[11px] tracking-[0.04em] text-muted">{provenance}</p>
       )}
 
       <AIDisclosureBanner />
@@ -66,6 +79,7 @@ export function BiasReportView({ report }: { report: Report }) {
             bias={bias}
             index={index}
             reportId={report.id}
+            readOnly={readOnly}
             alreadyFlagged={report.flaggedFindings.some((f) => f.toLowerCase().includes(bias.name.toLowerCase()))}
           />
         ))}

@@ -98,3 +98,22 @@ export function scoreStroke(score: number): string {
   if (score >= 60) return 'stroke-ink'
   return 'stroke-danger'
 }
+
+/** What the calibration view renders. */
+export type CalibrationData = {
+  score: number | null
+  byDomain: Partial<Record<DomainTag, number | null>>
+  closedDecisions: number
+  totalDecisions: number
+  minRequired: number
+}
+
+export function summarizeCalibration(records: DecisionWithOutcomes[], minRequired = 5): CalibrationData {
+  return {
+    score: computeCalibrationScore(records, minRequired),
+    byDomain: computeCalibrationByDomain(records),
+    closedDecisions: getClosedPredictedDecisions(records).length,
+    totalDecisions: records.length,
+    minRequired,
+  }
+}

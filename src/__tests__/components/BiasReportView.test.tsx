@@ -42,4 +42,22 @@ describe('BiasReportView', () => {
     expect(screen.getByText(/12 decisions analyzed/)).toBeInTheDocument()
     expect(screen.getByText(/Analyzed by anthropic\/claude-sonnet-4\.5 via OpenRouter Auto Router/)).toBeInTheDocument()
   })
+
+  it('hides flag controls and shows provenance when read-only', () => {
+    render(
+      <BiasReportView
+        report={{ ...baseReport, findings: [mild, strong], modelsUsed: ['m/a'] }}
+        readOnly
+        provenance="Generated from this demo archive by the live pipeline on November 10, 2026."
+      />
+    )
+    expect(screen.queryAllByRole('button')).toHaveLength(0)
+    expect(screen.getByText('Generated from this demo archive by the live pipeline on November 10, 2026.')).toBeInTheDocument()
+    expect(screen.getByText('Optimism Bias')).toBeInTheDocument()
+  })
+
+  it('keeps flag controls for the owner', () => {
+    render(<BiasReportView report={{ ...baseReport, findings: [mild] }} />)
+    expect(screen.getByRole('button', { name: /flag/i })).toBeInTheDocument()
+  })
 })
