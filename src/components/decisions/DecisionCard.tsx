@@ -4,10 +4,12 @@ import { Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { CatalogNumber } from '@/components/ui/CatalogNumber'
 import { OUTCOME_LABELS, OUTCOME_TONES } from '@/lib/outcomes'
+import { APP_ROUTES, type AppRoutes } from '@/lib/routes'
 
 type Props = {
   decision: DecisionRecord & { outcomes: OutcomeUpdate[] }
   searchQuery?: string
+  routes?: AppRoutes
 }
 
 function highlightText(text: string, query?: string) {
@@ -36,7 +38,7 @@ function highlightText(text: string, query?: string) {
   })
 }
 
-export function DecisionCard({ decision, searchQuery }: Props) {
+export function DecisionCard({ decision, searchQuery, routes = APP_ROUTES }: Props) {
   const latestOutcome = decision.outcomes[0] ?? null
   const date = new Date(decision.createdAt).toLocaleDateString('en-US', {
     month: 'short',
@@ -46,7 +48,7 @@ export function DecisionCard({ decision, searchQuery }: Props) {
 
   return (
     <Link
-      href={`/decisions/${decision.id}`}
+      href={routes.decision(decision.id)}
       className="group block border-b border-rule py-4 transition-colors duration-150 hover:bg-surface sm:px-2"
     >
       <div className="flex items-start justify-between gap-3">

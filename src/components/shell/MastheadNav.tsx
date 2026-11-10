@@ -4,17 +4,12 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
+import { APP_NAV_LINKS, type NavLink } from '@/lib/routes'
 
-export const NAV_LINKS = [
-  { href: '/decisions', label: 'Archive' },
-  { href: '/calibration', label: 'Calibration' },
-  { href: '/ai/reports', label: 'Reports' },
-] as const
+export const NAV_LINKS = APP_NAV_LINKS
 
-type NavLink = { href: string; label: string }
-
-function isActive(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`)
+function isActive(pathname: string, link: NavLink) {
+  return pathname === link.href || (link.prefixes ?? [link.href]).some((prefix) => pathname.startsWith(`${prefix}/`))
 }
 
 const linkBase = 'font-mono text-[11px] uppercase tracking-[0.09em] transition-colors duration-150'
@@ -42,8 +37,9 @@ export function MastheadNav({ links = NAV_LINKS, cta }: { links?: readonly NavLi
   return (
     <>
       <nav aria-label="Primary" className="hidden items-center gap-6 md:flex">
-        {links.map(({ href, label }) => {
-          const active = isActive(pathname, href)
+        {links.map((link) => {
+          const { href, label } = link
+          const active = isActive(pathname, link)
           return (
             <Link
               key={href}
@@ -76,8 +72,9 @@ export function MastheadNav({ links = NAV_LINKS, cta }: { links?: readonly NavLi
         className="absolute inset-x-0 top-full z-20 border-b-[1.5px] border-ink bg-paper px-4 py-4 md:hidden"
       >
         <nav aria-label="Primary mobile" className="flex flex-col gap-3">
-          {links.map(({ href, label }) => {
-            const active = isActive(pathname, href)
+          {links.map((link) => {
+            const { href, label } = link
+            const active = isActive(pathname, link)
             return (
               <Link
                 key={href}
