@@ -56,7 +56,7 @@ export function BiasReportView({
         <p className="-mt-6 font-mono text-[11px] tracking-[0.04em] text-muted">{provenance}</p>
       )}
 
-      <AIDisclosureBanner />
+      <AIDisclosureBanner readOnly={readOnly} />
 
       <div className="grid gap-8 sm:grid-cols-[1fr_auto]">
         {report.summary && (

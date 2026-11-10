@@ -56,6 +56,17 @@ describe('BiasReportView', () => {
     expect(screen.getByText('Optimism Bias')).toBeInTheDocument()
   })
 
+  it('does not ask read-only visitors to flag findings they cannot flag', () => {
+    render(<BiasReportView report={{ ...baseReport, findings: [mild] }} readOnly />)
+    expect(screen.getByText(/thinking prompt, not a verdict/)).toBeInTheDocument()
+    expect(screen.queryByText(/flag any findings/i)).toBeNull()
+  })
+
+  it('invites the owner to flag inaccurate findings', () => {
+    render(<BiasReportView report={{ ...baseReport, findings: [mild] }} />)
+    expect(screen.getByText(/flag any findings/i)).toBeInTheDocument()
+  })
+
   it('keeps flag controls for the owner', () => {
     render(<BiasReportView report={{ ...baseReport, findings: [mild] }} />)
     expect(screen.getByRole('button', { name: /flag/i })).toBeInTheDocument()

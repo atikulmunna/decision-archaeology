@@ -6,6 +6,9 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { SpecimenCard } from '@/components/shell/SpecimenCard'
 import { ThemeToggle } from '@/components/shell/ThemeToggle'
 import { parseThemePreference, THEME_COOKIE } from '@/lib/design/theme'
+import { demoDecisionIdForKey } from '@/lib/demo/archive'
+import { SPECIMEN_KEY } from '@/lib/demo/seed'
+import { DEMO_ROUTES } from '@/lib/routes'
 
 const STEPS = [
   {
@@ -74,15 +77,15 @@ export default async function Home() {
               minutes after you log it, then measured against what actually happened.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button href={signedIn ? '/decisions/new' : '/sign-up'} size="lg">
-                {signedIn ? 'Log a decision' : 'Start your archive'}
+              <Button href={DEMO_ROUTES.archive} size="lg">
+                Explore the demo
               </Button>
-              <Button href={signedIn ? '/decisions' : '/sign-in'} variant="secondary" size="lg">
-                {signedIn ? 'Open archive' : 'Sign in'}
+              <Button href={signedIn ? '/decisions' : '/sign-up'} variant="secondary" size="lg">
+                {signedIn ? 'Open archive' : 'Start your archive'}
               </Button>
             </div>
           </div>
-          <SpecimenCard />
+          <SpecimenCard href={DEMO_ROUTES.decision(demoDecisionIdForKey(SPECIMEN_KEY))} />
         </section>
 
         <section aria-labelledby="how-it-works" className="border-b border-rule py-16">

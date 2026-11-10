@@ -11,6 +11,6 @@ describe('AuthLayout', () => {
     )
     expect(screen.getByRole('heading', { name: 'Start your archive.' })).toBeInTheDocument()
     expect(screen.getByRole('form', { name: 'sign up' })).toBeInTheDocument()
-    expect(screen.getByText('DA-0042')).toBeInTheDocument()
+    expect(screen.getByText('DA-0007')).toBeInTheDocument()
   })
 })
