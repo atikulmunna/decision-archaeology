@@ -25,16 +25,19 @@ export function nextThemePreference(preference: ThemePreference): ThemePreferenc
  * OS preference is applied and followed while the preference stays "system".
  */
 export const THEME_INIT_SCRIPT = `(function () {
-  try {
+  function readPreference() {
     var match = document.cookie.match(/(?:^|; )${THEME_COOKIE}=([^;]*)/);
-    var pref = match ? decodeURIComponent(match[1]) : 'system';
+    if (!match) return 'system';
+    try { return decodeURIComponent(match[1]); } catch (error) { return 'system'; }
+  }
+  try {
+    var pref = readPreference();
     var root = document.documentElement;
     if (pref === 'light' || pref === 'dark') { root.dataset.theme = pref; return; }
     var media = window.matchMedia('(prefers-color-scheme: dark)');
     root.dataset.theme = media.matches ? 'dark' : 'light';
     media.addEventListener('change', function (event) {
-      var current = document.cookie.match(/(?:^|; )${THEME_COOKIE}=([^;]*)/);
-      var value = current ? decodeURIComponent(current[1]) : 'system';
+      var value = readPreference();
       if (value !== 'light' && value !== 'dark') root.dataset.theme = event.matches ? 'dark' : 'light';
     });
   } catch (error) {}

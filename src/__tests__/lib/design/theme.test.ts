@@ -58,4 +58,11 @@ describe('THEME_INIT_SCRIPT', () => {
     new Function(THEME_INIT_SCRIPT)()
     expect(document.documentElement.dataset.theme).toBe('light')
   })
+
+  it('follows the OS when the cookie is not valid percent-encoding', () => {
+    document.cookie = 'da-theme=%E0%A4%A; path=/'
+    stubMatchMedia(true)
+    new Function(THEME_INIT_SCRIPT)()
+    expect(document.documentElement.dataset.theme).toBe('dark')
+  })
 })
