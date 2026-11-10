@@ -3,10 +3,9 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { getDecision } from '@/lib/decisions'
 import { DecisionDetail } from '@/components/decisions/DecisionDetail'
-import Link from 'next/link'
-import { ArrowLeft, Download } from 'lucide-react'
-import { buttonClasses } from '@/components/ui/Button'
+import { DecisionPageBar } from '@/components/decisions/DecisionPageBar'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import { APP_ROUTES } from '@/lib/routes'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,32 +57,7 @@ export default async function DecisionDetailPage({ params }: Params) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
-          prefetch
-          href="/decisions"
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted hover:text-ink"
-        >
-          <ArrowLeft aria-hidden="true" size={12} strokeWidth={1.5} />
-          Archive
-        </Link>
-        <div className="flex flex-wrap gap-2">
-          <a
-            href={`/api/decisions/${record.id}/export?format=json`}
-            className={buttonClasses({ variant: 'ghost', size: 'sm' })}
-          >
-            <Download aria-hidden="true" size={12} strokeWidth={1.5} />
-            JSON
-          </a>
-          <a
-            href={`/api/decisions/${record.id}/export?format=markdown`}
-            className={buttonClasses({ variant: 'ghost', size: 'sm' })}
-          >
-            <Download aria-hidden="true" size={12} strokeWidth={1.5} />
-            Markdown
-          </a>
-        </div>
-      </div>
+      <DecisionPageBar backHref={APP_ROUTES.archive} exportId={record.id} />
 
       <div>
         <DecisionDetail

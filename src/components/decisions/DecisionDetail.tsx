@@ -74,12 +74,18 @@ const CORRECTION_STATUS_TONES: Record<string, BadgeTone> = {
 
 const sectionLabel = 'mb-3 font-mono text-[11px] uppercase tracking-[0.09em] text-muted'
 
+/**
+ * The decision detail view. `readOnly` (the public demo) keeps the sealed record,
+ * its correction history, outcomes and notes, and drops every control that writes.
+ */
 export function DecisionDetail({
   decision,
   collaboration,
+  readOnly = false,
 }: {
   decision: Decision
-  collaboration: CollaborationData
+  collaboration?: CollaborationData
+  readOnly?: boolean
 }) {
   const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
   const [corrections, setCorrections] = useState<CorrectionRequest[]>(decision.corrections)
@@ -237,7 +243,7 @@ export function DecisionDetail({
                     </p>
                   </div>
                 )}
-                {decision.isLocked && (
+                {decision.isLocked && !readOnly && (
                   <div className="mt-3">
                     <Button
                       type="button"
@@ -255,7 +261,7 @@ export function DecisionDetail({
         </div>
       </section>
 
-      {decision.isLocked && (
+      {decision.isLocked && (!readOnly || corrections.length > 0) && (
         <section className="flex flex-col gap-4">
           <div>
             <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
@@ -266,7 +272,7 @@ export function DecisionDetail({
             </p>
           </div>
 
-          {activeCorrectionField && (
+          {activeCorrectionField && !readOnly && (
             <div className="rounded-sm border border-rule bg-sunken p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -386,7 +392,7 @@ export function DecisionDetail({
                     </p>
                   )}
 
-                  {correction.status === 'PENDING' && (
+                  {correction.status === 'PENDING' && !readOnly && (
                     <div className="mt-3 flex gap-2">
                       <Button
                         type="button"
@@ -433,9 +439,11 @@ export function DecisionDetail({
         </section>
       )}
 
-      <section aria-label="Attachments">
-        <AttachmentManager decisionId={decision.id} />
-      </section>
+      {!readOnly && (
+        <section aria-label="Attachments">
+          <AttachmentManager decisionId={decision.id} />
+        </section>
+      )}
 
       {/* Outcome Updates */}
       <section>
@@ -444,48 +452,63 @@ export function DecisionDetail({
           title="Outcomes"
           emptyMessage="No outcomes logged yet. Come back when you can evaluate how this played out."
         />
-        <div className="mt-3">
-          <AddOutcomeForm
-            decisionId={decision.id}
-            onAdded={(o) => setOutcomes((prev) => [...prev, o])}
-          />
-        </div>
-      </section>
-
-      <SupplementaryNotesEditor decisionId={decision.id} initialNotes={decision.supplementaryNotes} />
-
-      {/* Collaboration */}
-      <section className="flex flex-col gap-4">
-        <div>
-          <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
-            Collaboration
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Manage who can review this decision and keep the discussion close to the record.
-          </p>
-        </div>
-
-        <SharePanel decisionId={decision.id} initialShares={collaboration.shares} />
-
-        {collaboration.discussions.length > 0 && (
-          <div className="flex flex-col gap-4">
-            {collaboration.discussions.map((discussion) => (
-              <div key={discussion.shareId} className="flex flex-col gap-2">
-                <p className="text-sm font-medium text-ink-2">
-                  Discussion with {discussion.collaboratorName}
-                </p>
-                <CommentThread
-                  decisionId={decision.id}
-                  shareId={discussion.shareId}
-                  initialComments={discussion.comments}
-                  currentUserId={collaboration.currentUserId}
-                  isCollaborator={false}
-                />
-              </div>
-            ))}
+        {!readOnly && (
+          <div className="mt-3">
+            <AddOutcomeForm
+              decisionId={decision.id}
+              onAdded={(o) => setOutcomes((prev) => [...prev, o])}
+            />
           </div>
         )}
       </section>
+
+      {readOnly ? (
+        decision.supplementaryNotes && (
+          <section>
+            <h2 className={sectionLabel}>Supplementary notes</h2>
+            <p className="whitespace-pre-wrap break-words rounded-sm border border-rule bg-surface p-4 text-sm leading-relaxed text-ink">
+              {decision.supplementaryNotes}
+            </p>
+          </section>
+        )
+      ) : (
+        <SupplementaryNotesEditor decisionId={decision.id} initialNotes={decision.supplementaryNotes} />
+      )}
+
+      {/* Collaboration */}
+      {!readOnly && collaboration && (
+        <section className="flex flex-col gap-4">
+          <div>
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+              Collaboration
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Manage who can review this decision and keep the discussion close to the record.
+            </p>
+          </div>
+
+          <SharePanel decisionId={decision.id} initialShares={collaboration.shares} />
+
+          {collaboration.discussions.length > 0 && (
+            <div className="flex flex-col gap-4">
+              {collaboration.discussions.map((discussion) => (
+                <div key={discussion.shareId} className="flex flex-col gap-2">
+                  <p className="text-sm font-medium text-ink-2">
+                    Discussion with {discussion.collaboratorName}
+                  </p>
+                  <CommentThread
+                    decisionId={decision.id}
+                    shareId={discussion.shareId}
+                    initialComments={discussion.comments}
+                    currentUserId={collaboration.currentUserId}
+                    isCollaborator={false}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }
