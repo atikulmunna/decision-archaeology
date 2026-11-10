@@ -1,534 +1,155 @@
 # Decision Archaeology
 
-<p align="center">
-  <a href="https://decision-archaeology.vercel.app/">
-    <img src="https://img.shields.io/badge/Live%20App-Decision%20Archaeology-111827?style=for-the-badge&logo=vercel&logoColor=white" alt="Open Decision Archaeology on Vercel" />
-  </a>
-</p>
-
-Decision Archaeology is a structured personal decision intelligence platform for recording important decisions at the moment they are made, preserving the original reasoning, and revisiting outcomes over time. Instead of acting like a journal or to-do list, the app is designed as a time-locked archive of decision context: what you knew, what alternatives you considered, what you predicted, and why you chose one path over another.
-
-Over time, the system turns individual decisions into a searchable personal knowledge base. Users can review their own thinking patterns, compare predictions against reality, track calibration, collaborate selectively on shared decisions, and generate AI-assisted reports that highlight recurring biases and assumptions.
-
-## Product Preview
-
-![Decision Archaeology application preview](./assets/decision-arch.png)
-
-## What The Project Does
-
-The application centers around a guided decision capture workflow.
-
-- Users create a decision record using a structured multi-step form.
-- Required fields enforce meaningful reflection rather than one-line notes.
-- A time-capsule confirmation screen warns the user before the decision is finalized.
-- After saving, core decision fields become locked after a 5-minute edit window.
-- Later, users can add outcomes, supplementary notes, attachments, and typo-only correction requests without rewriting history.
-
-The product also includes:
-
-- Draft autosave and draft resume
-- Archive search and structured filtering
-- AI report generation and calibration tracking
-- Attachments stored in Cloudflare R2
-- Sharing and collaborator comments
-- Export and import tools
-- Onboarding helpers and milestone messaging
-
-## Why It Exists
-
-Most people remember the result of a decision, but not the reasoning that produced it. Once hindsight appears, the original context gets rewritten in memory. Decision Archaeology is built to preserve pre-hindsight reasoning so users can learn from the quality of their thinking, not only from the outcome.
-
-This makes the product useful for:
-
-- founders and operators reviewing strategic decisions
-- professionals tracking career, finance, or health choices
-- researchers building a structured archive of personal reasoning
-- anyone who wants a durable record of how they think under uncertainty
-
-## Current Project Status
-
-This repository is beyond prototype stage and already contains a substantial working MVP. Core decision capture, locking, drafts, outcomes, collaboration, search, attachments, onboarding, export/import, and AI report plumbing are implemented. The project is suitable for local development and staging deployment, while some production-hardening concerns such as broader observability, compliance, stronger auth-tier parity, and full end-to-end hosted validation still remain.
-
-## Core Product Flows
-
-### 1. Decision Capture
-
-The user creates a new decision through a guided multi-step form:
-
-1. Basics
-2. Reasoning
-3. Optional context
-4. Time-capsule confirmation
-5. Saved state with lock countdown
-
-Required fields:
-
-- Decision Title
-- Decision Summary
-- Context
-- Alternatives Considered
-- Chosen Option
-- Reasoning
-
-Optional fields:
-
-- Values at play
-- Key uncertainties
-- Predicted outcome
-- Predicted timeframe
-- Confidence level
-- Domain tag
-- Up to 5 custom tags
-- Up to 5 attachments
-
-### 2. Drafts
-
-The form autosaves a draft approximately every 30 seconds. Drafts can be resumed from the decisions dashboard or reopened directly by URL. Finalizing a draft converts it into a proper decision record and starts the effective lock window from the finalization time.
-
-### 3. Time Lock
-
-Once a decision is finalized, the core fields are editable for 5 minutes. After that, the record becomes effectively locked on the server side. This protects the original reasoning from hindsight edits.
-
-What stays editable after lock:
-
-- supplementary notes
-- outcome updates
-- correction requests for typos
-
-What does not remain editable:
-
-- the original core reasoning fields
-
-### 4. Outcomes
-
-Users can attach one or more outcome updates to a decision over time. Each outcome includes:
-
-- what happened
-- outcome rating relative to expectation
-- what the user would have done differently
-
-This creates a revision history rather than replacing older updates.
-
-### 5. Calibration And AI Reports
-
-The app computes calibration from decisions that had a prediction and a closed outcome. It also supports AI-generated pattern reports that analyze decision history for biases and reasoning patterns, with user feedback loops for report quality.
-
-### 6. Collaboration
-
-A decision owner can share a record with collaborators. Collaborators can:
-
-- view the shared record
-- leave comments
-- review outcome history
-- request a check-in
-
-Collaborators cannot modify or delete the original decision.
-
-### 7. Import And Export
-
-Users can export records in portable formats and import historical data using templates. Imported decisions are marked as imported and are not treated like fresh time-locked entries.
-
-## Tech Stack
-
-### Frontend
-
-- Next.js 16 App Router
-- React 19
-- TypeScript
-- Tailwind CSS 4
-
-### Backend And Data
-
-- Next.js route handlers
-- Prisma ORM
-- PostgreSQL
-- `pg` driver
-- Prisma Postgres adapter
-
-### Auth
-
-- Clerk
-
-### Storage And Jobs
-
-- Cloudflare R2 for attachments
-- Upstash QStash for background/job-style flows
-- Upstash Redis support is present for future/runtime expansion
-
-### AI And Communication
-
-- OpenRouter (Auto Router, schema-validated structured outputs)
-- Resend for email
-- Svix for Clerk webhook verification
-
-### Testing And Quality
-
-- Vitest
-- Testing Library
-- ESLint
-- Prettier
-
-## Repository Structure
-
-The most important folders:
-
-- [`src/app`](src/app): App Router pages, layouts, and API route handlers
-- [`src/components`](src/components): UI and product feature components
-- [`src/lib`](src/lib): shared business logic, integrations, validation, and utilities
-- [`src/__tests__`](src/__tests__): unit and integration-style tests
-- [`prisma`](prisma): schema and database definitions
-- [`docs`](docs): deployment and supporting docs
-
-## Key Routes
-
-Public routes:
-
-- `/`
-- `/sign-in`
-- `/sign-up`
-
-Core app routes:
-
-- `/decisions`
-- `/decisions/new`
-- `/decisions/[id]`
-- `/calibration`
-- `/ai/reports`
-- `/shared/[shareId]`
-
-Key API groups:
-
-- `/api/decisions`
-- `/api/decisions/[id]`
-- `/api/decisions/[id]/attachments`
-- `/api/decisions/[id]/outcomes`
-- `/api/decisions/[id]/corrections`
-- `/api/ai/reports`
-- `/api/calibration`
-- `/api/webhooks/clerk`
-
-## How The System Works
-
-### Authentication
-
-Clerk handles sign-in, sign-up, sessions, and protected routes. Once a Clerk user is created or updated, the webhook endpoint syncs the user into the app database. Most app logic depends on that database user record existing, so webhook health is important for deployed environments.
-
-### Database Layer
-
-Prisma is the main ORM. The app uses a PostgreSQL-backed Prisma client configured with the Prisma Postgres adapter. User records, decision records, outcomes, attachments, reports, shares, and correction requests are all modeled in the Prisma schema.
-
-### Validation
-
-Input is validated with Zod before database writes. This covers:
-
-- decision creation
-- draft saving
-- draft finalization
-- notes updates
-- correction requests
-- imports and other structured inputs
-
-### Time Lock Enforcement
-
-The lock is not only a frontend timer. The frontend shows the countdown, but the server is the real source of truth. Once the edit window expires, protected routes reject core-field mutations.
-
-### Attachments
-
-Attachments are uploaded against a specific decision and stored in Cloudflare R2 through an S3-compatible API. The app validates file count and size rules before accepting them.
-
-### AI Reporting
-
-Report generation is gated by data thresholds so the model does not analyze too little history. AI outputs are treated as probabilistic assistance, not certainty. The system also includes user feedback paths for incorrect report findings.
-
-## Local Development
-
-### Prerequisites
-
-Install:
-
-- Node.js 20+
-- npm
-- PostgreSQL database
-- Clerk app credentials
-- optional but recommended service credentials for AI, email, jobs, and attachments
-
-### 1. Install Dependencies
+**A decision journal that seals your reasoning before hindsight can rewrite it.**
+
+[![Live app](https://img.shields.io/badge/live%20app-open-D6F55B?style=flat-square&labelColor=121212)](https://decision-archaeology.vercel.app/)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-121212?style=flat-square)
+![React 19](https://img.shields.io/badge/React-19-121212?style=flat-square)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-121212?style=flat-square)
+![Prisma 7](https://img.shields.io/badge/Prisma-7-121212?style=flat-square)
+![Tailwind CSS 4](https://img.shields.io/badge/Tailwind-4-121212?style=flat-square)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/readme/hero-dark.png">
+  <img alt="The Decision Archaeology landing page: the headline 'Keep the reasoning. Excavate it later.' beside a sealed decision card numbered DA-0042" src="assets/readme/hero-light.png">
+</picture>
+
+## The idea
+
+People remember how a decision turned out, but rarely why they made it. Once the outcome is known, memory quietly edits the reasoning to fit.
+
+Decision Archaeology captures your reasoning while the decision is still live, then seals it on the server five minutes later. Every outcome you log afterwards sits beside the original record instead of replacing it. Over time, the archive shows how well your thinking predicted reality.
+
+## How it works
+
+1. **Capture before hindsight.** A guided form asks for the context, the alternatives, the option you chose and why, plus optional values, uncertainties, a predicted outcome and a confidence level. Drafts autosave every 30 seconds and can be resumed later.
+2. **Seal.** Five minutes after you finalize, the core fields lock on the server. Typos can still be fixed through correction requests that keep an audit trail, but the reasoning itself cannot be rewritten. Each sealed record gets a catalog number such as `DA-0042`.
+3. **Excavate.** Log outcomes as they arrive, rated against what you expected. Every update is kept. Calibration shows how often your confidence matched reality, and once you have ten decisions, AI pattern reports surface recurring biases and assumptions.
+
+## Engineering highlights
+
+- **Integrity lives on the server.** The UI only shows the countdown: the API classifies every edit (notes, draft, finalize or core) and rejects core changes once the window closes (`src/lib/locks.ts`, `src/lib/decision-patch.ts`). Corrections are limited to typo-sized edits (`src/lib/corrections.ts`).
+- **One AI client, routed and validated.** All AI calls go through OpenRouter's Auto Router (`openrouter/auto`) in `src/lib/ai.ts`. Every pass sets its own cost tier, requests strict JSON Schema output generated from Zod schemas, is validated again with Zod, and gets one repair retry. The report pipeline extracts assumptions in parallel batches (low tier), runs bias detection (medium) and calibration analysis (low) at the same time, then synthesizes (high). The models the router actually picked are stored on the report and shown to the user.
+- **Catalog numbers that never collide.** Numbers are assigned inside the finalize or import write, backed by a unique `(userId, catalogNumber)` constraint with one retry on a clash. The migration backfilled existing records in creation order (`src/lib/catalog.ts`, `src/lib/catalog-db.ts`).
+- **A design system enforced by tests.** Every color is defined once in `src/lib/design/tokens.ts` and mirrored as CSS variables for light and dark mode. The test suite checks that every text and background pairing meets WCAG AA (4.5:1), keeps the CSS in sync with the tokens, bans raw palette classes, hex values and emoji in components, and flags text that could overflow on a phone. A small script in `<head>` applies the saved theme before first paint, so there is no flash.
+- **Signed background jobs.** Reminder and report jobs run through Upstash QStash, and the job endpoints reject any request without a valid QStash signature (`src/lib/jobs.ts`).
+
+## Features
+
+- Multi-step capture with draft autosave and resume
+- Five-minute seal with typo-only corrections and an audit trail
+- Outcome history where every update is kept
+- Calibration overall and by domain
+- AI pattern reports with bias findings and calibration patterns, plus a way to flag findings that are wrong
+- Sharing with collaborators: a read-only view, comments and check-in requests
+- Up to five attachments per decision, stored in Cloudflare R2
+- Archive search and filters
+- Export as JSON or Markdown, and import past decisions from JSON or CSV templates (imported records are marked as imported and are not sealed)
+- Light, dark and system themes
+
+## Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| Framework | Next.js 16 (App Router), React 19, TypeScript |
+| Styling | Tailwind CSS 4 with custom tokens and primitives, lucide-react icons, Instrument Serif, Inter Tight and IBM Plex Mono |
+| Data | PostgreSQL (Neon), Prisma 7 with the `pg` adapter, Zod 4 validation |
+| Auth | Clerk, with users synced to the database by a Svix-verified webhook |
+| AI | OpenRouter Auto Router |
+| Jobs and email | Upstash QStash, Resend |
+| Files | Cloudflare R2 through the S3 API |
+| Quality | Vitest 4, Testing Library, ESLint, Prettier |
+
+## Run it locally
+
+You need Node.js 20 or newer, a PostgreSQL database and a Clerk application. The AI, email, job and attachment services are only needed for the features that use them.
 
 ```bash
+git clone https://github.com/atikulmunna/decision-archaeology.git
+cd decision-archaeology
 npm install
-```
-
-### 2. Create Environment Variables
-
-Use `.env.local` for local development. The project also includes an `.env.example` template.
-
-Important variables used by the current app:
-
-```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
-CLERK_WEBHOOK_SECRET=
-DATABASE_URL=
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-OPENROUTER_API_KEY=
-OPENROUTER_COST_TIER=medium
-OPENROUTER_ALLOWED_MODELS=
-
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=
-
-QSTASH_TOKEN=
-QSTASH_CURRENT_SIGNING_KEY=
-QSTASH_NEXT_SIGNING_KEY=
-
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_ENDPOINT_URL=
-R2_BUCKET_NAME=
-R2_PUBLIC_URL=
-```
-
-Notes:
-
-- Only variables beginning with `NEXT_PUBLIC_` are exposed to the browser.
-- For local development, keep secrets in `.env.local`.
-- For Vercel or any hosting platform, set these in the platform environment settings instead of committing secrets.
-
-### 3. Prepare The Database
-
-If this is your first setup:
-
-```bash
+cp .env.example .env.local
 npx prisma generate
-npx prisma db push
-```
-
-If you are using migrations:
-
-```bash
 npx prisma migrate deploy
-```
-
-Useful Prisma commands:
-
-```bash
-npx prisma studio
-npx prisma validate
-```
-
-### 4. Run The App
-
-```bash
 npm run dev
 ```
 
-Then open:
+Then open `http://localhost:3000`.
 
-- `http://localhost:3000`
+| Variables | Used for |
+| --- | --- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET` | Sign-in and syncing users into the database |
+| `DATABASE_URL`, `NEXT_PUBLIC_APP_URL` | The database and the app's public URL |
+| `OPENROUTER_API_KEY`, `OPENROUTER_COST_TIER`, `OPENROUTER_ALLOWED_MODELS` | AI pattern reports. The allowed models list is optional, for example `anthropic/*` |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Share invites, outcome notices, check-ins and reminders |
+| `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` | Background jobs. The signing keys are required in production |
+| `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT_URL`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL` | Attachments |
 
-### 5. Run Checks
+`.env.example` lists every variable with comments. Keep real values in `.env.local`, which is never committed.
+
+### Checks
 
 ```bash
-npm test
-npm run lint
-npm run build
+npm test            # Vitest: unit, component and guard tests
+npx tsc --noEmit    # type check
+npm run lint        # ESLint
+npm run build       # production build
 ```
 
-## Beginner Walkthrough
+## Project layout
 
-If you are new to the codebase, this is the fastest way to understand it.
+```text
+prisma/                 schema and migrations
+src/app/                pages, layouts and API route handlers
+src/components/ui/      design system primitives (Button, Card, Badge, Callout, ...)
+src/components/shell/   masthead, theme toggle and page containers
+src/components/         feature components (decisions, sharing, reports, ...)
+src/lib/                domain logic: locks, corrections, catalog, calibration, AI
+src/lib/design/         tokens, theme and contrast helpers
+src/__tests__/          tests, including the design, wrap and copy guards
+```
 
-### Step 1. Start At The Product Surface
+## Roadmap
 
-Open:
+The project is being rebuilt as a portfolio piece in phases. Each phase ships working, tested software.
 
-- [`src/app/page.tsx`](src/app/page.tsx)
-- [`src/app/(dashboard)/decisions/page.tsx`](src/app/(dashboard)/decisions/page.tsx)
-- [`src/app/(dashboard)/decisions/new/page.tsx`](src/app/(dashboard)/decisions/new/page.tsx)
-
-This shows the public landing page, the main archive view, and the entry point into the capture flow.
-
-### Step 2. Understand The Main Form
-
-Open:
-
-- [`src/components/decisions/DecisionCaptureForm.tsx`](src/components/decisions/DecisionCaptureForm.tsx)
-
-This is one of the most important files in the project. It handles:
-
-- multi-step capture
-- validation handoff
-- autosave
-- draft resume
-- submission
-- post-save transition into the lock window
-
-### Step 3. Follow The API
-
-Open:
-
-- [`src/app/api/decisions/route.ts`](src/app/api/decisions/route.ts)
-- [`src/app/api/decisions/[id]/route.ts`](src/app/api/decisions/[id]/route.ts)
-
-This shows how the app:
-
-- creates decisions
-- stores drafts
-- finalizes drafts
-- updates notes
-- enforces lock rules
-
-### Step 4. Read Shared Logic
-
-Open:
-
-- [`src/lib/decisions.ts`](src/lib/decisions.ts)
-- [`src/lib/locks.ts`](src/lib/locks.ts)
-- [`src/lib/prisma.ts`](src/lib/prisma.ts)
-- [`src/lib/validations/decision.ts`](src/lib/validations/decision.ts)
-
-This is where the core domain logic lives.
-
-### Step 5. Check Supporting Features
-
-Then explore:
-
-- attachments
-- corrections
-- outcomes
-- AI reports
-- sharing
-- onboarding
-
-Useful files:
-
-- [`src/components/decisions/AttachmentManager.tsx`](src/components/decisions/AttachmentManager.tsx)
-- [`src/components/decisions/OutcomeHistory.tsx`](src/components/decisions/OutcomeHistory.tsx)
-- [`src/components/decisions/DecisionDetail.tsx`](src/components/decisions/DecisionDetail.tsx)
-- [`src/app/api/ai/reports/route.ts`](src/app/api/ai/reports/route.ts)
+- [x] Integrity foundations: lock bypass closed, corrections hardened, job endpoints authenticated
+- [x] OpenRouter Auto Router with schema-validated outputs
+- [x] Field Archive design system and a reskin of every page
+- [ ] A public demo archive you can explore without an account
+- [ ] A cryptographic seal on every locked record that anyone can verify in the browser
+- [ ] Then vs Now: sealed reasoning side by side with what actually happened
+- [ ] Probabilistic forecasts with a Brier score and a reliability curve
+- [ ] Strata Timeline: the archive drawn as geological layers
+- [ ] Field Notes: a quick journal that feeds into decisions
+- [ ] Devil's Advocate: pointed AI questions before you seal
+- [ ] Letters to your future self and a guided revisit flow
+- [ ] A case study page, end-to-end tests and demo recordings
 
 ## Deployment
 
-This app is set up primarily with Vercel in mind.
+The app is built for Vercel:
 
-Recommended deployment flow:
+1. Import the repository into Vercel and add the environment variables above.
+2. Set `NEXT_PUBLIC_APP_URL` to the deployed domain.
+3. Point a Clerk webhook at `/api/webhooks/clerk`.
+4. Run `npx prisma migrate deploy` against the production database before the new build goes live.
 
-1. push the latest code to GitHub
-2. import the repo into Vercel
-3. add the required environment variables
-4. set `NEXT_PUBLIC_APP_URL` to the deployed domain
-5. configure Clerk webhook to `/api/webhooks/clerk`
-6. apply the production database schema
-7. run a full smoke test
+[`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) has the full walkthrough.
 
-Detailed deployment notes are in:
+<details>
+<summary>Troubleshooting</summary>
 
-- [`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md)
+**Sign-in works, but the app fails afterwards.** The Clerk webhook has probably not created the database user. Check that the webhook is enabled, that `CLERK_WEBHOOK_SECRET` matches, and that the migrations have run.
 
-## Hosted Smoke Test Checklist
+**"Lock it in" fails.** Check the `/api/decisions` function logs. The usual causes are an unsynced user or a database that is missing the latest migration.
 
-After deploying, test these flows in order:
+**Attachments fail.** Check the four `R2_*` credentials and that the bucket exists.
 
-1. Sign in / sign up
-2. Confirm Clerk webhook creates the database user
-3. Create a draft
-4. Finalize a decision
-5. Wait for or verify lock behavior
-6. Add an attachment
-7. Add an outcome
-8. Open calibration
-9. Generate an AI report
-10. Share a decision
-11. Open the collaborator view
-12. Export and import data
+**AI reports fail.** Check `OPENROUTER_API_KEY`. If you set `OPENROUTER_ALLOWED_MODELS`, make sure the patterns match models that support structured outputs.
 
-## Common Problems And Fixes
-
-### Sign-in Works But The App Fails After Login
-
-Likely causes:
-
-- Clerk webhook is disabled
-- `CLERK_WEBHOOK_SECRET` is wrong
-- database schema is not applied
-- `DATABASE_URL` is missing or invalid
-
-Check:
-
-- `/api/webhooks/clerk`
-- Vercel function logs
-- database migration state
-
-### Clicking "Lock It In" Appears To Do Nothing
-
-Likely causes:
-
-- the live deployment is on an older build
-- the create decision API is failing
-- the database user was never synced from Clerk
-
-Check:
-
-- latest deployment includes the newest commits
-- browser UI now shows save errors on the confirm step
-- `/api/decisions` function logs
-
-### Webhook Fails In Production
-
-Common reasons:
-
-- wrong signing secret
-- wrong webhook URL
-- missing `DATABASE_URL`
-- database tables not created yet
-
-### Attachments Fail
-
-Check:
-
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `R2_ENDPOINT_URL`
-- `R2_BUCKET_NAME`
-
-## Testing Philosophy
-
-This repository currently leans on local test/build confidence plus manual product validation. The test suite covers important validation and business logic, but it is not yet a full end-to-end safety net for every hosted workflow. For that reason, local checks and staged smoke tests are both important.
-
-## Scripts
-
-```bash
-npm run dev
-npm run build
-npm run start
-npm run lint
-npm test
-npm run test:watch
-```
-
-## Roadmap Areas Still Worth Hardening
-
-Major areas still open for deeper production readiness:
-
-- stronger deployment and webhook reliability checks
-- broader end-to-end tests
-- billing and tier UX polish
-- settings and account management depth
-- security, compliance, and encryption hardening
-- mobile/offline support
-- more mature observability
-
-## Contributing
-
-If you are extending this project:
-
-- keep business rules server-enforced
-- prefer incremental, logically scoped commits
-- validate schema changes carefully
-- run `npm test`, `npm run lint`, and `npm run build` before shipping
-- avoid weakening the time-lock model, because it is a core product principle
+</details>
 
 ## License
 
-No license has been declared yet. Treat the repository as private/internal unless a formal license is added.
+No license has been chosen yet, so all rights are reserved by default.
