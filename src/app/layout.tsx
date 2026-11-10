@@ -26,11 +26,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <ClerkProvider appearance={clerkAppearance}>
-      <html lang="en" data-theme={preference === 'system' ? undefined : preference} suppressHydrationWarning>
+      {/* Font variables live on <html> so the :root-level tokens (--font-sans etc.) can resolve them. */}
+      <html
+        lang="en"
+        data-theme={preference === 'system' ? undefined : preference}
+        className={`${display.variable} ${sans.variable} ${mono.variable}`}
+        suppressHydrationWarning
+      >
         <head>
           <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         </head>
-        <body className={`${display.variable} ${sans.variable} ${mono.variable} font-sans antialiased`}>
+        <body className="font-sans antialiased">
           {children}
         </body>
       </html>

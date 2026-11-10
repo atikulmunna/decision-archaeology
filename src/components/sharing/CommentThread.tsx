@@ -95,8 +95,8 @@ export function CommentThread({ decisionId, shareId, initialComments, currentUse
                 {(c.author?.displayName ?? '?')[0].toUpperCase()}
               </div>
               <div className={`max-w-[80%] rounded-sm px-3 py-2 text-sm ${isMe ? 'bg-primary text-on-primary' : 'bg-sunken text-ink'}`}>
-                <p>{c.content}</p>
-                <p className={`text-xs mt-1 ${isMe ? 'text-signal-ink' : 'text-muted'}`}>
+                <p className="whitespace-pre-wrap break-words">{c.content}</p>
+                <p className={`mt-1 font-mono text-[11px] ${isMe ? 'text-on-primary' : 'text-muted'}`}>
                   {c.author?.displayName ?? 'Unknown'} · {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>

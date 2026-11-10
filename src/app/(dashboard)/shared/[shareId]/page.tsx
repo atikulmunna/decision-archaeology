@@ -3,14 +3,12 @@ import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { CommentThread } from '@/components/sharing/CommentThread'
 import { OutcomeHistory } from '@/components/decisions/OutcomeHistory'
+import { LatestOutcomeNotice } from '@/components/decisions/LatestOutcomeNotice'
 import { Lock } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
-import { Callout } from '@/components/ui/Callout'
 import { Card } from '@/components/ui/Card'
 import { CatalogNumber } from '@/components/ui/CatalogNumber'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { OUTCOME_LABELS, OUTCOME_TONES } from '@/lib/outcomes'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision | Decision Archaeology' }
@@ -75,23 +73,7 @@ export default async function SharedDecisionPage({ params }: Params) {
         }
       />
 
-      {latestOutcome && (
-        <Callout tone="success" title="Latest update from the owner">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={OUTCOME_TONES[latestOutcome.outcomeRating]}>{OUTCOME_LABELS[latestOutcome.outcomeRating]}</Badge>
-              <span className="font-mono text-[11px] text-muted">
-                {new Date(latestOutcome.createdAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </span>
-            </div>
-            <p className="whitespace-pre-wrap break-words">{latestOutcome.whatHappened}</p>
-          </div>
-        </Callout>
-      )}
+      {latestOutcome && <LatestOutcomeNotice outcome={latestOutcome} />}
 
       <Card as="section" className="flex flex-col gap-5 p-6">
         <div className="flex items-center gap-2 text-muted">

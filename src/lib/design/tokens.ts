@@ -71,4 +71,9 @@ export const CONTRAST_PAIRS: ReadonlyArray<readonly [fg: TokenName, bg: TokenNam
   ['ink-2', 'sunken'],
   ['surface', 'danger'],
   ['paper', 'ink'],
+  // Compositions rendered inside Callouts, chips and comment bubbles.
+  ['ink-2', 'highlight'],
+  ['muted', 'sunken'],
+  ['danger', 'sunken'],
+  ['signal-ink', 'sunken'],
 ]
