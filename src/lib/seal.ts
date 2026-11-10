@@ -80,6 +80,39 @@ export async function sealFields(record: SealableDecision, now: Date): Promise<{
   return { sealHash: await computeSealHash(buildSealPayload(record)), sealedAt: now }
 }
 
+/** What the seal panel needs: the sealed fields plus the seal and lock state, and nothing else. */
+export type SealRecord = SealableDecision & {
+  sealHash: string | null
+  sealedAt: Date | null
+  isImported: boolean
+  isLocked: boolean
+}
+
+/** Picks only the SealRecord fields, so a client component never receives the rest of a decision. */
+export function toSealRecord(record: SealRecord): SealRecord {
+  return {
+    catalogNumber: record.catalogNumber,
+    createdAt: record.createdAt,
+    title: record.title,
+    summary: record.summary,
+    context: record.context,
+    alternatives: record.alternatives,
+    chosenOption: record.chosenOption,
+    reasoning: record.reasoning,
+    values: record.values,
+    uncertainties: record.uncertainties,
+    predictedOutcome: record.predictedOutcome,
+    predictedTimeframe: record.predictedTimeframe,
+    confidenceLevel: record.confidenceLevel,
+    domainTag: record.domainTag,
+    customTags: record.customTags,
+    sealHash: record.sealHash,
+    sealedAt: record.sealedAt,
+    isImported: record.isImported,
+    isLocked: record.isLocked,
+  }
+}
+
 type Defined<T> = { [K in keyof T]: Exclude<T[K], undefined> }
 
 type Created<T> = { [K in keyof T]: undefined extends T[K] ? Exclude<T[K], undefined> | null : T[K] }

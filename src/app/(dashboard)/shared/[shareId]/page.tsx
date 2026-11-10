@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SealBadge } from '@/components/seal/SealBadge'
 import { SealPanel } from '@/components/seal/SealPanel'
 import { normalizeDecisionLockState } from '@/lib/locks'
-import { isRetroactiveSeal } from '@/lib/seal'
+import { isRetroactiveSeal, toSealRecord } from '@/lib/seal'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision | Decision Archaeology' }
@@ -83,7 +83,8 @@ export default async function SharedDecisionPage({ params }: Params) {
         }
       />
 
-      <SealPanel record={d} />
+      {/* A client component: pass only the sealed fields, never attachments or other owner data. */}
+      <SealPanel record={toSealRecord(d)} />
 
       {latestOutcome && <LatestOutcomeNotice outcome={latestOutcome} />}
 

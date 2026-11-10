@@ -38,4 +38,5 @@ describe('shared decision page', () => {
     expect(markup).not.toContain('Provisional')
     expect(markup).not.toContain('Try changing a word')
   })
+
 })
