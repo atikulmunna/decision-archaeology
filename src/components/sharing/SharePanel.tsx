@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { Users } from 'lucide-react'
+import { buttonClasses } from '@/components/ui/Button'
+import { fieldClasses } from '@/components/ui/Input'
 
 interface Collaborator {
   id: string
@@ -101,14 +103,15 @@ export function SharePanel({ decisionId, initialShares }: Props) {
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && invite()}
             placeholder="colleague@example.com"
-            className="flex-1 rounded-sm border border-rule bg-sunken px-3 py-2 text-sm focus:border-ink"
+            aria-label="Collaborator email"
+            className={`${fieldClasses()} flex-1`}
           />
           <button
             onClick={invite}
             disabled={loading || !email.trim()}
-            className="rounded-sm bg-primary px-3 py-2 text-sm font-medium text-on-primary hover:opacity-90 disabled:opacity-50 transition-colors"
+            className={buttonClasses({ size: 'sm' })}
           >
-            {loading ? '…' : 'Invite'}
+            {loading ? 'Inviting...' : 'Invite'}
           </button>
         </div>
       )}

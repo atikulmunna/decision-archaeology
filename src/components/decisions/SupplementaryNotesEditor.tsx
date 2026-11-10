@@ -40,8 +40,8 @@ export function SupplementaryNotesEditor({
 
   return (
     <section>
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-        Supplementary Notes <span className="text-muted">(always editable)</span>
+      <h2 className="mb-3 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
+        Supplementary notes · always editable
       </h2>
       <div className="rounded-sm border border-rule bg-surface p-4">
         <Textarea

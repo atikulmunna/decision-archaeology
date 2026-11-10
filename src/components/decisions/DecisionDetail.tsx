@@ -424,7 +424,7 @@ export function DecisionDetail({
               if (!value) return null
               return (
                 <div key={key} className="rounded-sm border border-rule bg-surface p-4">
-                  <p className="mb-1.5 text-xs font-semibold text-muted">{label}</p>
+                  <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{label}</p>
                   <p className="whitespace-pre-wrap text-sm text-ink">{String(value)}</p>
                 </div>
               )
@@ -433,10 +433,7 @@ export function DecisionDetail({
         </section>
       )}
 
-      <section>
-        <h2 className={sectionLabel}>
-          Attachments
-        </h2>
+      <section aria-label="Attachments">
         <AttachmentManager decisionId={decision.id} />
       </section>
 

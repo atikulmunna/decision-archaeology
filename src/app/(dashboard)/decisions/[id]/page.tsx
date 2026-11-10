@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { getDecision } from '@/lib/decisions'
 import { DecisionDetail } from '@/components/decisions/DecisionDetail'
 import Link from 'next/link'
+import { ArrowLeft, Download } from 'lucide-react'
+import { buttonClasses } from '@/components/ui/Button'
 import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
@@ -55,32 +57,35 @@ export default async function DecisionDetailPage({ params }: Params) {
   const authorMap = Object.fromEntries(authors.map((author) => [author.id, author]))
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-muted">
-        <Link prefetch href="/decisions" className="hover:text-ink transition-colors">
-          ← Decisions
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link
+          prefetch
+          href="/decisions"
+          className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted hover:text-ink"
+        >
+          <ArrowLeft aria-hidden="true" size={12} strokeWidth={1.5} />
+          Archive
         </Link>
-        <span>/</span>
-        <span className="text-ink-2 truncate max-w-xs">{record.title}</span>
-      </nav>
-
-      <div className="flex flex-wrap gap-2">
-        <a
-          href={`/api/decisions/${record.id}/export?format=json`}
-          className="inline-flex items-center justify-center rounded-sm border border-rule px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-sunken"
-        >
-          Export JSON
-        </a>
-        <a
-          href={`/api/decisions/${record.id}/export?format=markdown`}
-          className="inline-flex items-center justify-center rounded-sm border border-rule px-3 py-1.5 text-sm font-medium text-ink-2 hover:bg-sunken"
-        >
-          Export Markdown
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={`/api/decisions/${record.id}/export?format=json`}
+            className={buttonClasses({ variant: 'ghost', size: 'sm' })}
+          >
+            <Download aria-hidden="true" size={12} strokeWidth={1.5} />
+            JSON
+          </a>
+          <a
+            href={`/api/decisions/${record.id}/export?format=markdown`}
+            className={buttonClasses({ variant: 'ghost', size: 'sm' })}
+          >
+            <Download aria-hidden="true" size={12} strokeWidth={1.5} />
+            Markdown
+          </a>
+        </div>
       </div>
 
-      <div className="rounded-sm border border-rule bg-surface p-6">
+      <div>
         <DecisionDetail
           decision={record}
           collaboration={{
