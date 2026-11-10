@@ -9,9 +9,11 @@ type Props = {
   emptyMessage: string
   title?: string
   description?: string
+  /** Pins how dates render; defaults to the renderer's zone. */
+  timeZone?: string
 }
 
-export function OutcomeHistory({ outcomes, emptyMessage, title, description }: Props) {
+export function OutcomeHistory({ outcomes, emptyMessage, title, description, timeZone }: Props) {
   return (
     <section>
       {(title || description) && (
@@ -45,6 +47,7 @@ export function OutcomeHistory({ outcomes, emptyMessage, title, description }: P
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
+                    timeZone,
                   })}
                 </span>
               </div>

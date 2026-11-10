@@ -77,15 +77,19 @@ const sectionLabel = 'mb-3 font-mono text-[11px] uppercase tracking-[0.09em] tex
 /**
  * The decision detail view. `readOnly` (the public demo) keeps the sealed record,
  * its correction history, outcomes and notes, and drops every control that writes.
+ * `timeZone` pins how dates render (the demo uses UTC), so the server and every
+ * visitor's browser print the same day and time.
  */
 export function DecisionDetail({
   decision,
   collaboration,
   readOnly = false,
+  timeZone,
 }: {
   decision: Decision
   collaboration?: CollaborationData
   readOnly?: boolean
+  timeZone?: string
 }) {
   const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
   const [corrections, setCorrections] = useState<CorrectionRequest[]>(decision.corrections)
@@ -97,12 +101,13 @@ export function DecisionDetail({
   const [correctionError, setCorrectionError] = useState<string | null>(null)
   const [correctionNotice, setCorrectionNotice] = useState<string | null>(null)
 
+  const zone = timeZone ? { timeZone, timeZoneName: 'short' as const } : {}
   const createdAt = new Date(decision.createdAt).toLocaleString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', ...zone,
   })
   const lockedAt = decision.lockedAt
     ? new Date(decision.lockedAt).toLocaleString('en-US', {
-        month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+        month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', ...zone,
       })
     : null
 
@@ -363,6 +368,7 @@ export function DecisionDetail({
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
+                        timeZone,
                       })}
                     </span>
                   </div>
@@ -449,6 +455,7 @@ export function DecisionDetail({
       <section>
         <OutcomeHistory
           outcomes={outcomes}
+          timeZone={timeZone}
           title="Outcomes"
           emptyMessage="No outcomes logged yet. Come back when you can evaluate how this played out."
         />

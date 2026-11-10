@@ -49,3 +49,22 @@ describe('DecisionDetail read-only', () => {
     expect(screen.getByText('Collaboration')).toBeInTheDocument()
   })
 })
+
+describe('DecisionDetail dates in a fixed time zone', () => {
+  it('shows the seeded calendar day and time to a visitor far east of UTC', () => {
+    const originalTz = process.env.TZ
+    // Noon UTC is already midnight of the next day in New Zealand.
+    process.env.TZ = 'Pacific/Auckland'
+    try {
+      const decision = demo('northwind-offer')
+      render(<DecisionDetail decision={decision} readOnly timeZone="UTC" />)
+      expect(screen.getByText(/Recorded August 15, 2025 at 12:00 PM UTC/)).toBeInTheDocument()
+      expect(screen.getByText(/Sealed August 15, 2025 at 12:05 PM UTC/)).toBeInTheDocument()
+      // Outcome dates (OutcomeHistory) and correction dates use the same zone.
+      expect(screen.getByText('Apr 24, 2026')).toBeInTheDocument()
+    } finally {
+      process.env.TZ = originalTz
+    }
+  })
+})
+

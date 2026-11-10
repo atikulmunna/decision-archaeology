@@ -18,7 +18,7 @@ export default async function DemoDecisionPage({ params }: Params) {
   return (
     <div className="flex flex-col gap-6">
       <DecisionPageBar backHref={DEMO_ROUTES.archive} />
-      <DecisionDetail decision={record} readOnly />
+      <DecisionDetail decision={record} readOnly timeZone="UTC" />
     </div>
   )
 }

@@ -82,6 +82,7 @@ describe('demo decision page', () => {
     expect(markup).toContain('href="/demo"')
     expect(markup).not.toMatch(/<button|<form|<textarea/)
     expect(markup).not.toContain('/api/decisions/')
+    expect(markup).toContain('Recorded August 15, 2025 at 12:00 PM UTC')
   })
 
   it('titles the page after the decision', async () => {
