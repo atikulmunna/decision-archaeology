@@ -143,7 +143,8 @@ export function ThenView({
   ].filter(Boolean)
 
   return (
-    <div className="flex flex-col gap-8">
+    // The archival surface: everything here is the record as it was sealed.
+    <div className="flex flex-col gap-8 rounded-sm bg-sunken p-4 sm:p-6">
       <SealPanel
         record={sealRecord}
         approvedCorrections={corrections.filter((correction) => correction.status === 'APPROVED').length}
