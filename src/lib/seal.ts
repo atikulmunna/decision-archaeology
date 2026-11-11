@@ -30,7 +30,7 @@ export type SealableDecision = Pick<
 >
 
 /** Same words, same bytes: Unicode NFC, and CRLF or lone CR line endings become LF. */
-function canonicalText(value: string): string {
+export function canonicalText(value: string): string {
   return value.normalize('NFC').replace(/\r\n?/g, '\n')
 }
 
