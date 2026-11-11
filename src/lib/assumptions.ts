@@ -17,6 +17,8 @@ export const VERDICT_LABELS: Record<AssumptionVerdict, string> = {
 export type ReviewLike = { itemText: string; verdict: AssumptionVerdict; note: string | null; updatedAt: Date }
 
 const ABBREVIATIONS = new Set(['e.g.', 'i.e.', 'etc.', 'vs.'])
+const TITLES = new Set(['dr.', 'mr.', 'mrs.', 'ms.', 'st.'])
+const INITIALS = /^(?:[a-z]\.){2,}$/
 const LIST_MARKER = /^(?:[-*•]|\d+[.)])\s+/
 const SENTENCE_END = /[.?!]+(?=\s)/g
 
@@ -24,13 +26,21 @@ export function normalizeAssumption(text: string): string {
   return canonicalText(text).trim()
 }
 
+/** Whether the punctuation closing `chunk` ends a sentence, given the text after it. */
+function endsSentence(chunk: string, after: string): boolean {
+  // Leading brackets and quotes do not change the word: "(e.g." is still "e.g.".
+  const word = (chunk.trim().split(/\s+/).pop() ?? '').toLowerCase().replace(/^[^a-z]+/, '')
+  if (ABBREVIATIONS.has(word) || TITLES.has(word)) return false
+  // Initials such as U.S. end a sentence only when a new sentence starts after them.
+  return !(INITIALS.test(word) && /^\s+[a-z]/.test(after))
+}
+
 function splitSentences(text: string): string[] {
   const parts: string[] = []
   let start = 0
   for (const match of text.matchAll(SENTENCE_END)) {
     const end = match.index + match[0].length
-    const lastWord = text.slice(start, end).trim().split(/\s+/).pop()?.toLowerCase() ?? ''
-    if (ABBREVIATIONS.has(lastWord)) continue
+    if (!endsSentence(text.slice(start, end), text.slice(end))) continue
     parts.push(text.slice(start, end))
     start = end
   }

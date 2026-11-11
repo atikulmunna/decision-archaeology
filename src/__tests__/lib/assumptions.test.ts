@@ -25,6 +25,22 @@ describe('splitAssumptions', () => {
     ])
   })
 
+  it('keeps bracketed abbreviations, titles and initials inside one assumption', () => {
+    expect(splitAssumptions('Whether small clinics (e.g. dental) will pay. Whether we can reach them.')).toEqual([
+      'Whether small clinics (e.g. dental) will pay.',
+      'Whether we can reach them.',
+    ])
+    expect(splitAssumptions('Whether Dr. Patel will mentor me. Whether the U.S. launch slips.')).toEqual([
+      'Whether Dr. Patel will mentor me.',
+      'Whether the U.S. launch slips.',
+    ])
+    // Initials that end a sentence still end it.
+    expect(splitAssumptions('Whether we launch in the U.S. Whether it scales.')).toEqual([
+      'Whether we launch in the U.S.',
+      'Whether it scales.',
+    ])
+  })
+
   it('treats lines as items and strips bullets and numbers', () => {
     expect(splitAssumptions(['- Will they pay?', '* Can we hire', '2) Runway lasts. Really.'].join(CR + LF))).toEqual([
       'Will they pay?',
