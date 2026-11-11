@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { DecisionDetail } from '@/components/decisions/DecisionDetail'
 import { DecisionPageBar } from '@/components/decisions/DecisionPageBar'
 import { getDemoDecision } from '@/lib/demo/queries'
+import { DEMO_NOW } from '@/lib/demo/clock'
 import { DEMO_ROUTES } from '@/lib/routes'
 
 type Params = { params: Promise<{ id: string }> }
@@ -18,7 +19,7 @@ export default async function DemoDecisionPage({ params }: Params) {
   return (
     <div className="flex flex-col gap-6">
       <DecisionPageBar backHref={DEMO_ROUTES.archive} />
-      <DecisionDetail decision={record} readOnly timeZone="UTC" tamperTest />
+      <DecisionDetail decision={record} readOnly timeZone="UTC" tamperTest now={DEMO_NOW} />
     </div>
   )
 }

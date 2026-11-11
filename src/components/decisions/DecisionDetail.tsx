@@ -1,89 +1,26 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import type { DecisionRecord, OutcomeUpdate, CorrectionRequest } from '@prisma/client'
-import {
-  CORRECTION_FIELDS,
-  getCorrectionFieldLabel,
-  getLatestApprovedCorrection,
-  type CorrectionField,
-} from '@/lib/corrections'
-import { Lock } from 'lucide-react'
-import { Badge, type BadgeTone } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { Callout } from '@/components/ui/Callout'
+import { Badge } from '@/components/ui/Badge'
 import { CatalogNumber } from '@/components/ui/CatalogNumber'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Textarea } from '@/components/ui/Textarea'
-import { AddOutcomeForm } from './AddOutcomeForm'
-import { AttachmentManager } from './AttachmentManager'
-import { OutcomeHistory } from './OutcomeHistory'
-import { SupplementaryNotesEditor } from './SupplementaryNotesEditor'
-import { SharePanel } from '@/components/sharing/SharePanel'
 import { SealBadge } from '@/components/seal/SealBadge'
-import { SealPanel } from '@/components/seal/SealPanel'
+import type { ReviewLike } from '@/lib/assumptions'
+import { buildSummaryParts, defaultDetailView, type DetailView } from '@/lib/detail-view'
 import { getDecisionLockDeadline } from '@/lib/locks'
 import { isRetroactiveSeal } from '@/lib/seal'
 import { tamperReasoning } from '@/lib/tamper'
-import { CommentThread } from '@/components/sharing/CommentThread'
-
-type Decision = DecisionRecord & {
-  outcomes: OutcomeUpdate[]
-  corrections: CorrectionRequest[]
-}
-
-type CollaboratorShare = {
-  id: string
-  shareId: string
-  collaborator: {
-    id: string
-    email: string
-    displayName: string | null
-    avatarUrl: string | null
-  }
-}
-
-type ShareDiscussion = {
-  shareId: string
-  collaboratorName: string
-  comments: Array<{
-    id: string
-    content: string
-    createdAt: string
-    author: { id: string; displayName: string | null; avatarUrl: string | null } | null
-  }>
-}
-
-type CollaborationData = {
-  currentUserId: string
-  shares: CollaboratorShare[]
-  discussions: ShareDiscussion[]
-}
-
-const LOCKED_FIELDS: { key: CorrectionField; label: string }[] = CORRECTION_FIELDS.map((field) => ({
-  key: field.key,
-  label: field.label,
-}))
-
-const OPTIONAL_FIELDS: { key: keyof DecisionRecord; label: string }[] = [
-  { key: 'values', label: 'Values at Play' },
-  { key: 'uncertainties', label: 'Key Uncertainties' },
-  { key: 'predictedOutcome', label: 'Predicted Outcome' },
-]
-
-const CORRECTION_STATUS_TONES: Record<string, BadgeTone> = {
-  PENDING: 'neutral',
-  APPROVED: 'signal',
-  REJECTED: 'outline',
-}
-
-const sectionLabel = 'mb-3 font-mono text-[11px] uppercase tracking-[0.09em] text-muted'
+import type { CollaborationData, Decision } from './detail-types'
+import { NowView } from './NowView'
+import { ThenView } from './ThenView'
+import { ViewToggle } from './ViewToggle'
 
 /**
- * The decision detail view. `readOnly` (the public demo) keeps the sealed record,
- * its correction history, outcomes and notes, and drops every control that writes.
- * `timeZone` pins how dates render (the demo uses UTC), so the server and every
- * visitor's browser print the same day and time.
+ * The decision detail: a shared header, then a Then / Now toggle. Then is the sealed
+ * record; Now is what happened and how each assumption held up. Both views stay
+ * mounted (the inactive one is hidden) so work in either survives switching.
+ * `readOnly` (the public demo) drops every control that writes; `timeZone` pins how
+ * dates render; `now` is the server's clock so the header reads the same everywhere.
  */
 export function DecisionDetail({
   decision,
@@ -91,6 +28,9 @@ export function DecisionDetail({
   readOnly = false,
   timeZone,
   tamperTest = false,
+  reviews: initialReviews = [],
+  initialView,
+  now,
 }: {
   decision: Decision
   collaboration?: CollaborationData
@@ -98,22 +38,20 @@ export function DecisionDetail({
   timeZone?: string
   /** Demo only: a toggle that changes one word in the browser so the seal visibly fails. */
   tamperTest?: boolean
+  reviews?: ReviewLike[]
+  initialView?: DetailView
+  now: Date
 }) {
-  const [tampered, setTampered] = useState(false)
-  const tamper = tamperTest && tampered ? tamperReasoning(decision.reasoning) : null
-  const sealRecord = useMemo(
-    () => (tamper ? { ...decision, reasoning: tamper.text } : decision),
-    [decision, tamper?.text] // eslint-disable-line react-hooks/exhaustive-deps
+  const [reviews, setReviews] = useState<ReviewLike[]>(initialReviews)
+  const [view, setView] = useState<DetailView>(
+    initialView ?? defaultDetailView(decision.outcomes.length > 0, initialReviews.length > 0)
   )
-  const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
-  const [corrections, setCorrections] = useState<CorrectionRequest[]>(decision.corrections)
-  const [activeCorrectionField, setActiveCorrectionField] = useState<CorrectionField | null>(null)
-  const [correctedText, setCorrectedText] = useState('')
-  const [correctionReason, setCorrectionReason] = useState('')
-  const [savingCorrection, setSavingCorrection] = useState(false)
-  const [updatingCorrectionId, setUpdatingCorrectionId] = useState<string | null>(null)
-  const [correctionError, setCorrectionError] = useState<string | null>(null)
-  const [correctionNotice, setCorrectionNotice] = useState<string | null>(null)
+  const [tampered, setTampered] = useState(false)
+  const tamper = useMemo(
+    () => (tamperTest && tampered ? tamperReasoning(decision.reasoning) : null),
+    [tamperTest, tampered, decision.reasoning]
+  )
+  const sealRecord = useMemo(() => (tamper ? { ...decision, reasoning: tamper.text } : decision), [decision, tamper])
 
   const zone = timeZone ? { timeZone, timeZoneName: 'short' as const } : {}
   const createdAt = new Date(decision.createdAt).toLocaleString('en-US', {
@@ -125,83 +63,20 @@ export function DecisionDetail({
       })
     : null
 
-  const approvedCorrections = Object.fromEntries(
-    LOCKED_FIELDS.map(({ key }) => [key, getLatestApprovedCorrection(corrections, key)])
-  ) as Record<CorrectionField, CorrectionRequest | null>
+  const summary = buildSummaryParts({
+    draftStartedAt: decision.draftStartedAt,
+    createdAt: decision.createdAt,
+    isLocked: decision.isLocked,
+    now,
+    uncertainties: decision.uncertainties,
+    reviews,
+  })
 
-  function beginCorrection(field: CorrectionField) {
-    const originalValue = String(decision[field] ?? '')
-    const approvedValue = approvedCorrections[field]?.correctedText ?? ''
-    setActiveCorrectionField(field)
-    setCorrectedText(approvedValue || originalValue)
-    setCorrectionReason('')
-    setCorrectionError(null)
-    setCorrectionNotice(null)
-  }
-
-  async function submitCorrection() {
-    if (!activeCorrectionField) return
-
-    setSavingCorrection(true)
-    setCorrectionError(null)
-    setCorrectionNotice(null)
-
-    try {
-      const response = await fetch(`/api/decisions/${decision.id}/corrections`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fieldName: activeCorrectionField,
-          correctedText,
-          reason: correctionReason,
-        }),
-      })
-
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        setCorrectionError(payload.error ?? 'Unable to submit correction request.')
-        return
-      }
-
-      setCorrections((prev) => [payload as CorrectionRequest, ...prev])
-      setCorrectionNotice('Correction request submitted. Review it below and approve when ready.')
-      setActiveCorrectionField(null)
-      setCorrectedText('')
-      setCorrectionReason('')
-    } finally {
-      setSavingCorrection(false)
-    }
-  }
-
-  async function updateCorrectionStatus(correctionId: string, status: 'APPROVED' | 'REJECTED') {
-    setUpdatingCorrectionId(correctionId)
-    setCorrectionError(null)
-    setCorrectionNotice(null)
-
-    try {
-      const response = await fetch(`/api/decisions/${decision.id}/corrections/${correctionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
-
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        setCorrectionError(payload.error ?? 'Unable to update correction request.')
-        return
-      }
-
-      setCorrections((prev) => prev.map((correction) => (
-        correction.id === correctionId ? payload as CorrectionRequest : correction
-      )))
-      setCorrectionNotice(
-        status === 'APPROVED'
-          ? 'Correction approved. The original text remains preserved in the audit trail.'
-          : 'Correction request rejected.'
-      )
-    } finally {
-      setUpdatingCorrectionId(null)
-    }
+  function changeView(next: DetailView) {
+    setView(next)
+    const url = new URL(window.location.href)
+    url.searchParams.set('view', next)
+    window.history.replaceState(null, '', url)
   }
 
   return (
@@ -243,325 +118,33 @@ export function DecisionDetail({
             ))}
           </div>
         )}
+        {summary.length > 0 && (
+          <p className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{summary.join(' · ')}</p>
+        )}
       </div>
 
-      <SealPanel
-        record={sealRecord}
-        approvedCorrections={corrections.filter((correction) => correction.status === 'APPROVED').length}
-        tampered={tamper !== null}
-        onTamperedChange={tamperTest ? setTampered : undefined}
-      />
+      <ViewToggle view={view} onChange={changeView} />
 
-      {decision.isLocked ? (
-        decision.sealHash ? null : (
-          <Callout title="Core fields are sealed">Supplementary notes, outcomes and typo corrections can still be added.</Callout>
-        )
-      ) : (
-        <Callout tone="warning" title="Edit window open">The core fields are not sealed yet, so editing is still possible.</Callout>
-      )}
-
-      <section>
-        <h2 className={`${sectionLabel} flex items-center gap-1.5`}>
-          {decision.isLocked && <Lock aria-hidden="true" size={12} strokeWidth={1.5} />}
-          Core fields
-        </h2>
-        <div className="flex flex-col gap-4">
-          {LOCKED_FIELDS.map(({ key, label }) => {
-            const value = decision[key]
-            if (!value) return null
-            const approvedCorrection = approvedCorrections[key]
-            return (
-              <div key={key} className="rounded-sm border border-rule bg-surface p-4">
-                <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{label}</p>
-                <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">
-                  {key === 'reasoning' && tamper ? (
-                    <>
-                      {tamper.text.slice(0, tamper.start)}
-                      <mark className="bg-highlight px-0.5 text-danger">{tamper.text.slice(tamper.start, tamper.end)}</mark>
-                      {tamper.text.slice(tamper.end)}
-                    </>
-                  ) : (
-                    String(value)
-                  )}
-                </p>
-                {approvedCorrection && (
-                  <div className="mt-3 rounded-sm border border-ink bg-highlight p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-signal-ink">
-                      Approved typo correction
-                    </p>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-signal-ink">
-                      {approvedCorrection.correctedText}
-                    </p>
-                  </div>
-                )}
-                {decision.isLocked && !readOnly && (
-                  <div className="mt-3">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => beginCorrection(key)}
-                    >
-                      Request typo correction
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      {decision.isLocked && (!readOnly || corrections.length > 0) && (
-        <section className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
-              Correction Requests
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Locked fields keep the original wording forever. If you spot a typo, submit a small spelling or punctuation correction and preserve the change in the audit trail.
-            </p>
-          </div>
-
-          {activeCorrectionField && !readOnly && (
-            <div className="rounded-sm border border-rule bg-sunken p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-signal-ink">
-                    Request correction for {getCorrectionFieldLabel(activeCorrectionField)}
-                  </p>
-                  <p className="mt-1 text-xs text-signal-ink">
-                    Keep this to a small typo fix. Larger wording changes should stay in supplementary notes.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setActiveCorrectionField(null)
-                    setCorrectionError(null)
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-
-              <div className="mt-4 flex flex-col gap-4">
-                <div className="rounded-sm border border-rule bg-surface p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                    Original text
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink">
-                    {String(decision[activeCorrectionField] ?? '')}
-                  </p>
-                </div>
-
-                <Textarea
-                  id="correctedText"
-                  label="Corrected text"
-                  value={correctedText}
-                  onChange={(e) => setCorrectedText(e.target.value)}
-                  placeholder="Fix only the typo or punctuation issue here..."
-                />
-
-                <Textarea
-                  id="correctionReason"
-                  label="Reason (optional)"
-                  value={correctionReason}
-                  onChange={(e) => setCorrectionReason(e.target.value)}
-                  placeholder="Example: Correcting a company name typo."
-                  className="min-h-[80px]"
-                />
-
-                {correctionError && <p className="text-sm text-danger">{correctionError}</p>}
-
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    onClick={submitCorrection}
-                    loading={savingCorrection}
-                    disabled={correctedText.trim().length === 0}
-                  >
-                    Submit correction request
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {correctionNotice && (
-            <div className="rounded-sm border border-ink bg-highlight px-4 py-3 text-sm text-signal-ink">
-              {correctionNotice}
-            </div>
-          )}
-
-          {corrections.length === 0 ? (
-            <div className="rounded-sm border border-dashed border-rule bg-surface p-6 text-center text-sm text-muted">
-              No correction requests yet.
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {corrections.map((correction) => (
-                <div key={correction.id} className="rounded-sm border border-rule bg-surface p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-ink">
-                      {getCorrectionFieldLabel(correction.fieldName)}
-                    </p>
-                    <Badge tone={CORRECTION_STATUS_TONES[correction.status] ?? 'neutral'}>{correction.status}</Badge>
-                    <span className="text-xs text-muted">
-                      {new Date(correction.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        timeZone,
-                      })}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-sm bg-sunken p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                        Original
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-ink">
-                        {correction.originalText}
-                      </p>
-                    </div>
-                    <div className="rounded-sm bg-highlight p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-signal-ink">
-                        Requested correction
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-sm text-signal-ink">
-                        {correction.correctedText}
-                      </p>
-                    </div>
-                  </div>
-
-                  {correction.reason && (
-                    <p className="mt-3 text-sm text-ink-2">
-                      Reason: {correction.reason}
-                    </p>
-                  )}
-
-                  {correction.status === 'PENDING' && !readOnly && (
-                    <div className="mt-3 flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => updateCorrectionStatus(correction.id, 'APPROVED')}
-                        loading={updatingCorrectionId === correction.id}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => updateCorrectionStatus(correction.id, 'REJECTED')}
-                        disabled={updatingCorrectionId === correction.id}
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Optional fields */}
-      {OPTIONAL_FIELDS.some(({ key }) => !!decision[key]) && (
-        <section>
-          <h2 className={sectionLabel}>Additional Context</h2>
-          <div className="flex flex-col gap-4">
-            {OPTIONAL_FIELDS.map(({ key, label }) => {
-              const value = decision[key]
-              if (!value) return null
-              return (
-                <div key={key} className="rounded-sm border border-rule bg-surface p-4">
-                  <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{label}</p>
-                  <p className="whitespace-pre-wrap break-words text-sm text-ink">{String(value)}</p>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
-      {!readOnly && (
-        <section aria-label="Attachments">
-          <AttachmentManager decisionId={decision.id} />
-        </section>
-      )}
-
-      {/* Outcome Updates */}
-      <section>
-        <OutcomeHistory
-          outcomes={outcomes}
+      <div role="tabpanel" id="decision-view-then" aria-labelledby="decision-tab-then" hidden={view !== 'then'}>
+        <ThenView
+          decision={decision}
+          readOnly={readOnly}
           timeZone={timeZone}
-          title="Outcomes"
-          emptyMessage="No outcomes logged yet. Come back when you can evaluate how this played out."
+          sealRecord={sealRecord}
+          tamper={tamper}
+          onTamperedChange={tamperTest ? setTampered : undefined}
         />
-        {!readOnly && (
-          <div className="mt-3">
-            <AddOutcomeForm
-              decisionId={decision.id}
-              onAdded={(o) => setOutcomes((prev) => [...prev, o])}
-            />
-          </div>
-        )}
-      </section>
-
-      {readOnly ? (
-        decision.supplementaryNotes && (
-          <section>
-            <h2 className={sectionLabel}>Supplementary notes</h2>
-            <p className="whitespace-pre-wrap break-words rounded-sm border border-rule bg-surface p-4 text-sm leading-relaxed text-ink">
-              {decision.supplementaryNotes}
-            </p>
-          </section>
-        )
-      ) : (
-        <SupplementaryNotesEditor decisionId={decision.id} initialNotes={decision.supplementaryNotes} />
-      )}
-
-      {/* Collaboration */}
-      {!readOnly && collaboration && (
-        <section className="flex flex-col gap-4">
-          <div>
-            <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
-              Collaboration
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Manage who can review this decision and keep the discussion close to the record.
-            </p>
-          </div>
-
-          <SharePanel decisionId={decision.id} initialShares={collaboration.shares} />
-
-          {collaboration.discussions.length > 0 && (
-            <div className="flex flex-col gap-4">
-              {collaboration.discussions.map((discussion) => (
-                <div key={discussion.shareId} className="flex flex-col gap-2">
-                  <p className="text-sm font-medium text-ink-2">
-                    Discussion with {discussion.collaboratorName}
-                  </p>
-                  <CommentThread
-                    decisionId={decision.id}
-                    shareId={discussion.shareId}
-                    initialComments={discussion.comments}
-                    currentUserId={collaboration.currentUserId}
-                    isCollaborator={false}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      </div>
+      <div role="tabpanel" id="decision-view-now" aria-labelledby="decision-tab-now" hidden={view !== 'now'}>
+        <NowView
+          decision={decision}
+          readOnly={readOnly}
+          timeZone={timeZone}
+          collaboration={collaboration}
+          reviews={reviews}
+          onReviewsChange={setReviews}
+        />
+      </div>
     </div>
   )
 }

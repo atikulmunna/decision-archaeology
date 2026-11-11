@@ -81,7 +81,7 @@ describe('demo decision page', () => {
     expect(markup).toContain('Accept the senior role at Northwind?')
     expect(markup).toContain('href="/demo"')
     expect(markup).not.toMatch(/<form|<textarea/)
-    expect(markup.match(/<button[^>]*>[^<]*/g)?.map((tag) => tag.replace(/<button[^>]*>/, ''))).toEqual(['Verify seal', 'Show what is sealed'])
+    expect(markup.match(/<button[^>]*>[^<]*/g)?.map((tag) => tag.replace(/<button[^>]*>/, ''))).toEqual(['Then', 'Now', 'Verify seal', 'Show what is sealed'])
     expect(markup).toContain('Try changing a word (demo)')
     expect(markup).not.toContain('/api/decisions/')
     expect(markup).toContain('Recorded August 15, 2025 at 12:00 PM UTC')

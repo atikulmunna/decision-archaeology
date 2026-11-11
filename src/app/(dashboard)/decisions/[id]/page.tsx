@@ -62,6 +62,7 @@ export default async function DecisionDetailPage({ params }: Params) {
       <div>
         <DecisionDetail
           decision={record}
+          now={new Date()}
           collaboration={{
             currentUserId: dbUser.id,
             shares: shares.map((share) => ({
