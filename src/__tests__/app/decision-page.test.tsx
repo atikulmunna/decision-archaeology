@@ -42,7 +42,7 @@ describe('owner decision page', () => {
       await DecisionDetailPage({ params: Promise.resolve({ id: 'd1' }), searchParams: Promise.resolve({}) })
     )
     expect(selectedTab(markup)).toBe('now')
-    expect(markup).toContain('1 of 2 assumptions held up')
+    expect(markup).toContain('1 of 2 assumptions held up, 1 not reviewed')
     expect(markup).toContain('The team was the whole bet, and it was right.')
   })
 

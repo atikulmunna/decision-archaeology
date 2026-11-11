@@ -35,6 +35,20 @@ describe('detail view', () => {
     expect(buildSummaryParts({ ...base, draftStartedAt: null, isLocked: false, reviews: [] })).toEqual([])
   })
 
+  it('says how many assumptions are not reviewed yet', () => {
+    const now = t('2026-11-10T12:00:00Z')
+    expect(
+      buildSummaryParts({
+        createdAt: t('2025-08-15T12:00:00Z'),
+        now,
+        uncertainties: 'Team holds. Hours stay sane. Runway lasts.',
+        draftStartedAt: null,
+        isLocked: false,
+        reviews: [{ itemText: 'Team holds.', verdict: 'HELD', note: null, updatedAt: now }],
+      })
+    ).toEqual(['1 of 3 assumptions held up, 2 not reviewed'])
+  })
+
   it('says sealed today rather than today ago', () => {
     expect(
       buildSummaryParts({

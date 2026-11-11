@@ -33,7 +33,9 @@ export function buildSummaryParts(input: {
   const reviewed = matched.filter(({ review }) => review !== null)
   if (reviewed.length > 0) {
     const held = reviewed.filter(({ review }) => review!.verdict === 'HELD').length
-    parts.push(`${held} of ${matched.length} assumptions held up`)
+    // Without the unreviewed count, "1 of 4 held up" reads as three that did not.
+    const unreviewed = matched.length - reviewed.length
+    parts.push(`${held} of ${matched.length} assumptions held up${unreviewed > 0 ? `, ${unreviewed} not reviewed` : ''}`)
   }
   return parts
 }
