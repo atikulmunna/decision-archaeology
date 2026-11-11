@@ -266,6 +266,7 @@ export async function getDecision(userId: string, id: string) {
     include: {
       outcomes: { orderBy: { createdAt: 'asc' } },
       corrections: { orderBy: { createdAt: 'desc' } },
+      assumptionReviews: { orderBy: { createdAt: 'asc' } },
     },
   })
 

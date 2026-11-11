@@ -41,6 +41,12 @@ enum BiasSeverity {
   STRONG
 }
 
+enum AssumptionVerdict {
+  HELD
+  PARTLY
+  DIDNT
+}
+
 enum BiasReportStatus {
   PENDING
   RUNNING
@@ -109,9 +115,27 @@ model DecisionRecord {
   outcomes          OutcomeUpdate[]
   collaborators     CollaboratorShare[]
   corrections       CorrectionRequest[]
+  assumptionReviews AssumptionReview[]
 
   @@unique([userId, catalogNumber])
   @@map("decision_records")
+}
+
+// One verdict per assumption split from a decision's sealed uncertainties (src/lib/assumptions.ts).
+// A reflection added after sealing, like an outcome: never part of the seal.
+model AssumptionReview {
+  id         String            @id @default(cuid())
+  decisionId String
+  decision   DecisionRecord    @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  itemHash   String            // SHA-256 of normalizeAssumption(itemText)
+  itemText   String            // snapshot, so a review stays readable if the split rule changes
+  verdict    AssumptionVerdict
+  note       String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([decisionId, itemHash])
+  @@map("assumption_reviews")
 }
 
 model OutcomeUpdate {

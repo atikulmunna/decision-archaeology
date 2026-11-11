@@ -1,6 +1,9 @@
-import type { DecisionRecord, OutcomeUpdate } from '@prisma/client'
+import type { AssumptionReview, DecisionRecord, OutcomeUpdate } from '@prisma/client'
+import { normalizeAssumption } from '@/lib/assumptions'
+import { computeSealHashSync } from '@/lib/seal-node'
 import { matchesOutcomeFilter, type DecisionFilters } from '@/lib/archive-view'
-import { buildDemoArchive, type DemoDecision } from './archive'
+import { buildDemoArchive, demoDecisionIdForKey, type DemoDecision } from './archive'
+import { DEMO_SEEDS } from './seed'
 import { DEMO_NOW } from './clock'
 
 /** A list row: like getDecisions, `outcomes` holds only the latest outcome. */
@@ -68,4 +71,25 @@ export function getDemoDecision(id: string, now: Date = DEMO_NOW): DemoDecision 
 
 export function getDemoCalibrationRecords(now: Date = DEMO_NOW): DemoDecision[] {
   return buildDemoArchive(now)
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** Rowan's seeded verdicts for one demo decision, shaped like stored reviews. */
+export function getDemoAssumptionReviews(id: string, now: Date = DEMO_NOW): AssumptionReview[] {
+  const seed = DEMO_SEEDS.find((candidate) => demoDecisionIdForKey(candidate.key) === id)
+  const decision = getDemoDecision(id, now)
+  if (!seed?.assumptionReviews?.length || !decision) return []
+  // Reviewed when the latest outcome came in, or a day after sealing if there is none.
+  const reviewedAt = decision.outcomes.at(-1)?.createdAt ?? new Date(decision.createdAt.getTime() + DAY_MS)
+  return seed.assumptionReviews.map((review, index) => ({
+    id: `${id}-r${index + 1}`,
+    decisionId: id,
+    itemHash: computeSealHashSync(normalizeAssumption(review.item)),
+    itemText: review.item,
+    verdict: review.verdict,
+    note: review.note ?? null,
+    createdAt: reviewedAt,
+    updatedAt: reviewedAt,
+  }))
 }

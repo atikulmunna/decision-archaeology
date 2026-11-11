@@ -1,5 +1,6 @@
 import type { DomainTag, OutcomeUpdate } from '@prisma/client'
 import type { CorrectionField } from '@/lib/corrections'
+import type { AssumptionVerdict } from '@/lib/assumptions'
 
 /**
  * Rowan Hale's fictional archive: 24 decisions over 18 months, from a senior
@@ -44,6 +45,8 @@ export type DemoDecisionSeed = {
   supplementaryNotes?: string
   outcomes: DemoOutcomeSeed[]
   corrections?: DemoCorrectionSeed[]
+  /** Verdicts on this decision's split uncertainties; each item must be one of them exactly. */
+  assumptionReviews?: Array<{ item: string; verdict: AssumptionVerdict; note?: string }>
 }
 
 export const SPECIMEN_KEY = 'northwind-offer'
@@ -68,6 +71,10 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       "Infrastructure work is the gap in my experience, and doing it inside a company I already understand lowers the risk. If I hate it, moving back is easy. Looking outside now would be running away from boredom rather than toward something.",
     values: 'Learning over comfort. Keeping options open.',
     uncertainties: 'Whether platform work feels too far from users. Whether the new manager is as good as people say.',
+    assumptionReviews: [
+      { item: 'Whether platform work feels too far from users.', verdict: 'HELD', note: 'Other teams became my users.' },
+      { item: 'Whether the new manager is as good as people say.', verdict: 'HELD', note: 'The best manager I have had.' },
+    ],
     predictedOutcome: 'Six months in I will be glad I moved, though I will miss shipping visible features.',
     predictedTimeframeDays: 180,
     confidenceLevel: 6,
@@ -96,6 +103,9 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'The expected return of investing is higher, but the cost of being forced to sell in a downturn is worse than the return I give up. A buffer also makes any future job change a choice rather than a panic.',
     values: 'Security. Freedom to say no to a bad job.',
     uncertainties: 'Whether I will actually resume investing once the buffer is full.',
+    assumptionReviews: [
+      { item: 'Whether I will actually resume investing once the buffer is full.', verdict: 'HELD', note: 'Resumed the same month, then automated it.' },
+    ],
     predictedOutcome: 'The buffer will be full in about nine months and I will feel calmer about work.',
     predictedTimeframeDays: 270,
     confidenceLevel: 8,
@@ -124,6 +134,9 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'A fixed date is the only thing that has ever made me consistent. Twenty weeks is enough time to build up from where I am if I follow the plan.',
     values: 'Health. Following through on commitments.',
     uncertainties: 'My left knee has complained before when I increased distance quickly.',
+    assumptionReviews: [
+      { item: 'My left knee has complained before when I increased distance quickly.', verdict: 'DIDNT', note: 'It strained in week nine. The warning I ignored.' },
+    ],
     predictedOutcome: 'I will finish in under two hours and keep running afterwards.',
     predictedTimeframeDays: 150,
     confidenceLevel: 5,
@@ -152,6 +165,9 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'She asked me, not a substitute, and saying no would tell her my discomfort matters more than her day. Preparing well is within my control even if the nerves are not.',
     values: 'Family. Courage over comfort.',
     uncertainties: 'Whether I freeze on the day.',
+    assumptionReviews: [
+      { item: 'Whether I freeze on the day.', verdict: 'HELD', note: 'Nervous for a minute, then fine.' },
+    ],
     predictedOutcome: 'It will be fine but forgettable, and I will be relieved when it is over.',
     predictedTimeframeDays: 40,
     confidenceLevel: 4,
@@ -237,6 +253,10 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       `${SPECIMEN_SENTENCE} I am learning more per month in interviews with them than in a quarter at Halcyon. My savings mean a failure would be survivable.`,
     values: 'Learning speed. Working with people I respect.',
     uncertainties: 'Whether the team is as good on a bad week as in interviews. Whether the hours stay reasonable.',
+    assumptionReviews: [
+      { item: 'Whether the team is as good on a bad week as in interviews.', verdict: 'HELD', note: 'The team was the whole bet, and it was right.' },
+      { item: 'Whether the hours stay reasonable.', verdict: 'PARTLY', note: 'Long in two stretches, never unsustainable.' },
+    ],
     predictedOutcome: 'A year in I will have grown faster than I would have at Halcyon without burning out.',
     predictedTimeframeDays: 365,
     confidenceLevel: 7,
@@ -272,6 +292,9 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'Over two hours a day of commuting will eat the energy the new job needs. The rent is the same, and I can still see friends on weekends.',
     values: 'Energy. Time.',
     uncertainties: 'How much I will miss my neighborhood and the people in it.',
+    assumptionReviews: [
+      { item: 'How much I will miss my neighborhood and the people in it.', verdict: 'DIDNT', note: 'I missed people far more than the commute.' },
+    ],
     predictedOutcome: 'I will get back about ten hours a week and barely miss the old area.',
     predictedTimeframeDays: 120,
     confidenceLevel: 6,
@@ -300,6 +323,10 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'Managing it alone is what I have been doing, and it is not working. Six months is long enough to judge and short enough to commit to.',
     values: 'Health. Honesty with myself.',
     uncertainties: 'Cost. Whether talking actually changes anything.',
+    assumptionReviews: [
+      { item: 'Cost.', verdict: 'PARTLY', note: 'Expensive, and worth it.' },
+      { item: 'Whether talking actually changes anything.', verdict: 'HELD', note: 'It changed more than I expected.' },
+    ],
     predictedOutcome: 'Modest improvement in sleep and fewer bad days.',
     predictedTimeframeDays: 180,
     confidenceLevel: 6,
@@ -329,6 +356,9 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'The current setup is burning out teh people I rely on most. I have run rotations at Halcyon and know the common fixes, so I can move faster than a committee.',
     values: 'Fairness. Taking responsibility for shared problems.',
     uncertainties: 'Whether people accept rules from someone who joined recently.',
+    assumptionReviews: [
+      { item: 'Whether people accept rules from someone who joined recently.', verdict: 'HELD', note: 'Nobody pushed back once pages were fair.' },
+    ],
     predictedOutcome: 'Pages spread evenly across the team within two months.',
     predictedTimeframeDays: 60,
     confidenceLevel: 7,
@@ -414,6 +444,9 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'Patching has not reduced incidents, and every fix adds another special case. A clean rewrite is faster than people think if we keep the scope tight.',
     values: 'Quality. Fixing root causes.',
     uncertainties: 'Hidden behavior that customers depend on.',
+    assumptionReviews: [
+      { item: 'Hidden behavior that customers depend on.', verdict: 'DIDNT', note: 'Exactly what sank the estimate.' },
+    ],
     predictedOutcome: 'Shipped in six weeks with no billing incidents in the following quarter.',
     predictedTimeframeDays: 90,
     confidenceLevel: 8,
@@ -594,6 +627,9 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
       'Almost all of the work is ahead of us, not behind us. An uneven split would start a scoreboard that never goes away.',
     values: 'Fairness. Partnership.',
     uncertainties: 'Whether one of us ends up doing much more of the work.',
+    assumptionReviews: [
+      { item: 'Whether one of us ends up doing much more of the work.', verdict: 'HELD', note: 'Different work, similar weight.' },
+    ],
     predictedOutcome: 'Neither of us will raise the split as a problem in the first year.',
     predictedTimeframeDays: 365,
     confidenceLevel: 7,
