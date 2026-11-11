@@ -6,10 +6,12 @@ import { DecisionDetail } from '@/components/decisions/DecisionDetail'
 import { DecisionPageBar } from '@/components/decisions/DecisionPageBar'
 import { getOrCreateDbUser } from '@/lib/db-user'
 import { APP_ROUTES } from '@/lib/routes'
+import { defaultDetailView, parseDetailView } from '@/lib/detail-view'
 
 export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string }> }
+type PageProps = Params & { searchParams?: Promise<{ view?: string | string[] }> }
 
 export async function generateMetadata({ params }: Params) {
   const { id } = await params
@@ -21,7 +23,7 @@ export async function generateMetadata({ params }: Params) {
   return { title: record ? `${record.title} | Decision Archaeology` : 'Decision Not Found' }
 }
 
-export default async function DecisionDetailPage({ params }: Params) {
+export default async function DecisionDetailPage({ params, searchParams }: PageProps) {
   const { id } = await params
   const { userId } = await auth()
   if (!userId) return null
@@ -46,6 +48,12 @@ export default async function DecisionDetailPage({ params }: Params) {
   ])
   if (!record) notFound()
 
+  // Read on the server so the first paint shows the right view and saved verdicts.
+  const initialView = parseDetailView(
+    (await searchParams)?.view,
+    defaultDetailView(record.outcomes.length > 0, record.assumptionReviews.length > 0)
+  )
+
   const authorIds = [...new Set(shares.flatMap((share) => share.comments.map((comment) => comment.authorId)))]
   const authors = authorIds.length > 0
     ? await prisma.user.findMany({
@@ -63,6 +71,8 @@ export default async function DecisionDetailPage({ params }: Params) {
         <DecisionDetail
           decision={record}
           now={new Date()}
+          reviews={record.assumptionReviews}
+          initialView={initialView}
           collaboration={{
             currentUserId: dbUser.id,
             shares: shares.map((share) => ({

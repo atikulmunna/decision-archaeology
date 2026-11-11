@@ -87,6 +87,29 @@ describe('demo decision page', () => {
     expect(markup).toContain('Recorded August 15, 2025 at 12:00 PM UTC')
   })
 
+  it('shows the seeded verdicts on the demo record without verdict buttons', async () => {
+    const markup = await html(
+      DemoDecisionPage({
+        params: Promise.resolve({ id: demoDecisionIdForKey('northwind-offer') }),
+        searchParams: Promise.resolve({}),
+      })
+    )
+    expect(markup).toMatch(/id="decision-tab-now"[^>]*aria-selected="true"/)
+    expect(markup).toContain('Long in two stretches, never unsustainable.')
+    expect(markup).toContain('1 of 2 assumptions held up')
+    expect(markup).not.toContain('>Save<')
+  })
+
+  it('opens the demo record in Then when the URL asks', async () => {
+    const markup = await html(
+      DemoDecisionPage({
+        params: Promise.resolve({ id: demoDecisionIdForKey('northwind-offer') }),
+        searchParams: Promise.resolve({ view: 'then' }),
+      })
+    )
+    expect(markup).toMatch(/id="decision-tab-then"[^>]*aria-selected="true"/)
+  })
+
   it('titles the page after the decision', async () => {
     const metadata = await demoDecisionMetadata({ params: Promise.resolve({ id: demoDecisionIdForKey('northwind-offer') }) })
     expect(metadata.title).toBe('Accept the senior role at Northwind? | Demo archive')
