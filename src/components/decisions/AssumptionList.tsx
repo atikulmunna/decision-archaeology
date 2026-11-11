@@ -35,11 +35,13 @@ type ItemProps = {
   item: string
   review: ReviewLike | null
   editable: boolean
+  /** A review whose text is no longer a current item: it can only be cleared. */
+  orphan?: boolean
   reviews: ReviewLike[]
   onReviewsChange?: (next: ReviewLike[]) => void
 }
 
-function AssumptionItem({ decisionId, item, review, editable, reviews, onReviewsChange }: ItemProps) {
+function AssumptionItem({ decisionId, item, review, editable, orphan = false, reviews, onReviewsChange }: ItemProps) {
   const noteId = useId()
   const [verdict, setVerdict] = useState<AssumptionVerdict | null>(review?.verdict ?? null)
   const [note, setNote] = useState(review?.note ?? '')
@@ -96,34 +98,40 @@ function AssumptionItem({ decisionId, item, review, editable, reviews, onReviews
 
       {editable && (
         <div className="flex flex-col gap-2">
+          {!orphan && (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {VERDICTS.map((option) => (
+                  <Button
+                    key={option}
+                    type="button"
+                    size="sm"
+                    variant={verdict === option ? 'primary' : 'secondary'}
+                    aria-pressed={verdict === option}
+                    onClick={() => setVerdict(option)}
+                  >
+                    {VERDICT_LABELS[option]}
+                  </Button>
+                ))}
+              </div>
+              <label htmlFor={noteId} className={`${label} text-muted`}>
+                Note
+              </label>
+              <input
+                id={noteId}
+                value={note}
+                maxLength={NOTE_MAX}
+                onChange={(event) => setNote(event.target.value)}
+                className="rounded-sm border border-rule bg-surface px-3 py-2 text-sm text-ink"
+              />
+            </>
+          )}
           <div className="flex flex-wrap gap-2">
-            {VERDICTS.map((option) => (
-              <Button
-                key={option}
-                type="button"
-                size="sm"
-                variant={verdict === option ? 'primary' : 'secondary'}
-                aria-pressed={verdict === option}
-                onClick={() => setVerdict(option)}
-              >
-                {VERDICT_LABELS[option]}
+            {!orphan && (
+              <Button type="button" size="sm" onClick={save} loading={saving} disabled={!verdict}>
+                Save
               </Button>
-            ))}
-          </div>
-          <label htmlFor={noteId} className={`${label} text-muted`}>
-            Note
-          </label>
-          <input
-            id={noteId}
-            value={note}
-            maxLength={NOTE_MAX}
-            onChange={(event) => setNote(event.target.value)}
-            className="rounded-sm border border-rule bg-surface px-3 py-2 text-sm text-ink"
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" onClick={save} loading={saving} disabled={!verdict}>
-              Save
-            </Button>
+            )}
             {review && (
               <Button type="button" size="sm" variant="ghost" onClick={clear} disabled={saving}>
                 Clear
@@ -197,6 +205,7 @@ export function AssumptionList({
                 item={orphan.itemText}
                 review={orphan}
                 editable={editable}
+                orphan
                 reviews={reviews}
                 onReviewsChange={onReviewsChange}
               />

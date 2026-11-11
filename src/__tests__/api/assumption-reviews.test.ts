@@ -129,4 +129,21 @@ describe('DELETE /api/decisions/[id]/assumptions', () => {
       where: { decisionId: 'd1', itemHash: await computeSealHash('Whether the hours stay reasonable.') },
     })
   })
+
+  it('clears an orphaned review whose text is no longer one of the assumptions', async () => {
+    findFirst.mockResolvedValue(lockedRecord)
+    deleteMany.mockResolvedValue({ count: 1 })
+    const res = await DELETE(req({ itemText: 'An older wording.' }), params('d1'))
+    expect([res.status, await res.json()]).toEqual([200, { cleared: true }])
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { decisionId: 'd1', itemHash: await computeSealHash('An older wording.') },
+    })
+  })
+
+  it("still hides other users' records and refuses unsealed ones", async () => {
+    findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ ...lockedRecord, isLocked: false, lockedAt: null, createdAt: new Date() })
+    expect((await DELETE(req({ itemText: 'An older wording.' }), params('d2'))).status).toBe(404)
+    expect((await DELETE(req({ itemText: 'An older wording.' }), params('d1'))).status).toBe(409)
+    expect(deleteMany).not.toHaveBeenCalled()
+  })
 })

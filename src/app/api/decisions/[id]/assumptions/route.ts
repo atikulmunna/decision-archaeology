@@ -25,9 +25,14 @@ type Resolved =
 
 /**
  * Shared checks for both verbs: signed in, the owner's finalized decision, sealed
- * (or imported, which never locks), and the text is one of its split assumptions.
+ * (or imported, which never locks), and, when `mustBeCurrent`, the text is one of
+ * its split assumptions.
  */
-async function resolveItem(req: NextRequest, { params }: Params): Promise<Resolved> {
+async function resolveItem(
+  req: NextRequest,
+  { params }: Params,
+  { mustBeCurrent }: { mustBeCurrent: boolean }
+): Promise<Resolved> {
   const { userId } = await auth()
   if (!userId) return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
@@ -52,8 +57,7 @@ async function resolveItem(req: NextRequest, { params }: Params): Promise<Resolv
   }
 
   const itemText = normalizeAssumption(parsed.data.itemText)
-  const known = splitAssumptions(record.uncertainties).map(normalizeAssumption)
-  if (!known.includes(itemText)) {
+  if (mustBeCurrent && !splitAssumptions(record.uncertainties).map(normalizeAssumption).includes(itemText)) {
     return {
       ok: false,
       response: NextResponse.json({ error: "That is not one of this decision's assumptions." }, { status: 422 }),
@@ -65,7 +69,7 @@ async function resolveItem(req: NextRequest, { params }: Params): Promise<Resolv
 
 // PUT /api/decisions/:id/assumptions: set or update one assumption's verdict
 export async function PUT(req: NextRequest, context: Params) {
-  const resolved = await resolveItem(req, context)
+  const resolved = await resolveItem(req, context, { mustBeCurrent: true })
   if (!resolved.ok) return resolved.response
 
   const parsed = ReviewSchema.safeParse(resolved.body)
@@ -87,8 +91,10 @@ export async function PUT(req: NextRequest, context: Params) {
 }
 
 // DELETE /api/decisions/:id/assumptions: clear a verdict (succeeds when there was none)
+// The item check is skipped so a review left over from an earlier split (an orphan)
+// can still be cleared; the delete stays scoped to this owner's decision.
 export async function DELETE(req: NextRequest, context: Params) {
-  const resolved = await resolveItem(req, context)
+  const resolved = await resolveItem(req, context, { mustBeCurrent: false })
   if (!resolved.ok) return resolved.response
 
   await prisma.assumptionReview.deleteMany({ where: { decisionId: resolved.decisionId, itemHash: resolved.itemHash } })

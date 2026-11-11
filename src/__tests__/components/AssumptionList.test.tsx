@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AssumptionList } from '@/components/decisions/AssumptionList'
 import type { ReviewLike } from '@/lib/assumptions'
@@ -86,6 +86,19 @@ describe('AssumptionList', () => {
     expect(screen.getByText('From an earlier reading of your uncertainties')).toBeInTheDocument()
     expect(screen.getByText('An older wording.')).toBeInTheDocument()
     expect(screen.getByText("Didn't hold up")).toBeInTheDocument()
+  })
+
+  it('lets the owner clear an orphaned review, with no other controls', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ cleared: true })))
+    render(<Harness initial={[{ itemText: 'An older wording.', verdict: 'DIDNT', note: null, updatedAt: now }]} />)
+    const orphanItem = screen.getByText('An older wording.').closest('li')!
+    expect(within(orphanItem).queryByRole('button', { name: 'Held up' })).toBeNull()
+    expect(within(orphanItem).queryByRole('button', { name: 'Save' })).toBeNull()
+    expect(within(orphanItem).queryByLabelText('Note')).toBeNull()
+    await userEvent.click(within(orphanItem).getByRole('button', { name: 'Clear' }))
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({ method: 'DELETE' })
+    expect(JSON.parse(fetchSpy.mock.calls[0][1]!.body as string)).toEqual({ itemText: 'An older wording.' })
+    await waitFor(() => expect(screen.queryByText('An older wording.')).toBeNull())
   })
 
   it('says when there are no uncertainties', () => {
