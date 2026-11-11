@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const record = await prisma.decisionRecord.findFirst({
     where: { id, userId: dbUser.id, isDraft: false },
-    include: { outcomes: { orderBy: { createdAt: 'asc' } } },
+    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } } },
   })
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

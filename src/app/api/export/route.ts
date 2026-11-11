@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const records = await prisma.decisionRecord.findMany({
     where: { userId: dbUser.id, isDraft: false },
-    include: { outcomes: { orderBy: { createdAt: 'asc' } } },
+    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } } },
     orderBy: { createdAt: 'asc' },
   })
 

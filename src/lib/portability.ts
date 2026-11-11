@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import type { DecisionRecord, OutcomeUpdate, User, Tier } from '@prisma/client'
+import type { AssumptionReview, DecisionRecord, OutcomeUpdate, User, Tier } from '@prisma/client'
+import { matchReviews, splitAssumptions, VERDICT_LABELS } from '@/lib/assumptions'
 import { CreateDecisionSchema, DomainTagEnum } from '@/lib/validations/decision'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
 import { buildSealPayload, isRetroactiveSeal, SEAL_VERSION } from '@/lib/seal'
 
-export const EXPORT_SCHEMA_VERSION = '1.1.0'
+export const EXPORT_SCHEMA_VERSION = '1.2.0'
 
 const OutcomeRatingEnum = z.enum([
   'MUCH_BETTER',
@@ -15,7 +16,15 @@ const OutcomeRatingEnum = z.enum([
   'TOO_EARLY_TO_TELL',
 ])
 
-export type DecisionWithOutcomes = DecisionRecord & { outcomes: OutcomeUpdate[] }
+export type DecisionWithOutcomes = DecisionRecord & { outcomes: OutcomeUpdate[]; assumptionReviews?: AssumptionReview[] }
+
+/** A verdict on one assumption as exported. Imports ignore these, like seals. */
+export type PortableAssumptionReview = {
+  assumption: string
+  verdict: AssumptionReview['verdict']
+  note: string | null
+  reviewedAt: string
+}
 
 export const PortableOutcomeSchema = z.object({
   whatHappened: z.string().min(10, 'Outcome description must be at least 10 characters'),
@@ -60,7 +69,9 @@ export function toPortableSeal(record: DecisionRecord): PortableSeal | null {
 }
 
 // Imports parse with PortableDecisionSchema, which strips unknown keys, so an exported seal is never imported.
-export function toPortableDecision(record: DecisionWithOutcomes): PortableDecision & { seal: PortableSeal | null } {
+export function toPortableDecision(
+  record: DecisionWithOutcomes
+): PortableDecision & { seal: PortableSeal | null; assumptionReviews: PortableAssumptionReview[] } {
   return {
     title: record.title,
     summary: record.summary,
@@ -84,6 +95,12 @@ export function toPortableDecision(record: DecisionWithOutcomes): PortableDecisi
       createdAt: outcome.createdAt.toISOString(),
     })),
     seal: toPortableSeal(record),
+    assumptionReviews: (record.assumptionReviews ?? []).map((review) => ({
+      assumption: review.itemText,
+      verdict: review.verdict,
+      note: review.note,
+      reviewedAt: review.updatedAt.toISOString(),
+    })),
   }
 }
 
@@ -134,6 +151,20 @@ export function buildDecisionMarkdown(record: DecisionWithOutcomes) {
   }
   if (record.uncertainties) {
     lines.push('', '## Key Uncertainties', '', record.uncertainties)
+  }
+  const assumptions = splitAssumptions(record.uncertainties)
+  if (assumptions.length > 0) {
+    const { matched } = matchReviews(assumptions, record.assumptionReviews ?? [])
+    lines.push(
+      '',
+      '## Assumptions',
+      '',
+      ...matched.map(({ item, review }) =>
+        review
+          ? `- ${item} ${VERDICT_LABELS[review.verdict]}${review.note ? `: ${review.note}` : ''}`
+          : `- ${item} Not reviewed`
+      )
+    )
   }
   if (record.predictedOutcome) {
     lines.push('', '## Predicted Outcome', '', record.predictedOutcome)

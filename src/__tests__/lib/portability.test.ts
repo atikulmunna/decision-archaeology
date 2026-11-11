@@ -8,7 +8,7 @@ import {
 import { importPortableDecisions, parseImportPayload, toPortableDecision } from '@/lib/portability'
 import type { DecisionRecord, OutcomeUpdate, User } from '@prisma/client'
 import { demoDecisionIdForKey } from '@/lib/demo/archive'
-import { getDemoDecision } from '@/lib/demo/queries'
+import { getDemoAssumptionReviews, getDemoDecision } from '@/lib/demo/queries'
 import { computeSealHash } from '@/lib/seal'
 
 function createDecision(overrides: Partial<DecisionRecord> = {}): DecisionRecord {
@@ -108,7 +108,7 @@ describe('seals in exports and imports', () => {
       retroactive: false,
     })
     expect(await computeSealHash(seal.payload)).toBe(seal.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.1.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.2.0')
   })
 
   it('exports null for unsealed records and adds a Seal block only for sealed ones', () => {
@@ -135,5 +135,47 @@ describe('seals in exports and imports', () => {
     const rows = await importPortableDecisions({ id: 'u1' } as User, parsed.decisions)
     expect(rows[0]).not.toHaveProperty('sealHash')
     expect(rows[0]).not.toHaveProperty('sealedAt')
+  })
+})
+
+describe('assumption reviews in exports', () => {
+  it('exports assumption reviews in JSON and Markdown', () => {
+    const id = demoDecisionIdForKey('northwind-offer')
+    const record = { ...getDemoDecision(id)!, outcomes: [], assumptionReviews: getDemoAssumptionReviews(id) }
+    const portable = toPortableDecision(record)
+    expect(portable.assumptionReviews).toEqual([
+      {
+        assumption: 'Whether the team is as good on a bad week as in interviews.',
+        verdict: 'HELD',
+        note: 'The team was the whole bet, and it was right.',
+        reviewedAt: record.assumptionReviews[0].updatedAt.toISOString(),
+      },
+      {
+        assumption: 'Whether the hours stay reasonable.',
+        verdict: 'PARTLY',
+        note: 'Long in two stretches, never unsustainable.',
+        reviewedAt: record.assumptionReviews[1].updatedAt.toISOString(),
+      },
+    ])
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.2.0')
+    const markdown = buildDecisionMarkdown(record)
+    expect(markdown).toContain('## Assumptions')
+    expect(markdown).toContain('- Whether the team is as good on a bad week as in interviews. Held up: The team was the whole bet, and it was right.')
+    expect(markdown).toContain('- Whether the hours stay reasonable. Partly: Long in two stretches, never unsustainable.')
+  })
+
+  it('marks unreviewed assumptions and drops reviews on import', () => {
+    const record = { ...getDemoDecision(demoDecisionIdForKey('fernhill-podcast'))!, outcomes: [], assumptionReviews: [] }
+    const markdown = buildDecisionMarkdown(record)
+    expect(markdown).toContain('- Whether anyone listens. Not reviewed')
+    expect(markdown).toContain('- Whether it eats product time. Not reviewed')
+    expect(toPortableDecision(record).assumptionReviews).toEqual([])
+    const parsed = parseImportPayload(JSON.parse(JSON.stringify(buildArchiveExport([record]))))
+    expect(parsed.decisions[0]).not.toHaveProperty('assumptionReviews')
+  })
+
+  it('leaves out the Assumptions section when there are no uncertainties', () => {
+    const record = { ...getDemoDecision(demoDecisionIdForKey('pottery-class'))!, outcomes: [], assumptionReviews: [] }
+    expect(buildDecisionMarkdown(record)).not.toContain('## Assumptions')
   })
 })
