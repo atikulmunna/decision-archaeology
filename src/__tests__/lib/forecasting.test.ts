@@ -91,6 +91,8 @@ describe('forecast sentence', () => {
       })
     ).toBe('70% that the podcast reaches 500 listeners by Oct 1, 2026')
     expect(['I am promoted', 'NASA launches', 'a'].map(displayStatement)).toEqual(['I am promoted', 'NASA launches', 'a'])
+    // The article A reads as a word, unlike I or an abbreviation such as A/B.
+    expect(['A listener pays', 'A/B test wins'].map(displayStatement)).toEqual(['a listener pays', 'A/B test wins'])
     expect(RESOLUTION_LABELS).toEqual({ HAPPENED: 'Happened', DIDNT: "Didn't happen", VOID: "Can't tell" })
   })
 })

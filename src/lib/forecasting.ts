@@ -32,10 +32,11 @@ export function formatForecastDate(date: Date): string {
   return dateFormat.format(new Date(date))
 }
 
-/** "The podcast" reads as "the podcast" inside a sentence; "I am" and "NASA" stay as typed. */
+/** "The podcast" and "A listener" read as "the podcast" and "a listener" inside a sentence; "I am" and "NASA" stay as typed. */
 export function displayStatement(statement: string): string {
   const second = statement.charAt(1)
-  if (second && second !== second.toUpperCase() && second === second.toLowerCase()) {
+  const lowercaseSecond = second !== '' && second !== second.toUpperCase() && second === second.toLowerCase()
+  if (lowercaseSecond || statement.startsWith('A ')) {
     return statement.charAt(0).toLowerCase() + statement.slice(1)
   }
   return statement
