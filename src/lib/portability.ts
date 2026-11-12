@@ -1,11 +1,12 @@
 import { z } from 'zod'
-import type { AssumptionReview, DecisionRecord, OutcomeUpdate, User, Tier } from '@prisma/client'
+import type { AssumptionReview, DecisionRecord, Forecast, OutcomeUpdate, User, Tier } from '@prisma/client'
 import { matchReviews, splitAssumptions, VERDICT_LABELS } from '@/lib/assumptions'
-import { CreateDecisionSchema, DomainTagEnum } from '@/lib/validations/decision'
+import { CreateDecisionSchema, DomainTagEnum, DraftForecastSchema, FORECAST_MAX } from '@/lib/validations/decision'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
-import { buildSealPayload, isRetroactiveSeal, SEAL_VERSION } from '@/lib/seal'
+import { buildSealPayload, isRetroactiveSeal, sealVersion } from '@/lib/seal'
+import { displayStatement, RESOLUTION_LABELS, type ForecastResolution } from '@/lib/forecasting'
 
-export const EXPORT_SCHEMA_VERSION = '1.2.0'
+export const EXPORT_SCHEMA_VERSION = '1.3.0'
 
 const OutcomeRatingEnum = z.enum([
   'MUCH_BETTER',
@@ -16,7 +17,27 @@ const OutcomeRatingEnum = z.enum([
   'TOO_EARLY_TO_TELL',
 ])
 
-export type DecisionWithOutcomes = DecisionRecord & { outcomes: OutcomeUpdate[]; assumptionReviews?: AssumptionReview[] }
+export type DecisionWithOutcomes = DecisionRecord & {
+  outcomes: OutcomeUpdate[]
+  assumptionReviews?: AssumptionReview[]
+  forecasts?: Forecast[]
+}
+
+/** A forecast as exported, with its resolution. Imports keep these: imported records are never sealed. */
+export type PortableForecast = {
+  statement: string
+  probability: number
+  resolveBy: string
+  resolution: ForecastResolution | null
+  resolvedAt: string | null
+}
+
+// The statement and probability rules of a forecast, without the future-date check: imports carry history.
+const ImportForecastSchema = DraftForecastSchema.pick({ statement: true, probability: true }).extend({
+  resolveBy: z.iso.datetime(),
+  resolution: z.enum(['HAPPENED', 'DIDNT', 'VOID']).nullable().optional(),
+  resolvedAt: z.iso.datetime().nullable().optional(),
+})
 
 /** A verdict on one assumption as exported. Imports ignore these, like seals. */
 export type PortableAssumptionReview = {
@@ -44,6 +65,7 @@ export const PortableDecisionSchema = CreateDecisionSchema.extend({
   supplementaryNotes: z.string().optional(),
   createdAt: z.string().datetime().optional(),
   outcomes: z.array(PortableOutcomeSchema).default([]),
+  forecasts: z.array(ImportForecastSchema).max(FORECAST_MAX).default([]),
 })
 
 export const PortableArchiveSchema = z.object({
@@ -57,10 +79,10 @@ export type PortableDecision = z.infer<typeof PortableDecisionSchema>
 /** A record's seal as exported: enough to verify it offline by hashing `payload`. */
 export type PortableSeal = { version: string; hash: string; sealedAt: string; retroactive: boolean; payload: string }
 
-export function toPortableSeal(record: DecisionRecord): PortableSeal | null {
+export function toPortableSeal(record: DecisionRecord & { forecasts?: Forecast[] }): PortableSeal | null {
   if (!record.sealHash || !record.sealedAt) return null
   return {
-    version: SEAL_VERSION,
+    version: sealVersion(record),
     hash: record.sealHash,
     sealedAt: record.sealedAt.toISOString(),
     retroactive: isRetroactiveSeal(record),
@@ -68,10 +90,28 @@ export function toPortableSeal(record: DecisionRecord): PortableSeal | null {
   }
 }
 
+function orderedForecasts(record: { forecasts?: Forecast[] }): Forecast[] {
+  return [...(record.forecasts ?? [])].sort((a, b) => a.position - b.position)
+}
+
+const isoDay = (date: Date) => new Date(date).toISOString().slice(0, 10)
+
+/** "- 70% that ... by 2027-06-30: Happened (resolved 2026-11-02)", or ": Open" while unresolved. */
+function forecastMarkdownLine(forecast: Forecast): string {
+  const head = `- ${forecast.probability}% that ${displayStatement(forecast.statement)} by ${isoDay(forecast.resolveBy)}`
+  if (!forecast.resolution) return `${head}: Open`
+  const resolved = forecast.resolvedAt ? ` (resolved ${isoDay(forecast.resolvedAt)})` : ''
+  return `${head}: ${RESOLUTION_LABELS[forecast.resolution]}${resolved}`
+}
+
 // Imports parse with PortableDecisionSchema, which strips unknown keys, so an exported seal is never imported.
 export function toPortableDecision(
   record: DecisionWithOutcomes
-): PortableDecision & { seal: PortableSeal | null; assumptionReviews: PortableAssumptionReview[] } {
+): Omit<PortableDecision, 'forecasts'> & {
+  forecasts: PortableForecast[]
+  seal: PortableSeal | null
+  assumptionReviews: PortableAssumptionReview[]
+} {
   return {
     title: record.title,
     summary: record.summary,
@@ -93,6 +133,13 @@ export function toPortableDecision(
       outcomeRating: outcome.outcomeRating,
       lessonsLearned: outcome.lessonsLearned ?? undefined,
       createdAt: outcome.createdAt.toISOString(),
+    })),
+    forecasts: orderedForecasts(record).map((forecast) => ({
+      statement: forecast.statement,
+      probability: forecast.probability,
+      resolveBy: forecast.resolveBy.toISOString(),
+      resolution: forecast.resolution,
+      resolvedAt: forecast.resolvedAt?.toISOString() ?? null,
     })),
     seal: toPortableSeal(record),
     assumptionReviews: (record.assumptionReviews ?? []).map((review) => ({
@@ -168,6 +215,10 @@ export function buildDecisionMarkdown(record: DecisionWithOutcomes) {
   }
   if (record.predictedOutcome) {
     lines.push('', '## Predicted Outcome', '', record.predictedOutcome)
+  }
+  const forecasts = orderedForecasts(record)
+  if (forecasts.length > 0) {
+    lines.push('', '## Forecasts', '', ...forecasts.map(forecastMarkdownLine))
   }
   if (record.supplementaryNotes) {
     lines.push('', '## Supplementary Notes', '', record.supplementaryNotes)
@@ -455,6 +506,16 @@ export async function importPortableDecisions(user: User, decisions: PortableDec
         outcomeRating: outcome.outcomeRating,
         lessonsLearned: outcome.lessonsLearned ?? null,
         createdAt: outcome.createdAt ? new Date(outcome.createdAt) : new Date(),
+      })),
+    },
+    forecasts: {
+      create: decision.forecasts.map((forecast, position) => ({
+        position,
+        statement: forecast.statement,
+        probability: forecast.probability,
+        resolveBy: new Date(forecast.resolveBy),
+        resolution: forecast.resolution ?? null,
+        resolvedAt: forecast.resolvedAt ? new Date(forecast.resolvedAt) : null,
       })),
     },
   }))

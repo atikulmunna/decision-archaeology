@@ -102,13 +102,14 @@ describe('seals in exports and imports', () => {
     const record = sealedRecord()
     const seal = toPortableDecision(record).seal!
     expect(seal).toMatchObject({
-      version: 'da-seal-v1',
+      // Northwind carries forecasts, so its seal payload is v2.
+      version: 'da-seal-v2',
       hash: record.sealHash,
       sealedAt: record.sealedAt!.toISOString(),
       retroactive: false,
     })
     expect(await computeSealHash(seal.payload)).toBe(seal.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.2.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.3.0')
   })
 
   it('exports null for unsealed records and adds a Seal block only for sealed ones', () => {
@@ -157,7 +158,7 @@ describe('assumption reviews in exports', () => {
         reviewedAt: record.assumptionReviews[1].updatedAt.toISOString(),
       },
     ])
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.2.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.3.0')
     const markdown = buildDecisionMarkdown(record)
     expect(markdown).toContain('## Assumptions')
     expect(markdown).toContain('- Whether the team is as good on a bad week as in interviews. Held up: The team was the whole bet, and it was right.')
@@ -177,5 +178,70 @@ describe('assumption reviews in exports', () => {
   it('leaves out the Assumptions section when there are no uncertainties', () => {
     const record = { ...getDemoDecision(demoDecisionIdForKey('pottery-class'))!, outcomes: [], assumptionReviews: [] }
     expect(buildDecisionMarkdown(record)).not.toContain('## Assumptions')
+  })
+})
+
+describe('forecasts in exports and imports', () => {
+  const withForecasts = (key: string) => ({ ...getDemoDecision(demoDecisionIdForKey(key))!, outcomes: [] })
+  const day = (date: Date) => date.toISOString().slice(0, 10)
+
+  it('exports forecasts with their resolutions and a v2 seal that re-hashes', async () => {
+    const record = withForecasts('northwind-offer')
+    const portable = toPortableDecision(record)
+    expect(portable.forecasts).toEqual(
+      record.forecasts.map((forecast) => ({
+        statement: forecast.statement,
+        probability: forecast.probability,
+        resolveBy: forecast.resolveBy.toISOString(),
+        resolution: forecast.resolution,
+        resolvedAt: forecast.resolvedAt?.toISOString() ?? null,
+      }))
+    )
+    expect(portable.forecasts[0]).toMatchObject({ statement: 'I own a major part of the product within a year', probability: 80, resolution: 'HAPPENED' })
+    expect(portable.seal!.version).toBe('da-seal-v2')
+    expect(portable.seal!.payload).toContain('"forecasts": [')
+    expect(await computeSealHash(portable.seal!.payload)).toBe(portable.seal!.hash)
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.3.0')
+  })
+
+  it('writes a Forecasts section after the predicted outcome, and none without forecasts', () => {
+    const record = withForecasts('northwind-offer')
+    const markdown = buildDecisionMarkdown(record)
+    expect(markdown.indexOf('## Forecasts')).toBeGreaterThan(markdown.indexOf('## Predicted Outcome'))
+    const [first] = record.forecasts
+    expect(markdown).toContain(
+      `- 80% that I own a major part of the product within a year by ${day(first.resolveBy)}: Happened (resolved ${day(first.resolvedAt!)})`
+    )
+    const podcast = withForecasts('fernhill-podcast')
+    expect(buildDecisionMarkdown(podcast)).toContain(
+      `- 60% that we publish six episodes in the first three months by ${day(podcast.forecasts[0].resolveBy)}: Open`
+    )
+    expect(buildDecisionMarkdown({ ...record, forecasts: [] })).not.toContain('## Forecasts')
+  })
+
+  it('imports an export without losing a forecast, still takes older files, and validates probabilities', async () => {
+    const record = withForecasts('first-customer-discount')
+    const parsed = parseImportPayload(JSON.parse(JSON.stringify(buildArchiveExport([record]))))
+    const rows = await importPortableDecisions({ id: 'u1' } as User, parsed.decisions)
+    expect(rows[0].forecasts).toEqual({
+      create: record.forecasts.map((forecast, position) => ({
+        position,
+        statement: forecast.statement,
+        probability: forecast.probability,
+        resolveBy: forecast.resolveBy,
+        resolution: forecast.resolution,
+        resolvedAt: forecast.resolvedAt,
+      })),
+    })
+
+    const older = JSON.parse(JSON.stringify(buildArchiveExport([{ ...record, forecasts: [] }])))
+    older.schemaVersion = '1.2.0'
+    delete older.decisions[0].forecasts
+    const olderRows = await importPortableDecisions({ id: 'u1' } as User, parseImportPayload(older).decisions)
+    expect(olderRows[0].forecasts).toEqual({ create: [] })
+
+    const bad = JSON.parse(JSON.stringify(buildArchiveExport([record])))
+    bad.decisions[0].forecasts[0].probability = 72
+    expect(() => parseImportPayload(bad)).toThrow()
   })
 })
