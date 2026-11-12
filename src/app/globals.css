@@ -112,6 +112,18 @@ body {
   outline-offset: 2px;
 }
 
+/* Strata Timeline: bands settle in from the bottom, then their specimens. Off under reduced motion (below). */
+@keyframes stratum-settle {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
