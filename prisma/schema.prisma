@@ -76,6 +76,7 @@ model User {
   biasReports       BiasReport[]
   collaborations    CollaboratorShare[] @relation("CollaboratorUser")
   sharedDecisions   CollaboratorShare[] @relation("SharedDecisionOwner")
+  fieldNotes        FieldNote[]
 
   @@map("users")
 }
@@ -123,6 +124,7 @@ model DecisionRecord {
   corrections       CorrectionRequest[]
   assumptionReviews AssumptionReview[]
   forecasts         Forecast[]
+  fieldNotes        FieldNote[]
 
   @@unique([userId, catalogNumber])
   @@map("decision_records")
@@ -251,4 +253,24 @@ model CheckInReminder {
   createdAt    DateTime @default(now())
 
   @@map("check_in_reminders")
+}
+
+// Quick, never-locked journal entries (src/lib/field-notes.ts). A note links to at most one decision,
+// as evidence or as the note it was promoted from. Never part of any seal.
+model FieldNote {
+  id         String          @id @default(cuid())
+  userId     String
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decisionId String?
+  decision   DecisionRecord? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  body       String          // 1 to 1000 characters, trimmed
+  mood       Int?            // 1 to 5
+  energy     Int?            // 1 to 5
+  promoted   Boolean         @default(false) // the note this decision was promoted from
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([decisionId])
+  @@map("field_notes")
 }
