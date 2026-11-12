@@ -21,6 +21,7 @@ import {
 } from '@/lib/catalog'
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
 import { afterUpdate, sealFields } from '@/lib/seal'
+import { toForecastRows } from '@/lib/forecast-input'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const record = await prisma.decisionRecord.findFirst({
     where: { id, userId: dbUser.id },
-    include: { outcomes: { orderBy: { createdAt: 'asc' } } },
+    include: { outcomes: { orderBy: { createdAt: 'asc' } }, forecasts: { orderBy: { position: 'asc' } } },
   })
 
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -53,8 +54,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  const record = await prisma.decisionRecord.findFirst({ where: { id, userId: dbUser.id } })
+  // Forecasts are loaded so a seal taken without new ones in the body still covers the stored set.
+  const record = await prisma.decisionRecord.findFirst({
+    where: { id, userId: dbUser.id },
+    include: { forecasts: { orderBy: { position: 'asc' } } },
+  })
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  const storedForecasts = record.forecasts ?? []
 
   const body: unknown = await req.json().catch(() => null)
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -113,12 +119,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       isDraft: false,
       ...buildFinalizeTimestamps(record, now),
     }
+    const forecastRows = parsed.data.forecasts ? toForecastRows(parsed.data.forecasts) : null
+    const forecastWrite = forecastRows ? { forecasts: { deleteMany: {}, create: forecastRows } } : {}
 
     try {
       const updated = await withCatalogNumberRetry(
         async (catalogNumber) => {
-          const seal = await sealFields(afterUpdate(record, { ...finalizeData, catalogNumber }), now)
-          return prisma.decisionRecord.update({ where: { id }, data: { ...finalizeData, catalogNumber, ...seal } })
+          const seal = await sealFields(
+            { ...afterUpdate(record, { ...finalizeData, catalogNumber }), forecasts: forecastRows ?? storedForecasts },
+            now
+          )
+          return prisma.decisionRecord.update({ where: { id }, data: { ...finalizeData, catalogNumber, ...forecastWrite, ...seal } })
         },
         () => getMaxCatalogNumber(dbUser.id)
       )
@@ -140,16 +151,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       )
     }
 
+    const { forecasts: draftForecasts, ...draftFields } = parsed.data
     const updated = await prisma.decisionRecord.update({
       where: { id },
       data: {
-        ...parsed.data,
+        ...draftFields,
         predictedTimeframe:
-          parsed.data.predictedTimeframe === null
+          draftFields.predictedTimeframe === null
             ? null
-            : parsed.data.predictedTimeframe
-              ? new Date(parsed.data.predictedTimeframe)
+            : draftFields.predictedTimeframe
+              ? new Date(draftFields.predictedTimeframe)
               : undefined,
+        ...(draftForecasts ? { forecasts: { deleteMany: {}, create: toForecastRows(draftForecasts) } } : {}),
       },
     })
 
@@ -165,21 +178,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     )
   }
 
+  const { forecasts: coreForecasts, ...coreFields } = parsed.data
   const coreData = {
-    ...parsed.data,
-    predictedTimeframe: parsed.data.predictedTimeframe
-      ? new Date(parsed.data.predictedTimeframe)
+    ...coreFields,
+    predictedTimeframe: coreFields.predictedTimeframe
+      ? new Date(coreFields.predictedTimeframe)
       : undefined,
   }
+  const forecastRows = coreForecasts ? toForecastRows(coreForecasts) : null
   // Prisma skips undefined fields, so the seal covers the record as this update leaves it.
   const updated = await prisma.decisionRecord.update({
     where: { id },
     // Imported records are exempt from the time lock, so they never carry a seal.
     data: {
       ...coreData,
+      ...(forecastRows ? { forecasts: { deleteMany: {}, create: forecastRows } } : {}),
       ...(record.isImported
         ? { sealHash: null, sealedAt: null }
-        : await sealFields(afterUpdate(record, coreData), now)),
+        : await sealFields({ ...afterUpdate(record, coreData), forecasts: forecastRows ?? storedForecasts }, now)),
     },
   })
   return NextResponse.json(updated)

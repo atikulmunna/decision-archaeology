@@ -13,6 +13,30 @@ export const DomainTagEnum = z.enum([
   'OTHER',
 ])
 
+// ── Forecasts ───────────────────────────────────────────────
+
+export const FORECAST_MAX = 3
+const PROBABILITY_MESSAGE = 'Use a probability from 5% to 95% in steps of 5.'
+
+/** A forecast as a draft may hold it: any resolve-by date (checked again on finalize). */
+export const DraftForecastSchema = z.object({
+  statement: z.string().trim().min(1, 'Write what you are forecasting.').max(200, 'Keep a forecast under 200 characters.'),
+  probability: z
+    .number()
+    .int(PROBABILITY_MESSAGE)
+    .min(5, PROBABILITY_MESSAGE)
+    .max(95, PROBABILITY_MESSAGE)
+    .refine((value) => value % 5 === 0, PROBABILITY_MESSAGE),
+  resolveBy: z.iso.date(),
+})
+
+/** A forecast that locks with the decision: its date must be after today in UTC, checked when parsed. */
+export const ForecastSchema = DraftForecastSchema.extend({
+  resolveBy: z.iso.date().refine((value) => value > new Date().toISOString().slice(0, 10), 'Pick a date after today.'),
+})
+
+export type ForecastInput = z.infer<typeof DraftForecastSchema>
+
 // ── Core Decision Schemas ───────────────────────────────────
 
 export const CreateDecisionSchema = z.object({
@@ -35,6 +59,7 @@ export const CreateDecisionSchema = z.object({
   confidenceLevel: z.number().int().min(1).max(10).optional().nullable(),
   domainTag: DomainTagEnum.optional().nullable(),
   customTags: z.array(z.string()).max(5, 'Maximum 5 custom tags').default([]),
+  forecasts: z.array(ForecastSchema).max(FORECAST_MAX, 'At most 3 forecasts.').optional(),
 })
 
 export type CreateDecisionInput = z.infer<typeof CreateDecisionSchema>
@@ -53,6 +78,7 @@ export const DraftDecisionSchema = z.object({
   confidenceLevel: z.number().int().min(1).max(10).optional().nullable(),
   domainTag: DomainTagEnum.optional().nullable(),
   customTags: z.array(z.string()).max(5, 'Maximum 5 custom tags').default([]),
+  forecasts: z.array(DraftForecastSchema).max(FORECAST_MAX, 'At most 3 forecasts.').optional(),
 })
 
 export type DraftDecisionInput = z.infer<typeof DraftDecisionSchema>

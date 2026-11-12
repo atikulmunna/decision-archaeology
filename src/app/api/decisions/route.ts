@@ -12,6 +12,7 @@ import {
 } from '@/lib/catalog'
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
 import { asCreated, sealFields } from '@/lib/seal'
+import { toForecastRows } from '@/lib/forecast-input'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,8 +70,12 @@ export async function POST(req: NextRequest) {
     isDraft: saveAsDraft,
   }
 
+  // Forecasts are created in the same write as the decision, and the seal covers them.
+  const forecastRows = data.forecasts ? toForecastRows(data.forecasts) : []
+  const forecastWrite = data.forecasts ? { forecasts: { create: forecastRows } } : {}
+
   if (saveAsDraft) {
-    const draft = await prisma.decisionRecord.create({ data: createData })
+    const draft = await prisma.decisionRecord.create({ data: { ...createData, ...forecastWrite } })
     return NextResponse.json(draft, { status: 200 })
   }
 
@@ -80,7 +85,8 @@ export async function POST(req: NextRequest) {
     const record = await withCatalogNumberRetry(
       async (catalogNumber) => {
         const finalized = { ...createData, catalogNumber, createdAt: now }
-        return prisma.decisionRecord.create({ data: { ...finalized, ...(await sealFields(asCreated(finalized), now)) } })
+        const seal = await sealFields({ ...asCreated(finalized), forecasts: forecastRows }, now)
+        return prisma.decisionRecord.create({ data: { ...finalized, ...forecastWrite, ...seal } })
       },
       () => getMaxCatalogNumber(dbUser.id)
     )
