@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'fs'
 import path from 'path'
 import { contrastRatio } from '@/lib/design/contrast'
-import { CONTRAST_PAIRS, THEMES, TOKEN_NAMES, tokens, type TokenName } from '@/lib/design/tokens'
+import { CONTRAST_PAIRS, GRAPHIC_PAIRS, THEMES, TOKEN_NAMES, tokens, type TokenName } from '@/lib/design/tokens'
 
 const CSS_PATH = path.resolve(__dirname, '../../../app/globals.css')
 
@@ -33,6 +33,15 @@ describe('design tokens', () => {
       pair: `${fg} on ${bg}`,
       ratio: contrastRatio(tokens[theme][fg], tokens[theme][bg]),
     })).filter((r) => r.ratio < 4.5)
+    expect(failures).toEqual([])
+  })
+
+  it.each(THEMES)('every stratum tone reaches 3:1 on both band tones in %s', (theme) => {
+    expect(GRAPHIC_PAIRS).toHaveLength(12)
+    const failures = GRAPHIC_PAIRS.map(([fg, bg]) => ({
+      pair: `${fg} on ${bg}`,
+      ratio: contrastRatio(tokens[theme][fg], tokens[theme][bg]),
+    })).filter((r) => r.ratio < 3)
     expect(failures).toEqual([])
   })
 

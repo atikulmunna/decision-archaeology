@@ -22,6 +22,15 @@ export const TOKEN_NAMES = [
   'signal-ink',
   'highlight',
   'danger',
+  // Strata Timeline: alternating band tones and one sediment tone per domain lane.
+  'band-a',
+  'band-b',
+  'stratum-career',
+  'stratum-finance',
+  'stratum-health',
+  'stratum-relationships',
+  'stratum-creative',
+  'stratum-other',
 ] as const
 export type TokenName = (typeof TOKEN_NAMES)[number]
 
@@ -41,6 +50,14 @@ export const tokens: Record<ThemeName, Record<TokenName, string>> = {
     'signal-ink': '#3D6B12',
     highlight: '#E3F99A',
     danger: '#B42318',
+    'band-a': '#ECEBE7',
+    'band-b': '#E3E2DD',
+    'stratum-career': '#4F6378',
+    'stratum-finance': '#5E6B2F',
+    'stratum-health': '#9A4F33',
+    'stratum-relationships': '#8E5262',
+    'stratum-creative': '#85661A',
+    'stratum-other': '#6B675E',
   },
   dark: {
     paper: '#0D0D0D',
@@ -57,6 +74,14 @@ export const tokens: Record<ThemeName, Record<TokenName, string>> = {
     'signal-ink': '#D6F55B',
     highlight: '#3B4612',
     danger: '#F97066',
+    'band-a': '#1A1A1A',
+    'band-b': '#232323',
+    'stratum-career': '#8FA3BC',
+    'stratum-finance': '#A5B36A',
+    'stratum-health': '#D98B6C',
+    'stratum-relationships': '#CF8EA0',
+    'stratum-creative': '#D4AE52',
+    'stratum-other': '#AAA59A',
   },
 }
 
@@ -77,3 +102,8 @@ export const CONTRAST_PAIRS: ReadonlyArray<readonly [fg: TokenName, bg: TokenNam
   ['danger', 'sunken'],
   ['signal-ink', 'sunken'],
 ]
+
+/** Every stratum tone on each band tone: graphics, so each must reach 3:1 (WCAG non-text contrast). */
+export const GRAPHIC_PAIRS: ReadonlyArray<readonly [fg: TokenName, bg: TokenName]> = (
+  ['stratum-career', 'stratum-finance', 'stratum-health', 'stratum-relationships', 'stratum-creative', 'stratum-other'] as const
+).flatMap((fg) => (['band-a', 'band-b'] as const).map((bg) => [fg, bg] as const))
