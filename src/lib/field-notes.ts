@@ -45,3 +45,34 @@ export function splitAroundSeal<T extends { createdAt: Date }>(notes: T[], seale
     after: ordered.filter((note) => new Date(note.createdAt).getTime() > seal),
   }
 }
+
+type NoteRow = {
+  id: string
+  body: string
+  mood: number | null
+  energy: number | null
+  promoted: boolean
+  createdAt: Date
+  decision?: { id: string; catalogNumber: number | null; title: string } | null
+}
+
+/** A stored note as plain view data. `decisionHref` runs where the note is mapped, never in the client. */
+export function toFieldNoteView(note: NoteRow, decisionHref: (id: string) => string): FieldNoteView {
+  const decision = note.decision ?? null
+  return {
+    id: note.id,
+    body: note.body,
+    mood: note.mood,
+    energy: note.energy,
+    promoted: note.promoted,
+    createdAt: new Date(note.createdAt),
+    decision: decision
+      ? {
+          id: decision.id,
+          label: decision.catalogNumber === null ? 'Uncatalogued' : `DA-${String(decision.catalogNumber).padStart(4, '0')}`,
+          title: decision.title,
+          href: decisionHref(decision.id),
+        }
+      : null,
+  }
+}

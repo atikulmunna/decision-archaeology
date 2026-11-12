@@ -270,6 +270,7 @@ export async function getDecision(userId: string, id: string) {
       assumptionReviews: { orderBy: { createdAt: 'asc' } },
       // Sealed with the record (seal v2), so the seal panel needs them to verify.
       forecasts: { orderBy: { position: 'asc' } },
+      fieldNotes: { orderBy: { createdAt: 'asc' } },
     },
   })
 

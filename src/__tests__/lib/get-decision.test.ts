@@ -12,5 +12,6 @@ describe('getDecision', () => {
     mocks.findFirst.mockResolvedValue(null)
     await getDecision('db_1', 'd1')
     expect(mocks.findFirst.mock.calls[0][0].include.forecasts).toEqual({ orderBy: { position: 'asc' } })
+    expect(mocks.findFirst.mock.calls[0][0].include.fieldNotes).toEqual({ orderBy: { createdAt: 'asc' } })
   })
 })

@@ -1,10 +1,11 @@
-import type { AssumptionReview, DecisionRecord, OutcomeUpdate } from '@prisma/client'
+import type { AssumptionReview, DecisionRecord, FieldNote, OutcomeUpdate } from '@prisma/client'
 import { normalizeAssumption } from '@/lib/assumptions'
 import { computeSealHashSync } from '@/lib/seal-node'
 import { matchesOutcomeFilter, type DecisionFilters } from '@/lib/archive-view'
 import { buildDemoArchive, demoDecisionIdForKey, type DemoDecision } from './archive'
 import { DEMO_SEEDS } from './seed'
 import { DEMO_NOW } from './clock'
+import { buildDemoNotes } from './notes'
 import type { StrataRecord } from '@/lib/strata'
 
 /** A list row: like getDecisions, `outcomes` holds only the latest outcome. */
@@ -66,8 +67,14 @@ export function listDemoDecisions(
 }
 
 /** One demo decision with all outcomes (oldest first) and corrections (newest first), or null. */
-export function getDemoDecision(id: string, now: Date = DEMO_NOW): DemoDecision | null {
-  return buildDemoArchive(now).find((record) => record.id === id) ?? null
+/** One demo decision with its field notes (oldest first), or null. */
+export function getDemoDecision(id: string, now: Date = DEMO_NOW): (DemoDecision & { fieldNotes: FieldNote[] }) | null {
+  const decision = buildDemoArchive(now).find((record) => record.id === id)
+  if (!decision) return null
+  const fieldNotes = buildDemoNotes(now)
+    .filter((note) => note.decisionId === id)
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+  return { ...decision, fieldNotes }
 }
 
 export function getDemoCalibrationRecords(now: Date = DEMO_NOW): DemoDecision[] {
