@@ -6,6 +6,7 @@
 export type AppRoutes = {
   archive: string
   decision: (id: string) => string
+  notes: string
   calibration: string
   reports: string
   report: (id: string) => string
@@ -14,6 +15,7 @@ export type AppRoutes = {
 export const APP_ROUTES: AppRoutes = {
   archive: '/decisions',
   decision: (id) => `/decisions/${id}`,
+  notes: '/notes',
   calibration: '/calibration',
   reports: '/ai/reports',
   report: (id) => `/ai/reports/${id}`,
@@ -22,6 +24,7 @@ export const APP_ROUTES: AppRoutes = {
 export const DEMO_ROUTES: AppRoutes = {
   archive: '/demo',
   decision: (id) => `/demo/decisions/${id}`,
+  notes: '/demo/notes',
   calibration: '/demo/calibration',
   reports: '/demo/reports',
   report: (id) => `/demo/reports/${id}`,
@@ -32,6 +35,7 @@ export type NavLink = { href: string; label: string; prefixes?: readonly string[
 
 export const APP_NAV_LINKS: readonly NavLink[] = [
   { href: '/decisions', label: 'Archive' },
+  { href: '/notes', label: 'Notes' },
   { href: '/calibration', label: 'Calibration' },
   { href: '/ai/reports', label: 'Reports' },
 ]
@@ -39,6 +43,7 @@ export const APP_NAV_LINKS: readonly NavLink[] = [
 /** `/demo` prefixes every demo route, so Archive is active only on itself and on decision pages. */
 export const DEMO_NAV_LINKS: readonly NavLink[] = [
   { href: '/demo', label: 'Archive', prefixes: ['/demo/decisions'] },
+  { href: '/demo/notes', label: 'Notes' },
   { href: '/demo/calibration', label: 'Calibration' },
   { href: '/demo/reports', label: 'Reports' },
 ]

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { notFound, ownsDecision, readJson, requireOwner } from '@/lib/field-note-access'
+import { notFound, ownsDecision, readJson, requireOwner, WITH_DECISION } from '@/lib/field-note-access'
 import { CreateNoteSchema } from '@/lib/validations/field-note'
 
 export const dynamic = 'force-dynamic'
@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
 
   const created = await prisma.fieldNote.create({
     data: { userId: owner.userId, body, mood: mood ?? null, energy: energy ?? null, decisionId: decisionId ?? null },
+    include: WITH_DECISION,
   })
   return NextResponse.json(created, { status: 201 })
 }

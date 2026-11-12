@@ -15,6 +15,9 @@ export async function requireOwner(): Promise<{ ok: true; userId: string } | Fai
   return { ok: true, userId: dbUser.id }
 }
 
+/** Create and edit return the linked decision, so the page can draw its chip without another request. */
+export const WITH_DECISION = { decision: { select: { id: true, catalogNumber: true, title: true } } } as const
+
 export const notFound = () => NextResponse.json({ error: 'Not found' }, { status: 404 })
 
 /** Whether a decision (draft or sealed) belongs to the owner. A foreign one reads as not found. */

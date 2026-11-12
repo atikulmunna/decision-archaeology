@@ -25,6 +25,8 @@ const { db } = mocks
 const json = (url: string, method: string, body?: unknown) =>
   new NextRequest(`http://localhost${url}`, { method, body: body === undefined ? undefined : JSON.stringify(body) })
 const params = (id = 'n1') => ({ params: Promise.resolve({ id }) })
+// Create and edit return the linked decision, so the page can draw its chip without another request.
+const LINKED = { decision: { select: { id: true, catalogNumber: true, title: true } } }
 const note = { id: 'n1', userId: 'db_1', decisionId: null, body: 'Noticed something', mood: null, energy: null, promoted: false }
 
 beforeEach(() => {
@@ -43,6 +45,7 @@ describe('POST /api/notes', () => {
     expect(res.status).toBe(201)
     expect(db.fieldNote.create).toHaveBeenCalledWith({
       data: { userId: 'db_1', body: 'Noticed something', mood: 2, energy: 4, decisionId: 'd1' },
+      include: LINKED,
     })
     expect(db.decisionRecord.findFirst).toHaveBeenCalledWith({ where: { id: 'd1', userId: 'db_1' }, select: { id: true } })
   })
@@ -71,9 +74,9 @@ describe('POST /api/notes', () => {
 describe('PATCH and DELETE /api/notes/[id]', () => {
   it('edits text and mood, and unlinking clears the promoted mark', async () => {
     expect((await editNote(json('/api/notes/n1', 'PATCH', { body: ' New text ', mood: 3 }), params())).status).toBe(200)
-    expect(db.fieldNote.update).toHaveBeenLastCalledWith({ where: { id: 'n1' }, data: { body: 'New text', mood: 3 } })
+    expect(db.fieldNote.update).toHaveBeenLastCalledWith({ where: { id: 'n1' }, data: { body: 'New text', mood: 3 }, include: LINKED })
     await editNote(json('/api/notes/n1', 'PATCH', { decisionId: null }), params())
-    expect(db.fieldNote.update).toHaveBeenLastCalledWith({ where: { id: 'n1' }, data: { decisionId: null, promoted: false } })
+    expect(db.fieldNote.update).toHaveBeenLastCalledWith({ where: { id: 'n1' }, data: { decisionId: null, promoted: false }, include: LINKED })
     expect(db.fieldNote.findFirst).toHaveBeenCalledWith({ where: { id: 'n1', userId: 'db_1' } })
   })
 

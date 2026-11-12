@@ -76,3 +76,26 @@ export function toFieldNoteView(note: NoteRow, decisionHref: (id: string) => str
       : null,
   }
 }
+
+/** The Notes page's `?before=` cursor: a valid date, or null for the newest page. */
+export function parseBefore(value: string | string[] | undefined): Date | null {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (!raw) return null
+  const date = new Date(raw)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const stampFormat = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+  timeZone: 'UTC',
+})
+
+/** When a note was written, in UTC: "Sep 5, 2025, 08:30". */
+export function formatNoteStamp(date: Date): string {
+  return stampFormat.format(new Date(date))
+}

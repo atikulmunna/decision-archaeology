@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { findOwnNote, notFound, ownsDecision, readJson, requireOwner } from '@/lib/field-note-access'
+import { findOwnNote, notFound, ownsDecision, readJson, requireOwner, WITH_DECISION } from '@/lib/field-note-access'
 import { UpdateNoteSchema } from '@/lib/validations/field-note'
 
 export const dynamic = 'force-dynamic'
@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // Unlinking also clears the promoted mark: the note is free-standing again.
   const link = decisionId === undefined ? {} : decisionId === null ? { decisionId: null, promoted: false } : { decisionId }
-  const updated = await prisma.fieldNote.update({ where: { id: note.id }, data: { ...fields, ...link } })
+  const updated = await prisma.fieldNote.update({ where: { id: note.id }, data: { ...fields, ...link }, include: WITH_DECISION })
   return NextResponse.json(updated)
 }
 
