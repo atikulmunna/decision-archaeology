@@ -9,6 +9,7 @@ describe('detail view', () => {
     expect(defaultDetailView(true, false)).toBe('now')
     expect(defaultDetailView(false, true)).toBe('now')
     expect(defaultDetailView(false, false, true)).toBe('now')
+    expect(defaultDetailView(false, false, false, true)).toBe('now')
     expect(parseDetailView('then', 'now')).toBe('then')
     expect(parseDetailView(['now', 'then'], 'then')).toBe('now')
     expect(parseDetailView('sideways', 'then')).toBe('then')

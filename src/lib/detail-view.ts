@@ -4,8 +4,13 @@ import { formatDeliberation, formatElapsed } from '@/lib/elapsed'
 export type DetailView = 'then' | 'now'
 
 /** A decision opens in Now once something has happened to it, otherwise in Then. */
-export function defaultDetailView(hasOutcome: boolean, hasReview: boolean, hasResolvedForecast = false): DetailView {
-  return hasOutcome || hasReview || hasResolvedForecast ? 'now' : 'then'
+export function defaultDetailView(
+  hasOutcome: boolean,
+  hasReview: boolean,
+  hasResolvedForecast = false,
+  hasNoteSince = false
+): DetailView {
+  return hasOutcome || hasReview || hasResolvedForecast || hasNoteSince ? 'now' : 'then'
 }
 
 export function parseDetailView(value: string | string[] | undefined, fallback: DetailView): DetailView {

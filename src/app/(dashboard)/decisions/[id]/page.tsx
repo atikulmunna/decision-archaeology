@@ -7,6 +7,7 @@ import { DecisionPageBar } from '@/components/decisions/DecisionPageBar'
 import { getOrCreateDbUser } from '@/lib/db-user'
 import { APP_ROUTES } from '@/lib/routes'
 import { defaultDetailView, parseDetailView } from '@/lib/detail-view'
+import { splitAroundSeal } from '@/lib/field-notes'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,7 +55,8 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
     defaultDetailView(
       record.outcomes.length > 0,
       record.assumptionReviews.length > 0,
-      (record.forecasts ?? []).some((forecast) => forecast.resolution !== null)
+      (record.forecasts ?? []).some((forecast) => forecast.resolution !== null),
+      splitAroundSeal(record.fieldNotes ?? [], record.createdAt).after.length > 0
     )
   )
 

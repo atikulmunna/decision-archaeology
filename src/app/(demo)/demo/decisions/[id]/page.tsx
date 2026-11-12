@@ -3,6 +3,7 @@ import { DecisionDetail } from '@/components/decisions/DecisionDetail'
 import { DecisionPageBar } from '@/components/decisions/DecisionPageBar'
 import { getDemoAssumptionReviews, getDemoDecision } from '@/lib/demo/queries'
 import { defaultDetailView, parseDetailView } from '@/lib/detail-view'
+import { splitAroundSeal } from '@/lib/field-notes'
 import { DEMO_NOW } from '@/lib/demo/clock'
 import { DEMO_ROUTES } from '@/lib/routes'
 
@@ -23,7 +24,8 @@ export default async function DemoDecisionPage({ params, searchParams }: PagePro
     defaultDetailView(
       record.outcomes.length > 0,
       reviews.length > 0,
-      record.forecasts.some((forecast) => forecast.resolution !== null)
+      record.forecasts.some((forecast) => forecast.resolution !== null),
+      splitAroundSeal(record.fieldNotes, record.createdAt).after.length > 0
     )
   )
 

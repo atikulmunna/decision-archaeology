@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SealBadge } from '@/components/seal/SealBadge'
 import type { ReviewLike } from '@/lib/assumptions'
 import { buildSummaryParts, defaultDetailView, type DetailView } from '@/lib/detail-view'
+import { splitAroundSeal } from '@/lib/field-notes'
 import { getDecisionLockDeadline } from '@/lib/locks'
 import { isRetroactiveSeal } from '@/lib/seal'
 import { tamperReasoning } from '@/lib/tamper'
@@ -48,7 +49,8 @@ export function DecisionDetail({
       defaultDetailView(
         decision.outcomes.length > 0,
         initialReviews.length > 0,
-        (decision.forecasts ?? []).some((forecast) => forecast.resolution !== null)
+        (decision.forecasts ?? []).some((forecast) => forecast.resolution !== null),
+        splitAroundSeal(decision.fieldNotes ?? [], decision.createdAt).after.length > 0
       )
   )
   const [tampered, setTampered] = useState(false)

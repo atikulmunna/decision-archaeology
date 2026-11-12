@@ -16,6 +16,8 @@ import { Textarea } from '@/components/ui/Textarea'
 import { SealPanel, type SealRecord } from '@/components/seal/SealPanel'
 import { splitAssumptions } from '@/lib/assumptions'
 import { forecastSentence } from '@/lib/forecasting'
+import { splitAroundSeal } from '@/lib/field-notes'
+import { NotesBefore } from './DecisionNotes'
 import type { Decision } from './detail-types'
 
 const LOCKED_FIELDS: { key: CorrectionField; label: string }[] = CORRECTION_FIELDS.map((field) => ({
@@ -137,6 +139,7 @@ export function ThenView({
 
   const assumptions = splitAssumptions(decision.uncertainties)
   const forecasts = [...(decision.forecasts ?? [])].sort((a, b) => a.position - b.position)
+  const notesBefore = splitAroundSeal(decision.fieldNotes ?? [], decision.createdAt).before
   const prediction = [
     decision.confidenceLevel ? `Confidence ${decision.confidenceLevel}/10` : null,
     decision.predictedTimeframe
@@ -400,6 +403,8 @@ export function ThenView({
           </ul>
         </section>
       )}
+
+      <NotesBefore notes={notesBefore} />
 
       {assumptions.length > 0 && (
         <section>

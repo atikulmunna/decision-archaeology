@@ -8,6 +8,8 @@ import type { ReviewLike } from '@/lib/assumptions'
 import { AddOutcomeForm } from './AddOutcomeForm'
 import { AssumptionList } from './AssumptionList'
 import { ForecastList } from './ForecastList'
+import { NotesSince } from './DecisionNotes'
+import { splitAroundSeal } from '@/lib/field-notes'
 import { AttachmentManager } from './AttachmentManager'
 import { OutcomeHistory } from './OutcomeHistory'
 import { SupplementaryNotesEditor } from './SupplementaryNotesEditor'
@@ -72,6 +74,12 @@ export function NowView({
         canResolve={decision.isLocked || decision.isImported}
         now={now}
         onForecastsChange={setForecasts}
+      />
+
+      <NotesSince
+        decisionId={decision.id}
+        notes={splitAroundSeal(decision.fieldNotes ?? [], decision.createdAt).after}
+        canEdit={!readOnly}
       />
 
       {!readOnly && (
