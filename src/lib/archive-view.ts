@@ -56,7 +56,7 @@ export function matchesOutcomeFilter(latest: OutcomeRating | undefined, filter: 
 
 /** Raw URL params. Next passes a repeated key (`?q=a&q=b`) as an array. */
 export type ArchiveSearchParams = Partial<
-  Record<'q' | 'domain' | 'outcome' | 'dateFrom' | 'dateTo' | 'minConfidence' | 'tag' | 'page', string | string[]>
+  Record<'q' | 'domain' | 'outcome' | 'dateFrom' | 'dateTo' | 'minConfidence' | 'tag' | 'page' | 'view' | 'year', string | string[]>
 >
 
 const PAGE_SIZE = 20
@@ -109,4 +109,27 @@ export function parseArchiveSearchParams(raw: ArchiveSearchParams): {
   const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage
 
   return { filters: { ...kept, page, limit: PAGE_SIZE }, pageParams, hasFilters: pageParams !== '' }
+}
+
+export type ArchiveViewMode = 'list' | 'strata'
+
+const YEAR_SHAPE = /^[0-9]{4}$/
+
+/** The archive view and, for the strata, the zoomed year. Anything unexpected falls back to the list and all time. */
+export function parseStrataParams(raw: ArchiveSearchParams): { view: ArchiveViewMode; year: number | null } {
+  const view: ArchiveViewMode = firstValue(raw.view) === 'strata' ? 'strata' : 'list'
+  const rawYear = firstValue(raw.year)
+  const parsed = rawYear && YEAR_SHAPE.test(rawYear) ? Number(rawYear) : null
+  const year = view === 'strata' && parsed !== null && parsed >= 1970 && parsed <= 2999 ? parsed : null
+  return { view, year }
+}
+
+/** A link to the list or the strata (optionally zoomed to a year) that keeps the current filters. */
+export function archiveViewHref(pageParams: string, view: ArchiveViewMode, year?: number | null): string {
+  const params = new URLSearchParams(pageParams)
+  if (view === 'strata') {
+    params.set('view', 'strata')
+    if (year) params.set('year', String(year))
+  }
+  return `?${params.toString()}`
 }

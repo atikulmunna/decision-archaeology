@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { archiveEmptyState, matchesOutcomeFilter, parseArchiveSearchParams } from '@/lib/archive-view'
+import { archiveEmptyState, archiveViewHref, matchesOutcomeFilter, parseArchiveSearchParams, parseStrataParams } from '@/lib/archive-view'
 
 describe('archiveEmptyState', () => {
   it('welcomes a brand new archive', () => {
@@ -69,5 +69,27 @@ describe('parseArchiveSearchParams', () => {
     const { filters, pageParams } = parseArchiveSearchParams({ q: ['Northwind', 'other'], tag: ['equity', 'x'], page: ['2', '9'] })
     expect(filters).toMatchObject({ q: 'Northwind', tag: 'equity', page: 2 })
     expect(pageParams).toBe('q=Northwind&tag=equity')
+  })
+})
+
+describe('strata params', () => {
+  it('reads the view and a sensible year, falling back to the list and all time', () => {
+    expect(parseStrataParams({})).toEqual({ view: 'list', year: null })
+    expect(parseStrataParams({ view: 'strata', year: '2026' })).toEqual({ view: 'strata', year: 2026 })
+    for (const year of ['abc', '1850', '20265']) expect(parseStrataParams({ view: 'strata', year }).year).toBeNull()
+    expect(parseStrataParams({ view: 'grid' }).view).toBe('list')
+    expect(parseStrataParams({ view: ['strata', 'list'] }).view).toBe('strata')
+    expect(parseStrataParams({ view: 'list', year: '2026' })).toEqual({ view: 'list', year: null })
+  })
+
+  it('builds view and chip links that keep the filters', () => {
+    expect(archiveViewHref('q=move&domain=CAREER', 'strata', 2025)).toBe('?q=move&domain=CAREER&view=strata&year=2025')
+    expect(archiveViewHref('q=move', 'list')).toBe('?q=move')
+    expect(archiveViewHref('', 'strata')).toBe('?view=strata')
+    expect(archiveViewHref('', 'list')).toBe('?')
+  })
+
+  it('keeps view, year and page out of the filter query', () => {
+    expect(parseArchiveSearchParams({ q: 'move', view: 'strata', year: '2025', page: '3' }).pageParams).toBe('q=move')
   })
 })
