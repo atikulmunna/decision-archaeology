@@ -82,7 +82,10 @@ describe('Brier by domain', () => {
 })
 
 describe('forecast sentence', () => {
-  it('lowercases only a capitalized ordinary first word', () => {
+  it('lowercases only common sentence-opening words, never names', () => {
+    expect(
+      ['Sam makes the first repayment', 'Northwind raises a round', 'Thursday evenings feel calmer', 'My commute drops', 'We sign', 'Every customer moves'].map(displayStatement)
+    ).toEqual(['Sam makes the first repayment', 'Northwind raises a round', 'Thursday evenings feel calmer', 'my commute drops', 'we sign', 'every customer moves'])
     expect(
       forecastSentence({
         statement: 'The podcast reaches 500 listeners',

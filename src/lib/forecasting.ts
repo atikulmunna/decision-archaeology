@@ -32,11 +32,18 @@ export function formatForecastDate(date: Date): string {
   return dateFormat.format(new Date(date))
 }
 
-/** "The podcast" and "A listener" read as "the podcast" and "a listener" inside a sentence; "I am" and "NASA" stay as typed. */
+// Words that open a sentence but read lowercase inside one. Anything else, such as a name, stays as typed.
+const SENTENCE_OPENERS = new Set([
+  'a', 'an', 'the', 'my', 'our', 'your', 'his', 'her', 'their', 'its', 'this', 'that', 'these', 'those',
+  'some', 'someone', 'somebody', 'every', 'each', 'one', 'we', 'they', 'he', 'she', 'you', 'it', 'there',
+  'at', 'no', 'nobody', 'nothing', 'none', 'any', 'all', 'both', 'most', 'more', 'fewer', 'less',
+])
+
+/** "The podcast" reads as "the podcast" inside a sentence; "Sam", "I am" and "NASA" stay as typed. */
 export function displayStatement(statement: string): string {
-  const second = statement.charAt(1)
-  const lowercaseSecond = second !== '' && second !== second.toUpperCase() && second === second.toLowerCase()
-  if (lowercaseSecond || statement.startsWith('A ')) {
+  const firstWord = statement.split(' ', 1)[0]
+  const capitalized = firstWord.length > 1 ? firstWord === firstWord.charAt(0) + firstWord.slice(1).toLowerCase() : firstWord === 'A'
+  if (capitalized && SENTENCE_OPENERS.has(firstWord.toLowerCase())) {
     return statement.charAt(0).toLowerCase() + statement.slice(1)
   }
   return statement

@@ -83,7 +83,7 @@ export const DEMO_FORECASTS: Record<string, DemoForecastSeed[]> = {
   ],
   'on-call-redesign': [
     happened('The new rotation ships within six weeks', 90, 42, 330),
-    didnt('Weekend pages drop by more than half', 75, 120, 250),
+    didnt('The weekend pages drop by more than half', 75, 120, 250),
     happened('At least six people share the rotation', 85, 90, 270),
   ],
   'pottery-class': [
@@ -94,7 +94,7 @@ export const DEMO_FORECASTS: Record<string, DemoForecastSeed[]> = {
   'lend-friend-deposit': [
     happened('Sam makes the first repayment on time', 90, 45, 300),
     happened('Sam is on schedule at the halfway point', 80, 180, 160),
-    didnt('Money comes up awkwardly between us', 30, 180, 158),
+    didnt('The loan comes up awkwardly between us', 30, 180, 158),
   ],
   'rewrite-billing': [
     didnt('The rewrite ships within six weeks', 80, 42, 250),
