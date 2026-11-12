@@ -134,7 +134,14 @@ export function FilterBar() {
         {(q || domain || outcome || dateFrom || dateTo || minConfidence || tag) && (
           <button
             onClick={() => {
-              startTransition(() => router.replace(pathname))
+              // Clearing filters keeps the archive view and the zoomed year (the strata stay the strata).
+              const kept = new URLSearchParams()
+              for (const key of ['view', 'year']) {
+                const value = searchParams.get(key)
+                if (value) kept.set(key, value)
+              }
+              const query = kept.toString()
+              startTransition(() => router.replace(query ? `${pathname}?${query}` : pathname))
             }}
             className="rounded-sm px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.09em] text-muted hover:bg-sunken hover:text-ink"
           >
