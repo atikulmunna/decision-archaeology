@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { fieldClasses } from '@/components/ui/Input'
 import { forecastSentence } from '@/lib/forecasting'
-import { FORECAST_MAX, type ForecastInput } from '@/lib/validations/decision'
+import { FORECAST_MAX, ForecastSchema, type ForecastInput } from '@/lib/validations/decision'
 
 /** A forecast while it is being written: the date may still be empty. */
 export type ForecastDraft = { statement: string; probability: number; resolveBy: string }
@@ -13,7 +13,11 @@ export type ForecastDraft = { statement: string; probability: number; resolveBy:
 const DEFAULT_PROBABILITY = 50
 const HALF_FILLED = 'Add a statement and a date, or remove this forecast.'
 
-const isComplete = (draft: ForecastDraft) => draft.statement.trim().length > 0 && draft.resolveBy.length > 0
+const DAY_MS = 24 * 60 * 60 * 1000
+const DATE_SHAPE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
+
+// Complete means both parts are there and the date is a plain day the server can read.
+const isComplete = (draft: ForecastDraft) => draft.statement.trim().length > 0 && DATE_SHAPE.test(draft.resolveBy)
 const isEmpty = (draft: ForecastDraft) => draft.statement.trim().length === 0 && draft.resolveBy.length === 0
 
 /** The forecasts worth saving: both a statement and a date. */
@@ -21,11 +25,32 @@ export function completeForecasts(drafts: ForecastDraft[]): ForecastInput[] {
   return drafts.filter(isComplete).map(({ statement, probability, resolveBy }) => ({ statement, probability, resolveBy }))
 }
 
-/** A message for each forecast that has only one of its statement and date, keyed by index. */
+/** Where each saved forecast sits on screen: the server's forecast index i is form index completeIndices(drafts)[i]. */
+export function completeIndices(drafts: ForecastDraft[]): number[] {
+  return drafts.flatMap((draft, index) => (isComplete(draft) ? [index] : []))
+}
+
+/**
+ * A message for each forecast that would not seal, keyed by index: half-filled ones, and
+ * complete ones the sealing rules refuse (a date that is not after today, for example).
+ */
 export function forecastErrors(drafts: ForecastDraft[]): Record<number, string> {
-  return Object.fromEntries(
-    drafts.flatMap((draft, index) => (isComplete(draft) || isEmpty(draft) ? [] : [[index, HALF_FILLED]]))
-  )
+  const errors: Record<number, string> = {}
+  drafts.forEach((draft, index) => {
+    if (isEmpty(draft)) return
+    if (draft.statement.trim().length === 0 || draft.resolveBy.length === 0) {
+      errors[index] = HALF_FILLED
+      return
+    }
+    const parsed = ForecastSchema.safeParse(draft)
+    if (!parsed.success) errors[index] = parsed.error.issues[0].message
+  })
+  return errors
+}
+
+/** The first day a new forecast can resolve by: tomorrow in UTC, which the server also requires. */
+function firstAllowedDay(): string {
+  return new Date(Date.now() + DAY_MS).toISOString().slice(0, 10)
 }
 
 const label = 'text-sm font-medium text-ink-2'
@@ -85,6 +110,7 @@ function ForecastRow({
           <input
             id={`${id}-date`}
             type="date"
+            min={firstAllowedDay()}
             value={draft.resolveBy}
             onChange={(event) => onChange({ ...draft, resolveBy: event.target.value })}
             className={fieldClasses()}

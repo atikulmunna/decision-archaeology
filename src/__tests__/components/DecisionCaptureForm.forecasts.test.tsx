@@ -21,14 +21,16 @@ const text = {
 type Call = { url: string; method: string; body: Record<string, unknown> | null }
 let calls: Call[] = []
 
-function mockFetch(draft?: Record<string, unknown>) {
+function mockFetch(draft?: Record<string, unknown>, finalizeFailure?: Record<string, unknown>) {
   calls = []
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input)
     const method = init?.method ?? 'GET'
-    calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : null })
+    const body = init?.body ? JSON.parse(String(init.body)) : null
+    calls.push({ url, method, body })
     if (method === 'GET') return new Response(JSON.stringify(draft ?? {}), { status: draft ? 200 : 404 })
     if (method === 'POST') return new Response(JSON.stringify({ id: 'draft1' }))
+    if (body?.finalize && finalizeFailure) return new Response(JSON.stringify(finalizeFailure), { status: 400 })
     return new Response(
       JSON.stringify({ id: 'draft1', createdAt: new Date().toISOString(), catalogNumber: 4, sealHash: 'abc' })
     )
@@ -54,9 +56,13 @@ const patches = () => calls.filter((call) => call.method === 'PATCH')
 
 beforeEach(() => {
   window.localStorage.clear()
+  // A fixed today, so the forecast dates below stay in the future.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-11-12T10:00:00.000Z'))
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -107,5 +113,36 @@ describe('capture flow forecasts', () => {
     expect(group(1).getByLabelText('What will happen')).toHaveValue('I ship the new pipeline')
     expect(group(1).getByLabelText('Resolve by')).toHaveValue('2027-06-30')
     expect(group(1).getByText('70%')).toBeInTheDocument()
+  })
+
+  it('flags a date that is not after today before Confirm, and offers only later days', async () => {
+    mockFetch()
+    render(<DecisionCaptureForm upcomingCatalogNumber={4} />)
+    await walkToStep3()
+    await userEvent.click(screen.getByRole('button', { name: 'Add a forecast' }))
+    fireEvent.change(group(1).getByLabelText('What will happen'), { target: { value: 'I ship the new pipeline' } })
+    expect(group(1).getByLabelText('Resolve by')).toHaveAttribute('min', '2026-11-13')
+    fireEvent.change(group(1).getByLabelText('Resolve by'), { target: { value: '2026-11-12' } })
+    await next('Review and seal')
+    expect(group(1).getByText('Pick a date after today.')).toBeInTheDocument()
+    expect(screen.queryByText('Read it once more before it is sealed.')).toBeNull()
+  })
+
+  it('brings a forecast error from the server back to its forecast', async () => {
+    mockFetch(undefined, {
+      error: 'Validation failed',
+      issues: [{ path: ['forecasts', 0, 'resolveBy'], message: 'Pick a date after today.' }],
+    })
+    render(<DecisionCaptureForm upcomingCatalogNumber={4} />)
+    await walkToStep3()
+    await userEvent.click(screen.getByRole('button', { name: 'Add a forecast' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Add a forecast' }))
+    // The first forecast stays blank, so the server's index 0 is the second forecast on screen.
+    fireEvent.change(group(2).getByLabelText('What will happen'), { target: { value: 'I ship the new pipeline' } })
+    fireEvent.change(group(2).getByLabelText('Resolve by'), { target: { value: '2026-11-13' } })
+    await next('Review and seal')
+    await userEvent.click(screen.getByRole('button', { name: 'Lock it in' }))
+    expect(await group(2).findByText('Pick a date after today.')).toBeInTheDocument()
+    expect(group(1).queryByText('Pick a date after today.')).toBeNull()
   })
 })

@@ -14,7 +14,7 @@ import { CountdownTimer } from './CountdownTimer'
 import { SealedNotice } from './SealedNotice'
 import { AttachmentManager } from './AttachmentManager'
 import { StarterDecisionWizard } from './StarterDecisionWizard'
-import { ForecastFields, completeForecasts, forecastErrors } from './ForecastFields'
+import { ForecastFields, completeForecasts, completeIndices, forecastErrors } from './ForecastFields'
 import { toForecastInputs } from '@/lib/forecast-input'
 import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
 
@@ -290,6 +290,20 @@ export function DecisionCaptureForm({
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
+        // A forecast the server refused goes back to its own field on step 3.
+        const positions = completeIndices(form.forecasts ?? [])
+        const forecastIssues: Record<number, string> = {}
+        for (const issue of (err.issues ?? []) as Array<{ path?: Array<string | number>; message?: string }>) {
+          const [field, index] = issue.path ?? []
+          if (field === 'forecasts' && typeof index === 'number' && positions[index] !== undefined && issue.message) {
+            forecastIssues[positions[index]] ??= issue.message
+          }
+        }
+        if (Object.keys(forecastIssues).length > 0) {
+          setForecastErrs(forecastIssues)
+          setStep(3)
+          return
+        }
         console.error('Submit failed:', err)
         setSubmitError(err.error ?? 'We could not save this decision. Please try again.')
         return

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -24,6 +24,16 @@ function Harness({
 
 const group = (n: number) => screen.getByRole('group', { name: `Forecast ${n}` })
 const draft = (statement: string): ForecastDraft => ({ statement, probability: 50, resolveBy: '2027-01-01' })
+
+// A fixed today, so the forecast dates in these tests stay in the future.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-11-12T10:00:00.000Z'))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('ForecastFields', () => {
   it('adds a forecast with a statement, a 5% step slider and a resolve-by date', async () => {
