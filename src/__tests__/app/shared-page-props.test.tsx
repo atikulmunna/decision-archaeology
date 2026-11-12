@@ -56,6 +56,7 @@ describe('shared decision page seal props', () => {
         'createdAt',
         'customTags',
         'domainTag',
+        'forecasts',
         'isImported',
         'isLocked',
         'predictedOutcome',
@@ -69,5 +70,11 @@ describe('shared decision page seal props', () => {
         'values',
       ].sort()
     )
+    // Forecasts are sealed, so they travel for verification, but never with their resolutions.
+    const forecasts = captured.props!.record.forecasts as Array<Record<string, unknown>>
+    expect(forecasts).toHaveLength(3)
+    for (const forecast of forecasts) {
+      expect(Object.keys(forecast).sort()).toEqual(['position', 'probability', 'resolveBy', 'statement'])
+    }
   })
 })

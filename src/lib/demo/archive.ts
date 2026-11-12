@@ -1,12 +1,17 @@
-import type { CorrectionRequest, DecisionRecord, OutcomeUpdate } from '@prisma/client'
+import type { CorrectionRequest, DecisionRecord, Forecast, OutcomeUpdate } from '@prisma/client'
 import { DEMO_NOW, daysBefore } from './clock'
+import { DEMO_FORECASTS } from './forecasts'
 import { DEMO_SEEDS, type DemoDecisionSeed } from './seed'
 import { buildSealPayload } from '@/lib/seal'
 import { computeSealHashSync } from '@/lib/seal-node'
 
 export const DEMO_USER_ID = 'demo-user'
 
-export type DemoDecision = DecisionRecord & { outcomes: OutcomeUpdate[]; corrections: CorrectionRequest[] }
+export type DemoDecision = DecisionRecord & {
+  outcomes: OutcomeUpdate[]
+  corrections: CorrectionRequest[]
+  forecasts: Forecast[]
+}
 
 const MINUTE_MS = 60 * 1000
 const DAY_MS = 24 * 60 * MINUTE_MS
@@ -53,6 +58,24 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
       createdAt: daysBefore(now, correction.daysAgo),
     }))
 
+  // Resolve-by dates count from midnight UTC of the day the decision was sealed.
+  const sealDay = Date.UTC(createdAt.getUTCFullYear(), createdAt.getUTCMonth(), createdAt.getUTCDate())
+  const forecasts: Forecast[] = (DEMO_FORECASTS[seed.key] ?? []).map((forecast, position) => {
+    const resolvedAt = forecast.resolution ? daysBefore(now, forecast.resolvedDaysAgo ?? 0) : null
+    return {
+      id: `${id}-f${position + 1}`,
+      decisionId: id,
+      position,
+      statement: forecast.statement,
+      probability: forecast.probability,
+      resolveBy: new Date(sealDay + forecast.resolveByDays * DAY_MS),
+      resolution: forecast.resolution ?? null,
+      resolvedAt,
+      createdAt,
+      updatedAt: resolvedAt ?? createdAt,
+    }
+  })
+
   const updatedAt = new Date(
     Math.max(createdAt.getTime(), ...outcomes.map((o) => o.createdAt.getTime()), ...corrections.map((c) => c.createdAt.getTime()))
   )
@@ -89,8 +112,9 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
     sealedAt: null as Date | null,
     outcomes,
     corrections,
+    forecasts,
   }
-  // Demo seals are taken at finalization, so they are never retroactive.
+  // Demo seals are taken at finalization, so they are never retroactive. Forecasts make the payload v2.
   return { ...record, sealHash: computeSealHashSync(buildSealPayload(record)), sealedAt: createdAt }
 }
 

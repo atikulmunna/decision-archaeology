@@ -20,7 +20,11 @@ export default async function DemoDecisionPage({ params, searchParams }: PagePro
   const reviews = getDemoAssumptionReviews(record.id)
   const initialView = parseDetailView(
     (await searchParams)?.view,
-    defaultDetailView(record.outcomes.length > 0, reviews.length > 0)
+    defaultDetailView(
+      record.outcomes.length > 0,
+      reviews.length > 0,
+      record.forecasts.some((forecast) => forecast.resolution !== null)
+    )
   )
 
   return (
