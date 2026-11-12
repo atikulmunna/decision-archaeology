@@ -7,6 +7,7 @@ import { Callout } from '@/components/ui/Callout'
 import { Card } from '@/components/ui/Card'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { formatCatalogNumber } from '@/lib/catalog'
+import { forecastSentence } from '@/lib/forecasting'
 import type { CreateDecisionInput } from '@/lib/validations/decision'
 
 interface TimeCapsuleConfirmationProps {
@@ -63,6 +64,22 @@ export function TimeCapsuleConfirmation({
               </div>
             )
           })}
+          {data.forecasts && data.forecasts.length > 0 && (
+            <div>
+              <dt>
+                <Eyebrow>Forecasts</Eyebrow>
+              </dt>
+              <dd className="mt-1">
+                <ul className="flex flex-col gap-1 text-sm leading-relaxed text-ink-2">
+                  {data.forecasts.map((forecast, index) => (
+                    <li key={index}>
+                      {forecastSentence({ ...forecast, resolveBy: new Date(`${forecast.resolveBy}T00:00:00.000Z`) })}
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+          )}
         </dl>
       </Card>
 

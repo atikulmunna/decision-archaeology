@@ -14,6 +14,8 @@ import { CountdownTimer } from './CountdownTimer'
 import { SealedNotice } from './SealedNotice'
 import { AttachmentManager } from './AttachmentManager'
 import { StarterDecisionWizard } from './StarterDecisionWizard'
+import { ForecastFields, completeForecasts, forecastErrors } from './ForecastFields'
+import { toForecastInputs } from '@/lib/forecast-input'
 import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
 
 const STEPS = ['Basics', 'Reasoning', 'Context', 'Confirm']
@@ -53,6 +55,7 @@ export function DecisionCaptureForm({
   const [tagInput, setTagInput] = useState('')
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'restored'>('idle')
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [forecastErrs, setForecastErrs] = useState<Record<number, string>>({})
   const [activeDecisionId, setActiveDecisionId] = useState<string | undefined>(initialDraftId)
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
   const draftRef = useRef<string | null>(null)
@@ -98,6 +101,8 @@ export function DecisionCaptureForm({
     confidenceLevel: form.confidenceLevel,
     domainTag: form.domainTag,
     customTags: form.customTags ?? [],
+    // A half-filled forecast stays in the form but is not saved until it is complete.
+    forecasts: completeForecasts(form.forecasts ?? []),
   }), [form])
 
   const ensureDraftDecision = useCallback(async (): Promise<string | null> => {
@@ -196,6 +201,7 @@ export function DecisionCaptureForm({
           confidenceLevel: draft.confidenceLevel ?? undefined,
           domainTag: draft.domainTag ?? undefined,
           customTags: draft.customTags ?? [],
+          forecasts: draft.forecasts ? toForecastInputs(draft.forecasts) : undefined,
         })
         setDraftStatus('restored')
       } catch {
@@ -238,6 +244,11 @@ export function DecisionCaptureForm({
   function nextStep() {
     if (step === 1 && !validateStep1()) return
     if (step === 2 && !validateStep2()) return
+    if (step === 3) {
+      const errs = forecastErrors(form.forecasts ?? [])
+      setForecastErrs(errs)
+      if (Object.keys(errs).length > 0) return
+    }
     setStep((s) => (s + 1) as Step)
     setErrors({})
     setSubmitError(null)
@@ -262,6 +273,7 @@ export function DecisionCaptureForm({
         confidenceLevel: form.confidenceLevel,
         domainTag: form.domainTag,
         customTags: form.customTags ?? [],
+        forecasts: completeForecasts(form.forecasts ?? []),
       }
 
       const res = draftRef.current
@@ -359,6 +371,7 @@ export function DecisionCaptureForm({
       confidenceLevel: form.confidenceLevel,
       domainTag: form.domainTag,
       customTags: form.customTags ?? [],
+      forecasts: completeForecasts(form.forecasts ?? []),
     }
     return (
       <div className="flex flex-col gap-4">
@@ -517,6 +530,16 @@ export function DecisionCaptureForm({
             placeholder="What do you expect to happen as a result of this decision?"
             value={form.predictedOutcome ?? ''}
             onChange={(e) => set('predictedOutcome', e.target.value)}
+          />
+
+          <ForecastFields
+            forecasts={form.forecasts ?? []}
+            defaultResolveBy={form.predictedTimeframe?.slice(0, 10)}
+            errors={forecastErrs}
+            onChange={(next) => {
+              set('forecasts', next)
+              setForecastErrs({})
+            }}
           />
 
           <AttachmentManager decisionId={activeDecisionId} onRequireDecisionId={ensureDraftDecision} />
