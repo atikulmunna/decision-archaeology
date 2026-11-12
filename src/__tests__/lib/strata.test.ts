@@ -145,4 +145,26 @@ describe('layoutStrata', () => {
     expect(layoutStrata(records, { year: null, now: NOW }).summary).toBe('2 decisions from Q2 2025 to Q4 2026')
     expect(layoutStrata(records, { year: 2026, now: NOW }).summary).toBe('1 decision from Jan 2026 to Nov 2026')
   })
+
+  it('deposits outcomes above a decision even after a busy week pushes it up, in date order', () => {
+    const at = '2026-02-14T12:00:00.000Z'
+    const records = [1, 2, 3].map((n) => rec(n, 'CAREER', at))
+    records.push(rec(4, 'CAREER', at, [['2026-03-01T12:00:00.000Z', 'AS_EXPECTED'], ['2026-03-02T12:00:00.000Z', 'MUCH_BETTER']]))
+    const layout = layoutStrata(records, { year: null, now: NOW })
+    const pushed = specimen(layout, 'd4')
+    const [first, second] = layout.outcomes.filter((outcome) => outcome.decisionId === 'd4')
+    expect(first.y).toBeLessThanOrEqual(pushed.y - 14)
+    expect(second.y).toBeLessThan(first.y)
+    const core = layout.cores.find((line) => line.decisionId === 'd4')!
+    expect(core.y2).toBeLessThan(core.y1)
+  })
+
+  it('extends the bands to a decision dated after now instead of failing', () => {
+    const records = [rec(1, 'CAREER', '2026-05-16T12:00:00.000Z'), rec(2, 'FINANCE', '2027-01-02T00:00:00.000Z')]
+    const layout = layoutStrata(records, { year: null, now: NOW })
+    expect(layout.bands.at(-1)!.label).toBe('Q1 2027')
+    expect(specimen(layout, 'd2').y).toBeGreaterThanOrEqual(STRATA_TOP + 6)
+    const december = layoutStrata([rec(3, 'HEALTH', '2026-12-20T00:00:00.000Z')], { year: 2026, now: NOW })
+    expect(december.bands).toHaveLength(12)
+  })
 })

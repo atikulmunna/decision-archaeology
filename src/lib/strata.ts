@@ -20,6 +20,8 @@ export const MIN_BAND_HEIGHT = 40
 export const SPECIMEN_SIZE = 12
 export const SPECIMEN_STEP = 14
 export const SLOT_OFFSETS = [0, -14, 14] as const
+/** Vertical room between successive outcome dots of one decision. */
+export const OUTCOME_GAP = 8
 
 export type StrataRecord = {
   id: string
@@ -101,12 +103,12 @@ const monthYearFormat = new Intl.DateTimeFormat('en-US', { month: 'short', year:
 
 type BandRange = { key: string; label: string; summaryLabel: string; start: number; end: number }
 
-function quarterBands(fromMs: number, now: Date): BandRange[] {
+function quarterBands(fromMs: number, end: Date): BandRange[] {
   const bands: BandRange[] = []
   const from = new Date(fromMs)
   let year = from.getUTCFullYear()
   let quarter = Math.floor(from.getUTCMonth() / 3)
-  const last = now.getUTCFullYear() * 4 + Math.floor(now.getUTCMonth() / 3)
+  const last = end.getUTCFullYear() * 4 + Math.floor(end.getUTCMonth() / 3)
   while (year * 4 + quarter <= last) {
     const label = `Q${quarter + 1} ${year}`
     bands.push({ key: label, label, summaryLabel: label, start: Date.UTC(year, quarter * 3, 1), end: Date.UTC(year, quarter * 3 + 3, 1) })
@@ -119,8 +121,8 @@ function quarterBands(fromMs: number, now: Date): BandRange[] {
   return bands
 }
 
-function monthBands(year: number, now: Date): BandRange[] {
-  const lastMonth = year === now.getUTCFullYear() ? now.getUTCMonth() : 11
+function monthBands(year: number, end: Date): BandRange[] {
+  const lastMonth = year === end.getUTCFullYear() ? end.getUTCMonth() : 11
   return Array.from({ length: lastMonth + 1 }, (_, month) => {
     const start = Date.UTC(year, month, 1)
     return {
@@ -165,7 +167,9 @@ export function layoutStrata(records: StrataRecord[], options: { year: number | 
     .sort((a, b) => time(a.createdAt) - time(b.createdAt) || a.id.localeCompare(b.id))
 
   const oldest = drawn.length > 0 ? time(drawn[0].createdAt) : now.getTime()
-  const ranges = year === null ? quarterBands(oldest, now) : monthBands(year, now)
+  // The column runs to now, or further when an imported decision is dated after it.
+  const end = new Date(Math.max(now.getTime(), drawn.length > 0 ? time(drawn[drawn.length - 1].createdAt) : 0))
+  const ranges = year === null ? quarterBands(oldest, end) : monthBands(year, end)
   const yearEnd = year === null ? null : Date.UTC(year + 1, 0, 1)
 
   const bandIndex = (ms: number) => {
@@ -239,13 +243,17 @@ export function layoutStrata(records: StrataRecord[], options: { year: number | 
       ...describe(record, lane.label),
     })
 
+    // Each deposit sits at least a step above the specimen and above the one before it.
+    let lowest = position.y - SPECIMEN_STEP
     for (const outcome of record.outcomes) {
       const at = time(outcome.createdAt)
       const beyond = yearEnd !== null && at >= yearEnd
+      const y = beyond ? STRATA_TOP : Math.max(STRATA_TOP, Math.min(yFor(at), lowest))
+      if (!beyond) lowest = y - OUTCOME_GAP
       outcomes.push({
         decisionId: record.id,
         x: position.x,
-        y: beyond ? STRATA_TOP : yFor(at),
+        y,
         style: outcomeStyle(outcome.outcomeRating),
         beyond: beyond ? monthYearFormat.format(at) : null,
       })
