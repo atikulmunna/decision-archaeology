@@ -11,7 +11,9 @@ import { Callout } from '@/components/ui/Callout'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { archiveEmptyState } from '@/lib/archive-view'
+import { archiveEmptyState, archiveViewHref, type ArchiveViewMode } from '@/lib/archive-view'
+import { StrataColumn } from '@/components/decisions/StrataColumn'
+import type { StrataLayout } from '@/lib/strata'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
 import type { AppRoutes } from '@/lib/routes'
 
@@ -29,6 +31,8 @@ export type ArchiveViewProps = {
   archiveError?: boolean
   canImport?: boolean
   intro?: string
+  view?: ArchiveViewMode
+  strata?: { layout: StrataLayout; cappedTotal: number | null }
 }
 
 const PAGE_SIZE = 20
@@ -48,6 +52,8 @@ export function ArchiveView({
   archiveError = false,
   canImport = false,
   intro,
+  view = 'list',
+  strata,
 }: ArchiveViewProps) {
   const isOwner = mode === 'owner'
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -125,7 +131,28 @@ export function ArchiveView({
         <FilterBar />
       </Suspense>
 
-      {records.length === 0 ? (
+      {allCount > 0 && (
+        <nav aria-label="Archive view" className="inline-flex self-start rounded-sm border-[1.5px] border-ink">
+          {(['list', 'strata'] as const).map((mode) => (
+            <Link
+              key={mode}
+              href={archiveViewHref(pageParams, mode)}
+              aria-current={view === mode ? 'page' : undefined}
+              className={`px-4 py-1.5 font-mono text-xs uppercase tracking-[0.09em] transition-colors duration-150 ${view === mode ? 'bg-primary text-on-primary' : 'text-ink hover:bg-sunken'}`}
+            >
+              {mode === 'list' ? 'List' : 'Strata'}
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {view === 'strata' && strata ? (
+        strata.layout.specimens.length === 0 && strata.layout.year === null ? (
+          <EmptyState icon={SearchX} title="No results" description="Try adjusting your filters or search query." />
+        ) : (
+          <StrataColumn layout={strata.layout} routes={routes} pageParams={pageParams} cappedTotal={strata.cappedTotal} />
+        )
+      ) : records.length === 0 ? (
         {
           'first-run': (
             <EmptyState
@@ -154,7 +181,7 @@ export function ArchiveView({
         </div>
       )}
 
-      {totalPages > 1 && (
+      {view === 'list' && totalPages > 1 && (
         <nav aria-label="Pagination" className="flex items-center justify-center gap-3">
           {page > 1 && (
             <Button href={hrefForPage(page - 1)} variant="secondary" size="sm">

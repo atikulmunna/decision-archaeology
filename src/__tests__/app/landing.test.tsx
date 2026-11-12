@@ -13,6 +13,7 @@ describe('landing page', () => {
     userId = null
     render(await Home())
     expect(screen.getByRole('link', { name: 'Explore the demo' })).toHaveAttribute('href', '/demo')
+    expect(screen.getByRole('link', { name: 'See the strata' })).toHaveAttribute('href', '/demo?view=strata')
     expect(screen.getAllByRole('link', { name: 'Start your archive' })[0]).toHaveAttribute('href', '/sign-up')
     expect(screen.getByRole('link', { name: /Accept the senior role at Northwind\?/ })).toHaveAttribute(
       'href',

@@ -1,8 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import { getDecisions, getDraftDecisions } from '@/lib/decisions'
+import { getDecisions, getDraftDecisions, getStrataDecisions, STRATA_MAX } from '@/lib/decisions'
 import { ArchiveView } from '@/components/decisions/ArchiveView'
-import { parseArchiveSearchParams, type ArchiveSearchParams } from '@/lib/archive-view'
+import { parseArchiveSearchParams, parseStrataParams, type ArchiveSearchParams } from '@/lib/archive-view'
+import { layoutStrata, type StrataLayout } from '@/lib/strata'
 import { getOrCreateDbUser } from '@/lib/db-user'
 import { logError } from '@/lib/observability'
 import { APP_ROUTES } from '@/lib/routes'
@@ -23,6 +24,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
   if (!dbUser) return null
 
   const { filters, pageParams, hasFilters } = parseArchiveSearchParams(params)
+  const { view, year } = parseStrataParams(params)
   const page = filters.page ?? 1
 
   let records: Awaited<ReturnType<typeof getDecisions>>['records'] = []
@@ -30,20 +32,31 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
   let drafts: Awaited<ReturnType<typeof getDraftDecisions>> = []
   let allCount = 0
   let archiveError = false
+  let strata: { layout: StrataLayout; cappedTotal: number | null } | undefined
 
   try {
-    const result = await Promise.all([
-      getDecisions(dbUser.id, filters),
+    const counts = Promise.all([
       getDraftDecisions(dbUser.id, 3),
       prisma.decisionRecord.count({
         where: { userId: dbUser.id, isDraft: false },
       }),
     ])
-
-    records = result[0].records
-    total = result[0].total
-    drafts = result[1]
-    allCount = result[2]
+    if (view === 'strata') {
+      const [loaded, [draftList, sealedCount]] = await Promise.all([getStrataDecisions(dbUser.id, filters), counts])
+      total = loaded.total
+      strata = {
+        layout: layoutStrata(loaded.records, { year, now: new Date() }),
+        cappedTotal: loaded.total > STRATA_MAX ? loaded.total : null,
+      }
+      drafts = draftList
+      allCount = sealedCount
+    } else {
+      const [result, [draftList, sealedCount]] = await Promise.all([getDecisions(dbUser.id, filters), counts])
+      records = result.records
+      total = result.total
+      drafts = draftList
+      allCount = sealedCount
+    }
   } catch (error) {
     archiveError = true
     await logError('[decisions-page] Failed to load archive page', error, {
@@ -69,6 +82,8 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
       drafts={drafts}
       archiveError={archiveError}
       canImport={dbUser.tier === 'POWER'}
+      view={view}
+      strata={strata}
     />
   )
 }

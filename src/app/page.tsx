@@ -80,6 +80,9 @@ export default async function Home() {
               <Button href={DEMO_ROUTES.archive} size="lg">
                 Explore the demo
               </Button>
+              <Button href={`${DEMO_ROUTES.archive}?view=strata`} variant="ghost" size="lg">
+                See the strata
+              </Button>
               <Button href={signedIn ? '/decisions' : '/sign-up'} variant="secondary" size="lg">
                 {signedIn ? 'Open archive' : 'Start your archive'}
               </Button>
