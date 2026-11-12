@@ -123,7 +123,14 @@ describe('demo decision page', () => {
 
 describe('demo calibration and reports', () => {
   it('renders demo calibration from the fixtures', async () => {
-    expect(await html(DemoCalibrationPage())).toContain('Based on 14 closed decisions')
+    const markup = await html(DemoCalibrationPage())
+    expect(markup).toContain('Based on 14 closed decisions')
+    expect(markup).toContain('0.19')
+    expect(markup).toContain('Lower is better. Always saying 50% scores 0.25.')
+    expect(markup).toContain('When you said 70% or more, it happened 71% of the time.')
+    expect(markup).toContain('Overconfident')
+    expect(markup).toContain('61 resolved · 9 open · 3 due')
+    expect(markup).toMatch(/href="\/demo\/decisions\/demo-\d{4}\?view=now"/)
   })
 
   it('lists the demo report', async () => {

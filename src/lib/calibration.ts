@@ -1,4 +1,5 @@
-import type { OutcomeUpdate, DecisionRecord, DomainTag } from '@prisma/client'
+import type { OutcomeUpdate, DecisionRecord, DomainTag, Forecast } from '@prisma/client'
+import { summarizeForecasts, type ForecastSummary } from '@/lib/forecasting'
 
 type OutcomeRating = OutcomeUpdate['outcomeRating']
 type DecisionWithOutcomes = DecisionRecord & { outcomes: OutcomeUpdate[] }
@@ -99,21 +100,30 @@ export function scoreStroke(score: number): string {
   return 'stroke-danger'
 }
 
-/** What the calibration view renders. */
+/** What the calibration view renders: the forecast scores, plus the older outcome alignment. */
 export type CalibrationData = {
   score: number | null
   byDomain: Partial<Record<DomainTag, number | null>>
   closedDecisions: number
   totalDecisions: number
   minRequired: number
+  forecasts: ForecastSummary<DomainTag>
 }
 
-export function summarizeCalibration(records: DecisionWithOutcomes[], minRequired = 5): CalibrationData {
+export function summarizeCalibration(
+  records: Array<DecisionWithOutcomes & { forecasts?: Forecast[] }>,
+  now: Date,
+  minRequired = 5
+): CalibrationData {
   return {
     score: computeCalibrationScore(records, minRequired),
     byDomain: computeCalibrationByDomain(records),
     closedDecisions: getClosedPredictedDecisions(records).length,
     totalDecisions: records.length,
     minRequired,
+    forecasts: summarizeForecasts(
+      records.map((record) => ({ id: record.id, domainTag: record.domainTag, forecasts: record.forecasts ?? [] })),
+      now
+    ),
   }
 }

@@ -13,6 +13,7 @@ import {
   resolutionBlock,
   RESOLUTION_LABELS,
   scoredCount,
+  summarizeForecasts,
   type ForecastResolution,
 } from '@/lib/forecasting'
 
@@ -105,5 +106,40 @@ describe('resolving', () => {
     expect(resolutionBlock(by, null, at('2026-01-01T00:00:00.000Z'))).toBeNull()
     expect(isDue({ probability: 50, resolveBy: by, resolution: null }, at('2027-07-01T00:00:00.000Z'))).toBe(true)
     expect(isDue({ probability: 50, resolveBy: by, resolution: 'DIDNT' }, at('2027-07-01T00:00:00.000Z'))).toBe(false)
+  })
+})
+
+describe('forecast summary', () => {
+  it('counts, lists what is due oldest first, and withholds scores below the minimum', () => {
+    const now = at('2026-11-10T12:00:00.000Z')
+    const forecast = (id: string, statement: string, probability: number, resolveBy: string, resolution: ForecastResolution | null) => ({
+      id,
+      statement,
+      position: 0,
+      probability,
+      resolveBy: at(`${resolveBy}T00:00:00.000Z`),
+      resolution,
+    })
+    const summary = summarizeForecasts(
+      [
+        {
+          id: 'd1',
+          domainTag: 'CAREER',
+          forecasts: [
+            forecast('f1', 'A', 70, '2026-01-01', 'HAPPENED'),
+            forecast('f2', 'B', 30, '2026-06-01', null),
+            forecast('f3', 'C', 50, '2027-01-01', null),
+          ],
+        },
+        { id: 'd2', domainTag: null, forecasts: [forecast('f4', 'D', 60, '2026-03-01', null), forecast('f5', 'E', 40, '2026-02-01', 'VOID')] },
+      ],
+      now
+    )
+    expect(summary).toMatchObject({ brier: null, scored: 1, resolved: 2, open: 3, due: 2, needed: 4, finding: null, byDomain: [] })
+    expect(summary.dueList).toEqual([
+      { decisionId: 'd2', forecastId: 'f4', sentence: '60% that D by Mar 1, 2026', resolveBy: at('2026-03-01T00:00:00.000Z') },
+      { decisionId: 'd1', forecastId: 'f2', sentence: '30% that B by Jun 1, 2026', resolveBy: at('2026-06-01T00:00:00.000Z') },
+    ])
+    expect(summary.bands).toEqual([{ band: 7, count: 1, meanStated: 70, shareHappened: 100 }])
   })
 })

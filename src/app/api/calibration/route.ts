@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
-import {
-  computeCalibrationScore,
-  computeCalibrationByDomain,
-  getClosedPredictedDecisions,
-} from '@/lib/calibration'
+import { summarizeCalibration } from '@/lib/calibration'
 import { getOrCreateDbUser } from '@/lib/db-user'
 
 export const dynamic = 'force-dynamic'
@@ -20,18 +16,8 @@ export async function GET() {
   // Fetch all records with outcomes that have predictions
   const records = await prisma.decisionRecord.findMany({
     where: { userId: dbUser.id, isDraft: false },
-    include: { outcomes: true },
+    include: { outcomes: true, forecasts: { orderBy: { position: 'asc' } } },
   })
 
-  const overallScore = computeCalibrationScore(records)
-  const byDomain = computeCalibrationByDomain(records)
-  const closedCount = getClosedPredictedDecisions(records).length
-
-  return NextResponse.json({
-    score: overallScore,
-    byDomain,
-    closedDecisions: closedCount,
-    totalDecisions: records.length,
-    minRequired: 5,
-  })
+  return NextResponse.json(summarizeCalibration(records, new Date()))
 }

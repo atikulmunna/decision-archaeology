@@ -156,3 +156,54 @@ export function resolutionBlock(resolveBy: Date, resolution: ForecastResolution 
   if (resolution === null || resolution === 'HAPPENED') return null
   return isPastResolveBy(resolveBy, now) ? null : `You can mark this after ${formatForecastDate(resolveBy)}.`
 }
+
+type SummaryForecast = ForecastLike & { id: string; statement: string; position: number }
+
+export type ForecastSummary<D extends string = string> = {
+  brier: number | null
+  scored: number
+  /** Happened, Didn't happen and Can't tell. */
+  resolved: number
+  /** Unresolved, due ones included. */
+  open: number
+  due: number
+  /** Scored forecasts still needed before the Brier score shows. */
+  needed: number
+  bands: Band[]
+  finding: Finding | null
+  byDomain: Array<{ domain: D; brier: number; count: number }>
+  dueList: Array<{ decisionId: string; forecastId: string; sentence: string; resolveBy: Date }>
+}
+
+/** Everything the calibration page shows about forecasts, for one person's records. */
+export function summarizeForecasts<D extends string>(
+  records: Array<{ id: string; domainTag: D | null; forecasts: SummaryForecast[] }>,
+  now: Date
+): ForecastSummary<D> {
+  const all = records.flatMap((record) => record.forecasts)
+  const scored = scoredCount(all)
+  const dueList = records
+    .flatMap((record) =>
+      record.forecasts
+        .filter((forecast) => isDue(forecast, now))
+        .map((forecast) => ({
+          decisionId: record.id,
+          forecastId: forecast.id,
+          sentence: forecastSentence(forecast),
+          resolveBy: new Date(forecast.resolveBy),
+        }))
+    )
+    .sort((a, b) => a.resolveBy.getTime() - b.resolveBy.getTime())
+  return {
+    brier: brierScore(all),
+    scored,
+    resolved: all.filter((forecast) => forecast.resolution !== null).length,
+    open: all.filter((forecast) => forecast.resolution === null).length,
+    due: dueList.length,
+    needed: Math.max(0, MIN_SCORED - scored),
+    bands: reliabilityBands(all),
+    finding: calibrationFinding(all),
+    byDomain: brierByDomain(records),
+    dueList,
+  }
+}

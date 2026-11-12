@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { summarizeCalibration } from '@/lib/calibration'
 import { CalibrationView } from '@/components/calibration/CalibrationView'
 import { getOrCreateDbUser } from '@/lib/db-user'
+import { APP_ROUTES } from '@/lib/routes'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,8 +20,8 @@ export default async function CalibrationPage() {
 
   const records = await prisma.decisionRecord.findMany({
     where: { userId: dbUser.id, isDraft: false },
-    include: { outcomes: true },
+    include: { outcomes: true, forecasts: { orderBy: { position: 'asc' } } },
   })
 
-  return <CalibrationView eyebrow="Your record" data={summarizeCalibration(records)} />
+  return <CalibrationView eyebrow="Your record" data={summarizeCalibration(records, new Date())} routes={APP_ROUTES} />
 }

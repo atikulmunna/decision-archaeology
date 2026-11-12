@@ -8,6 +8,7 @@ import {
 } from '@/lib/calibration'
 import { summarizeCalibration } from '@/lib/calibration'
 import { buildDemoArchive } from '@/lib/demo/archive'
+import { DEMO_NOW } from '@/lib/demo/clock'
 import type { OutcomeUpdate, DecisionRecord } from '@prisma/client'
 
 function makeOutcome(rating: OutcomeUpdate['outcomeRating'], id = '1'): OutcomeUpdate {
@@ -179,15 +180,18 @@ describe('scoreStroke', () => {
 
 describe('summarizeCalibration', () => {
   it('summarizes the demo archive calibration', () => {
-    expect(summarizeCalibration(buildDemoArchive())).toMatchObject({
+    const data = summarizeCalibration(buildDemoArchive(), DEMO_NOW)
+    expect(data).toMatchObject({
       score: 71,
       closedDecisions: 14,
       totalDecisions: 24,
       minRequired: 5,
     })
+    expect(data.forecasts).toMatchObject({ scored: 60, resolved: 61, open: 9, due: 3, needed: 0 })
+    expect(data.forecasts.brier).toBeCloseTo(11.3875 / 60, 10)
   })
 
   it('withholds the score below the minimum', () => {
-    expect(summarizeCalibration(buildDemoArchive().slice(0, 3))).toMatchObject({ score: null, totalDecisions: 3 })
+    expect(summarizeCalibration(buildDemoArchive().slice(0, 3), DEMO_NOW)).toMatchObject({ score: null, totalDecisions: 3 })
   })
 })
