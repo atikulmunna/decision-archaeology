@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getDemoCalibrationRecords, getDemoDecision, listDemoDecisions } from '@/lib/demo/queries'
+import { getDemoCalibrationRecords, getDemoDecision, listDemoDecisions, listDemoStrataRecords } from '@/lib/demo/queries'
 import { demoDecisionIdForKey } from '@/lib/demo/archive'
 import { DEMO_NOW, daysBefore } from '@/lib/demo/clock'
 
@@ -64,5 +64,24 @@ describe('getDemoCalibrationRecords', () => {
     const records = getDemoCalibrationRecords()
     expect(records).toHaveLength(24)
     expect(records.find((record) => record.id === demoDecisionIdForKey('northwind-offer'))!.outcomes).toHaveLength(2)
+  })
+})
+
+describe('listDemoStrataRecords', () => {
+  it('returns every matching demo decision oldest first, with all outcomes in date order', () => {
+    const { records, total } = listDemoStrataRecords({})
+    expect(total).toBe(24)
+    expect(records).toHaveLength(24)
+    expect(records.map((record) => record.createdAt.getTime())).toEqual([...records.map((record) => record.createdAt.getTime())].sort((a, b) => a - b))
+    const northwind = records.find((record) => record.id === demoDecisionIdForKey('northwind-offer'))!
+    expect(northwind.outcomes.map((outcome) => outcome.outcomeRating)).toEqual(['TOO_EARLY_TO_TELL', 'AS_EXPECTED'])
+    expect(Object.keys(northwind).sort()).toEqual(['catalogNumber', 'createdAt', 'domainTag', 'id', 'outcomes', 'title'])
+  })
+
+  it('applies the archive filters', () => {
+    const { records, total } = listDemoStrataRecords({ domain: 'HEALTH' })
+    expect(records.length).toBeGreaterThan(0)
+    expect(total).toBe(records.length)
+    expect(records.every((record) => record.domainTag === 'HEALTH')).toBe(true)
   })
 })

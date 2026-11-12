@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client'
 import { logError } from '@/lib/observability'
 import { createTimer } from '@/lib/timing'
 import { matchesOutcomeFilter, type DecisionFilters } from '@/lib/archive-view'
+import type { StrataRecord } from '@/lib/strata'
 
 export type { DecisionFilters } from '@/lib/archive-view'
 
@@ -273,4 +274,39 @@ export async function getDecision(userId: string, id: string) {
   })
 
   return record ? normalizeDecisionLockState(record) : null
+}
+
+/** The most decisions the Strata view draws at once; past this it shows the newest ones and says so. */
+export const STRATA_MAX = 500
+
+/**
+ * Every finalized decision matching the archive filters (up to STRATA_MAX, newest kept),
+ * shaped for the strata layout: oldest first, each with all of its outcomes in date order.
+ */
+export async function getStrataDecisions(
+  userId: string,
+  filters: DecisionFilters
+): Promise<{ records: StrataRecord[]; total: number }> {
+  const { records, total } = await getDecisions(userId, { ...filters, page: 1, limit: STRATA_MAX })
+  const ids = records.map((record) => record.id)
+  const outcomes = ids.length
+    ? await prisma.outcomeUpdate.findMany({
+        where: { decisionId: { in: ids } },
+        orderBy: { createdAt: 'asc' },
+        select: { decisionId: true, createdAt: true, outcomeRating: true },
+      })
+    : []
+  const strata: StrataRecord[] = records
+    .map((record) => ({
+      id: record.id,
+      catalogNumber: record.catalogNumber,
+      title: record.title,
+      domainTag: record.domainTag,
+      createdAt: record.createdAt,
+      outcomes: outcomes
+        .filter((outcome) => outcome.decisionId === record.id)
+        .map(({ createdAt, outcomeRating }) => ({ createdAt, outcomeRating })),
+    }))
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+  return { records: strata, total }
 }

@@ -5,6 +5,7 @@ import { matchesOutcomeFilter, type DecisionFilters } from '@/lib/archive-view'
 import { buildDemoArchive, demoDecisionIdForKey, type DemoDecision } from './archive'
 import { DEMO_SEEDS } from './seed'
 import { DEMO_NOW } from './clock'
+import type { StrataRecord } from '@/lib/strata'
 
 /** A list row: like getDecisions, `outcomes` holds only the latest outcome. */
 export type DemoListRecord = DecisionRecord & { outcomes: OutcomeUpdate[] }
@@ -92,4 +93,19 @@ export function getDemoAssumptionReviews(id: string, now: Date = DEMO_NOW): Assu
     createdAt: reviewedAt,
     updatedAt: reviewedAt,
   }))
+}
+
+/** Every demo decision matching the archive filters, shaped for the strata layout: oldest first, all outcomes. */
+export function listDemoStrataRecords(filters: DecisionFilters, now: Date = DEMO_NOW): { records: StrataRecord[]; total: number } {
+  const records = buildDemoArchive(now)
+    .filter((record) => matchesFilters(record, filters))
+    .map((record) => ({
+      id: record.id,
+      catalogNumber: record.catalogNumber,
+      title: record.title,
+      domainTag: record.domainTag,
+      createdAt: record.createdAt,
+      outcomes: record.outcomes.map(({ createdAt, outcomeRating }) => ({ createdAt, outcomeRating })),
+    }))
+  return { records, total: records.length }
 }
