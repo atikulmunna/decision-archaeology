@@ -47,6 +47,12 @@ enum AssumptionVerdict {
   DIDNT
 }
 
+enum ForecastResolution {
+  HAPPENED
+  DIDNT
+  VOID
+}
+
 enum BiasReportStatus {
   PENDING
   RUNNING
@@ -116,6 +122,7 @@ model DecisionRecord {
   collaborators     CollaboratorShare[]
   corrections       CorrectionRequest[]
   assumptionReviews AssumptionReview[]
+  forecasts         Forecast[]
 
   @@unique([userId, catalogNumber])
   @@map("decision_records")
@@ -136,6 +143,25 @@ model AssumptionReview {
 
   @@unique([decisionId, itemHash])
   @@map("assumption_reviews")
+}
+
+// Up to 3 yes or no forecasts per decision (src/lib/forecasting.ts). Statement, probability and
+// resolveBy lock and are sealed with the decision (seal v2); the resolution stays open.
+model Forecast {
+  id          String              @id @default(cuid())
+  decisionId  String
+  decision    DecisionRecord      @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  position    Int                 // 0 to 2
+  statement   String
+  probability Int                 // 5 to 95, multiple of 5
+  resolveBy   DateTime            // midnight UTC of the chosen day
+  resolution  ForecastResolution?
+  resolvedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([decisionId, position])
+  @@map("forecasts")
 }
 
 model OutcomeUpdate {

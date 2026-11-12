@@ -5,7 +5,9 @@ import {
   isRetroactiveSeal,
   sealFields,
   sealFileName,
+  sealVersion,
   shortSealHash,
+  toSealRecord,
   verifySeal,
   type SealableDecision,
 } from '@/lib/seal'
@@ -111,6 +113,81 @@ describe('computeSealHash', () => {
     for (const edit of edits) {
       expect(await computeSealHash(buildSealPayload({ ...fixture, ...edit }))).not.toBe(base)
     }
+  })
+})
+
+// printf '%s' "<the v2 payload>" | sha256sum, computed outside the code under test.
+const V2_HASH = 'cc2f4ed3ef011a1777a03bc1f3b3d9700246abc9c4776414564f260d6ce39de2'
+const withForecasts: SealableDecision = {
+  ...fixture,
+  forecasts: [
+    { position: 1, statement: 'Second', probability: 30, resolveBy: new Date('2026-03-01T00:00:00.000Z') },
+    { position: 0, statement: 'First', probability: 70, resolveBy: new Date('2026-06-30T00:00:00.000Z') },
+  ],
+}
+
+describe('forecasts in the seal', () => {
+  it('seals forecasts in a v2 payload, in position order', async () => {
+    const payload = buildSealPayload(withForecasts)
+    expect(payload.startsWith('{' + LF + '  "seal": "da-seal-v2",')).toBe(true)
+    expect(
+      payload.endsWith(
+        [
+          '  "forecasts": [',
+          '    {',
+          '      "statement": "First",',
+          '      "probability": 70,',
+          '      "resolveBy": "2026-06-30T00:00:00.000Z"',
+          '    },',
+          '    {',
+          '      "statement": "Second",',
+          '      "probability": 30,',
+          '      "resolveBy": "2026-03-01T00:00:00.000Z"',
+          '    }',
+          '  ]',
+          '}',
+        ].join(LF)
+      )
+    ).toBe(true)
+    expect(await computeSealHash(payload)).toBe(V2_HASH)
+    expect(computeSealHashSync(payload)).toBe(V2_HASH)
+  })
+
+  it('keeps v1 byte for byte without forecasts and ignores resolutions', async () => {
+    expect(await computeSealHash(buildSealPayload({ ...fixture, forecasts: [] }))).toBe(FIXTURE_HASH)
+    const resolved = {
+      ...withForecasts,
+      forecasts: withForecasts.forecasts!.map((forecast) => ({ ...forecast, resolution: 'HAPPENED', resolvedAt: new Date() })),
+    }
+    expect(await computeSealHash(buildSealPayload(resolved))).toBe(V2_HASH)
+    expect(sealVersion(fixture)).toBe('da-seal-v1')
+    expect(sealVersion(withForecasts)).toBe('da-seal-v2')
+  })
+
+  it('changes the v2 hash when a sealed forecast field changes', async () => {
+    const [second, first] = withForecasts.forecasts!
+    const base = await computeSealHash(buildSealPayload(withForecasts))
+    expect(base).toBe(V2_HASH)
+    const edits = [
+      { ...first, statement: 'First!' },
+      { ...first, probability: 75 },
+      { ...first, resolveBy: new Date('2026-07-01T00:00:00.000Z') },
+    ]
+    for (const edit of edits) {
+      expect(await computeSealHash(buildSealPayload({ ...withForecasts, forecasts: [second, edit] }))).not.toBe(base)
+    }
+  })
+
+  it('passes only the sealed forecast fields to the client', () => {
+    const record = {
+      ...withForecasts,
+      sealHash: 'h',
+      sealedAt: null,
+      isImported: false,
+      isLocked: true,
+      forecasts: [{ ...withForecasts.forecasts![0], id: 'f1', resolution: 'DIDNT', resolvedAt: new Date() }],
+    }
+    expect(Object.keys(toSealRecord(record).forecasts![0]).sort()).toEqual(['position', 'probability', 'resolveBy', 'statement'])
   })
 })
 

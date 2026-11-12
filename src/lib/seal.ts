@@ -9,6 +9,11 @@ import { getDecisionLockDeadline } from '@/lib/locks'
  */
 
 export const SEAL_VERSION = 'da-seal-v1'
+/** Records with forecasts seal them too; records without keep the v1 payload byte for byte. */
+export const SEAL_VERSION_V2 = 'da-seal-v2'
+
+/** The parts of a forecast that lock with the decision. Resolutions stay open and are never sealed. */
+export type SealForecast = { position: number; statement: string; probability: number; resolveBy: Date }
 
 export type SealableDecision = Pick<
   DecisionRecord,
@@ -27,7 +32,7 @@ export type SealableDecision = Pick<
   | 'confidenceLevel'
   | 'domainTag'
   | 'customTags'
->
+> & { forecasts?: SealForecast[] }
 
 /** Same words, same bytes: Unicode NFC, and CRLF or lone CR line endings become LF. */
 export function canonicalText(value: string): string {
@@ -38,10 +43,15 @@ function canonicalOptional(value: string | null | undefined): string | null {
   return value === null || value === undefined ? null : canonicalText(value)
 }
 
+export function sealVersion(record: SealableDecision): string {
+  return record.forecasts && record.forecasts.length > 0 ? SEAL_VERSION_V2 : SEAL_VERSION
+}
+
 /** The exact text that gets hashed: pretty-printed JSON in a fixed key order, no trailing newline. */
 export function buildSealPayload(record: SealableDecision): string {
+  const version = sealVersion(record)
   const ordered = {
-    seal: SEAL_VERSION,
+    seal: version,
     catalogNumber: record.catalogNumber ?? null,
     finalizedAt: new Date(record.createdAt).toISOString(),
     title: canonicalText(record.title),
@@ -58,7 +68,24 @@ export function buildSealPayload(record: SealableDecision): string {
     domainTag: record.domainTag ?? null,
     customTags: (record.customTags ?? []).map(canonicalText),
   }
-  return JSON.stringify(ordered, null, 2)
+  if (version === SEAL_VERSION) return JSON.stringify(ordered, null, 2)
+  const forecasts = [...(record.forecasts ?? [])]
+    .sort((a, b) => a.position - b.position)
+    .map((forecast) => ({
+      statement: canonicalText(forecast.statement),
+      probability: forecast.probability,
+      resolveBy: new Date(forecast.resolveBy).toISOString(),
+    }))
+  return JSON.stringify({ ...ordered, forecasts }, null, 2)
+}
+
+function toSealForecast(forecast: SealForecast): SealForecast {
+  return {
+    position: forecast.position,
+    statement: forecast.statement,
+    probability: forecast.probability,
+    resolveBy: forecast.resolveBy,
+  }
 }
 
 function toHex(buffer: ArrayBuffer): string {
@@ -106,6 +133,7 @@ export function toSealRecord(record: SealRecord): SealRecord {
     confidenceLevel: record.confidenceLevel,
     domainTag: record.domainTag,
     customTags: record.customTags,
+    ...(record.forecasts ? { forecasts: record.forecasts.map(toSealForecast) } : {}),
     sealHash: record.sealHash,
     sealedAt: record.sealedAt,
     isImported: record.isImported,
