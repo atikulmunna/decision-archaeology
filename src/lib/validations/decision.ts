@@ -17,6 +17,8 @@ export const DomainTagEnum = z.enum([
 
 export const FORECAST_MAX = 3
 const PROBABILITY_MESSAGE = 'Use a probability from 5% to 95% in steps of 5.'
+export const FORECAST_DATE_MESSAGE = 'Pick a date after today.'
+const VALID_DATE_MESSAGE = 'Pick a valid date.'
 
 /** A forecast as a draft may hold it: any resolve-by date (checked again on finalize). */
 export const DraftForecastSchema = z.object({
@@ -27,12 +29,12 @@ export const DraftForecastSchema = z.object({
     .min(5, PROBABILITY_MESSAGE)
     .max(95, PROBABILITY_MESSAGE)
     .refine((value) => value % 5 === 0, PROBABILITY_MESSAGE),
-  resolveBy: z.iso.date(),
+  resolveBy: z.iso.date(VALID_DATE_MESSAGE),
 })
 
 /** A forecast that locks with the decision: its date must be after today in UTC, checked when parsed. */
 export const ForecastSchema = DraftForecastSchema.extend({
-  resolveBy: z.iso.date().refine((value) => value > new Date().toISOString().slice(0, 10), 'Pick a date after today.'),
+  resolveBy: z.iso.date(VALID_DATE_MESSAGE).refine((value) => value > new Date().toISOString().slice(0, 10), FORECAST_DATE_MESSAGE),
 })
 
 export type ForecastInput = z.infer<typeof DraftForecastSchema>

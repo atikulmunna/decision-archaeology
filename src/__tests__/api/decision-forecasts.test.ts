@@ -187,4 +187,15 @@ describe('forecasts on decision writes', () => {
     expect(res.status).toBe(200)
     expect(findFirst.mock.calls[0][0].include).toMatchObject({ forecasts: { orderBy: { position: 'asc' } } })
   })
+
+  it('refuses to finalize stored draft forecasts whose date has passed', async () => {
+    const stale = { ...row(0, { ...forecast, resolveBy: '2026-11-12' }), id: 'f1', decisionId: 'd1', resolution: null, resolvedAt: null, createdAt: NOW, updatedAt: NOW }
+    findFirst.mockResolvedValue(baseRecord({ isDraft: true, catalogNumber: null, sealHash: null, sealedAt: null, forecasts: [stale] }))
+    const res = await PATCH(patchRequest({ ...validBody, finalize: true }), params('d1'))
+    expect(res.status).toBe(400)
+    expect((await res.json()).issues).toEqual([
+      expect.objectContaining({ path: ['forecasts', 0, 'resolveBy'], message: 'Pick a date after today.' }),
+    ])
+    expect(update).not.toHaveBeenCalled()
+  })
 })

@@ -21,7 +21,7 @@ import {
 } from '@/lib/catalog'
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
 import { afterUpdate, sealFields } from '@/lib/seal'
-import { toForecastRows } from '@/lib/forecast-input'
+import { staleForecastIssues, toForecastRows } from '@/lib/forecast-input'
 
 export const dynamic = 'force-dynamic'
 
@@ -120,6 +120,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...buildFinalizeTimestamps(record, now),
     }
     const forecastRows = parsed.data.forecasts ? toForecastRows(parsed.data.forecasts) : null
+    // Drafts may hold any date; a finalize that keeps the stored set still needs them after today.
+    const staleIssues = forecastRows ? [] : staleForecastIssues(storedForecasts, now)
+    if (staleIssues.length > 0) {
+      return NextResponse.json({ error: 'Validation failed', issues: staleIssues }, { status: 400 })
+    }
     const forecastWrite = forecastRows ? { forecasts: { deleteMany: {}, create: forecastRows } } : {}
 
     try {
