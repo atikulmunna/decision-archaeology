@@ -110,7 +110,7 @@ export function StrataCanvas({
                 width={columnRight - STRATA_GUTTER}
                 height={layout.bandHeight}
                 className={`${band.tone === 'a' ? 'fill-band-a' : 'fill-band-b'} ${settle}`}
-                style={{ animationDelay: `${index * 30}ms` }}
+                style={{ animationDelay: `${Math.round((index / Math.max(1, layout.bands.length)) * 150)}ms` }}
               />
               <text x={4} y={band.y + layout.bandHeight / 2 + 3} fontSize={9} className="fill-muted font-mono">
                 {band.label}
@@ -196,7 +196,7 @@ export function StrataCanvas({
                 strokeWidth={1}
                 strokeDasharray={specimen.pending ? '3 2' : undefined}
                 className={`${LANE_FILL[specimen.lane]} stroke-ink ${settle}`}
-                style={{ animationDelay: `${layout.bands.length * 30 + index * 15}ms` }}
+                style={{ animationDelay: `${150 + Math.round((index / Math.max(1, layout.specimens.length)) * 150)}ms` }}
               />
             </a>
           ))}

@@ -71,4 +71,24 @@ describe('StrataColumn', () => {
     expect(screen.getByText('Showing the newest 500 of 731 decisions.')).toBeInTheDocument()
     expect(screen.getByText(allTime.summary)).toBeInTheDocument()
   })
+
+  it('keeps the settle animation within a fixed budget however many decisions there are', () => {
+    const domains = ['CAREER', 'FINANCE', 'HEALTH', 'RELATIONSHIPS', 'CREATIVE', 'OTHER'] as const
+    const many: StrataRecord[] = Array.from({ length: 120 }, (_, i) => ({
+      id: 'm' + String(i),
+      catalogNumber: i + 1,
+      title: 'Decision ' + String(i),
+      domainTag: domains[i % 6],
+      createdAt: new Date(Date.parse('2025-01-05T00:00:00.000Z') + i * 5 * 24 * 3600 * 1000),
+      outcomes: [],
+    }))
+    const { container } = render(
+      <StrataColumn layout={layoutStrata(many, { year: null, now: DEMO_NOW })} routes={DEMO_ROUTES} pageParams="" cappedTotal={null} />
+    )
+    const delays = [...container.querySelectorAll('[data-stratum-band], [data-specimen]')].map((element) =>
+      Number.parseFloat((element as SVGElement).style.animationDelay)
+    )
+    expect(delays.length).toBeGreaterThan(120)
+    expect(Math.max(...delays)).toBeLessThanOrEqual(300)
+  })
 })
