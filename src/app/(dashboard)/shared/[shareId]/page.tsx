@@ -13,6 +13,7 @@ import { SealBadge } from '@/components/seal/SealBadge'
 import { SealPanel } from '@/components/seal/SealPanel'
 import { normalizeDecisionLockState } from '@/lib/locks'
 import { isRetroactiveSeal, toSealRecord } from '@/lib/seal'
+import { forecastSentence } from '@/lib/forecasting'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision | Decision Archaeology' }
@@ -33,6 +34,8 @@ export default async function SharedDecisionPage({ params }: Params) {
       decision: {
         include: {
           outcomes: { orderBy: { createdAt: 'asc' } },
+          // Sealed fields: shown, and needed to verify a v2 seal. Their resolutions are never rendered.
+          forecasts: { orderBy: { position: 'asc' } },
         },
       },
       owner: { select: { displayName: true } },
@@ -43,6 +46,7 @@ export default async function SharedDecisionPage({ params }: Params) {
 
   // isLocked is only persisted when the owner's countdown fires, so derive it here.
   const d = normalizeDecisionLockState(share.decision)
+  const sealedForecasts = d.forecasts ?? []
   const latestOutcome = d.outcomes[d.outcomes.length - 1] ?? null
   const authorIds = [...new Set(share.comments.map((comment) => comment.authorId))]
   const authors = authorIds.length > 0
@@ -99,6 +103,18 @@ export default async function SharedDecisionPage({ params }: Params) {
             <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-ink">{field.value}</p>
           </div>
         ))}
+        {sealedForecasts.length > 0 && (
+          <div>
+            <Eyebrow>Forecasts</Eyebrow>
+            <ul className="mt-1 flex flex-col gap-1 text-sm leading-relaxed text-ink">
+              {sealedForecasts.map((forecast) => (
+                <li key={forecast.position} className="break-words">
+                  {forecastSentence(forecast)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Card>
 
       {d.supplementaryNotes && (

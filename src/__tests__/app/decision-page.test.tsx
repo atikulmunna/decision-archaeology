@@ -36,6 +36,32 @@ function ownerRecord() {
 }
 
 describe('owner decision page', () => {
+  it('opens in Now when a forecast is resolved', async () => {
+    const record = getDemoDecision(demoDecisionIdForKey('one-coffee-a-day'))!
+    mocks.getDecision.mockResolvedValue({
+      ...record,
+      assumptionReviews: [],
+      forecasts: [
+        {
+          id: 'f1',
+          decisionId: record.id,
+          position: 0,
+          statement: 'I keep it to one a day',
+          probability: 60,
+          resolveBy: new Date('2026-12-01T00:00:00.000Z'),
+          resolution: 'HAPPENED',
+          resolvedAt: new Date('2026-11-01T00:00:00.000Z'),
+          createdAt: record.createdAt,
+          updatedAt: record.createdAt,
+        },
+      ],
+    })
+    const markup = renderToStaticMarkup(
+      await DecisionDetailPage({ params: Promise.resolve({ id: 'd1' }), searchParams: Promise.resolve({}) })
+    )
+    expect(selectedTab(markup)).toBe('now')
+  })
+
   it('renders saved verdicts on the server so they survive a reload', async () => {
     mocks.getDecision.mockResolvedValue(ownerRecord())
     const markup = renderToStaticMarkup(

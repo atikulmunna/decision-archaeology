@@ -151,4 +151,36 @@ describe('DecisionDetail Then and Now', () => {
     render(<DecisionDetail decision={demo('northwind-offer')} readOnly timeZone="UTC" now={DEMO_NOW} initialView="then" />)
     expect(screen.getByRole('tab', { name: 'Then' })).toHaveAttribute('aria-selected', 'true')
   })
+
+  it('lists sealed forecasts in Then and opens in Now once one is resolved', () => {
+    const forecast = {
+      id: 'f1',
+      decisionId: 'x',
+      position: 0,
+      statement: 'I am promoted to staff engineer',
+      probability: 70,
+      resolveBy: new Date('2027-06-30T00:00:00.000Z'),
+      resolution: null,
+      resolvedAt: null,
+      createdAt: DEMO_NOW,
+      updatedAt: DEMO_NOW,
+    }
+    const { unmount } = render(
+      <DecisionDetail decision={{ ...demo('one-coffee-a-day'), forecasts: [forecast] }} readOnly timeZone="UTC" now={DEMO_NOW} />
+    )
+    expect(screen.getByRole('tab', { name: 'Then' })).toHaveAttribute('aria-selected', 'true')
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getByText('Forecasts')).toBeInTheDocument()
+    expect(within(panel).getByText('70% that I am promoted to staff engineer by Jun 30, 2027')).toBeInTheDocument()
+    unmount()
+    render(
+      <DecisionDetail
+        decision={{ ...demo('one-coffee-a-day'), forecasts: [{ ...forecast, resolution: 'HAPPENED' as const, resolvedAt: DEMO_NOW }] }}
+        readOnly
+        timeZone="UTC"
+        now={DEMO_NOW}
+      />
+    )
+    expect(screen.getByRole('tab', { name: 'Now' })).toHaveAttribute('aria-selected', 'true')
+  })
 })

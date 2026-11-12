@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import type { OutcomeUpdate } from '@prisma/client'
+import type { Forecast, OutcomeUpdate } from '@prisma/client'
 import { Badge } from '@/components/ui/Badge'
 import { OUTCOME_LABELS, OUTCOME_TONES } from '@/lib/outcomes'
 import type { ReviewLike } from '@/lib/assumptions'
 import { AddOutcomeForm } from './AddOutcomeForm'
 import { AssumptionList } from './AssumptionList'
+import { ForecastList } from './ForecastList'
 import { AttachmentManager } from './AttachmentManager'
 import { OutcomeHistory } from './OutcomeHistory'
 import { SupplementaryNotesEditor } from './SupplementaryNotesEditor'
@@ -24,6 +25,7 @@ export function NowView({
   collaboration,
   reviews,
   onReviewsChange,
+  now,
 }: {
   decision: Decision
   readOnly: boolean
@@ -31,8 +33,10 @@ export function NowView({
   collaboration?: CollaborationData
   reviews: ReviewLike[]
   onReviewsChange: (next: ReviewLike[]) => void
+  now: Date
 }) {
   const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
+  const [forecasts, setForecasts] = useState<Forecast[]>(decision.forecasts ?? [])
   const latest = outcomes.at(-1)
 
   return (
@@ -59,6 +63,15 @@ export function NowView({
         canEdit={!readOnly}
         canReview={decision.isLocked || decision.isImported}
         onReviewsChange={onReviewsChange}
+      />
+
+      <ForecastList
+        decisionId={decision.id}
+        forecasts={forecasts}
+        canEdit={!readOnly}
+        canResolve={decision.isLocked || decision.isImported}
+        now={now}
+        onForecastsChange={setForecasts}
       />
 
       {!readOnly && (

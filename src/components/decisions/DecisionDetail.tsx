@@ -44,7 +44,12 @@ export function DecisionDetail({
 }) {
   const [reviews, setReviews] = useState<ReviewLike[]>(initialReviews)
   const [view, setView] = useState<DetailView>(
-    initialView ?? defaultDetailView(decision.outcomes.length > 0, initialReviews.length > 0)
+    initialView ??
+      defaultDetailView(
+        decision.outcomes.length > 0,
+        initialReviews.length > 0,
+        (decision.forecasts ?? []).some((forecast) => forecast.resolution !== null)
+      )
   )
   const [tampered, setTampered] = useState(false)
   const tamper = useMemo(
@@ -143,6 +148,7 @@ export function DecisionDetail({
           collaboration={collaboration}
           reviews={reviews}
           onReviewsChange={setReviews}
+          now={now}
         />
       </div>
     </div>

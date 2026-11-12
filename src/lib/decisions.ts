@@ -267,6 +267,8 @@ export async function getDecision(userId: string, id: string) {
       outcomes: { orderBy: { createdAt: 'asc' } },
       corrections: { orderBy: { createdAt: 'desc' } },
       assumptionReviews: { orderBy: { createdAt: 'asc' } },
+      // Sealed with the record (seal v2), so the seal panel needs them to verify.
+      forecasts: { orderBy: { position: 'asc' } },
     },
   })
 

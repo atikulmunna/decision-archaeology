@@ -1,8 +1,10 @@
-import type { DecisionRecord, OutcomeUpdate, CorrectionRequest } from '@prisma/client'
+import type { DecisionRecord, OutcomeUpdate, CorrectionRequest, Forecast } from '@prisma/client'
 
 export type Decision = DecisionRecord & {
   outcomes: OutcomeUpdate[]
   corrections: CorrectionRequest[]
+  /** Loaded with the decision; a record read without them is treated as having none. */
+  forecasts?: Forecast[]
 }
 
 export type CollaboratorShare = {

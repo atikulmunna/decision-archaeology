@@ -51,7 +51,11 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
   // Read on the server so the first paint shows the right view and saved verdicts.
   const initialView = parseDetailView(
     (await searchParams)?.view,
-    defaultDetailView(record.outcomes.length > 0, record.assumptionReviews.length > 0)
+    defaultDetailView(
+      record.outcomes.length > 0,
+      record.assumptionReviews.length > 0,
+      (record.forecasts ?? []).some((forecast) => forecast.resolution !== null)
+    )
   )
 
   const authorIds = [...new Set(shares.flatMap((share) => share.comments.map((comment) => comment.authorId)))]

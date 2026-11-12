@@ -15,6 +15,7 @@ import { Callout } from '@/components/ui/Callout'
 import { Textarea } from '@/components/ui/Textarea'
 import { SealPanel, type SealRecord } from '@/components/seal/SealPanel'
 import { splitAssumptions } from '@/lib/assumptions'
+import { forecastSentence } from '@/lib/forecasting'
 import type { Decision } from './detail-types'
 
 const LOCKED_FIELDS: { key: CorrectionField; label: string }[] = CORRECTION_FIELDS.map((field) => ({
@@ -135,6 +136,7 @@ export function ThenView({
   }
 
   const assumptions = splitAssumptions(decision.uncertainties)
+  const forecasts = [...(decision.forecasts ?? [])].sort((a, b) => a.position - b.position)
   const prediction = [
     decision.confidenceLevel ? `Confidence ${decision.confidenceLevel}/10` : null,
     decision.predictedTimeframe
@@ -383,6 +385,19 @@ export function ThenView({
               <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{prediction.join(' · ')}</p>
             )}
           </div>
+        </section>
+      )}
+
+      {forecasts.length > 0 && (
+        <section>
+          <h2 className={sectionLabel}>Forecasts</h2>
+          <ul className="flex flex-col gap-2 rounded-sm border border-rule bg-surface p-4">
+            {forecasts.map((forecast) => (
+              <li key={forecast.position} className="break-words font-display text-[17px] leading-relaxed text-ink">
+                {forecastSentence(forecast)}
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
