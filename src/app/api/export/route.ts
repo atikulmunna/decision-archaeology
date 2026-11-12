@@ -23,12 +23,17 @@ export async function GET(req: NextRequest) {
 
   const records = await prisma.decisionRecord.findMany({
     where: { userId: dbUser.id, isDraft: false },
-    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, forecasts: { orderBy: { position: 'asc' } } },
+    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, forecasts: { orderBy: { position: 'asc' } }, fieldNotes: { orderBy: { createdAt: 'asc' } } },
+    orderBy: { createdAt: 'asc' },
+  })
+  // Notes not linked to any decision travel with the archive too.
+  const freeNotes = await prisma.fieldNote.findMany({
+    where: { userId: dbUser.id, decisionId: null },
     orderBy: { createdAt: 'asc' },
   })
 
   const body = format === 'json'
-    ? JSON.stringify(buildArchiveExport(records), null, 2)
+    ? JSON.stringify(buildArchiveExport(records, freeNotes), null, 2)
     : buildArchiveMarkdown(records)
 
   return new NextResponse(body, {

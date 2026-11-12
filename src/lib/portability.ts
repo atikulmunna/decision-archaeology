@@ -1,12 +1,13 @@
 import { z } from 'zod'
-import type { AssumptionReview, DecisionRecord, Forecast, OutcomeUpdate, User, Tier } from '@prisma/client'
+import type { AssumptionReview, DecisionRecord, FieldNote, Forecast, OutcomeUpdate, User, Tier } from '@prisma/client'
 import { matchReviews, splitAssumptions, VERDICT_LABELS } from '@/lib/assumptions'
 import { CreateDecisionSchema, DomainTagEnum, DraftForecastSchema, FORECAST_MAX } from '@/lib/validations/decision'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
 import { buildSealPayload, isRetroactiveSeal, sealVersion } from '@/lib/seal'
 import { displayStatement, RESOLUTION_LABELS, type ForecastResolution } from '@/lib/forecasting'
+import { moodEnergyLabel } from '@/lib/field-notes'
 
-export const EXPORT_SCHEMA_VERSION = '1.3.0'
+export const EXPORT_SCHEMA_VERSION = '1.4.0'
 
 const OutcomeRatingEnum = z.enum([
   'MUCH_BETTER',
@@ -21,6 +22,18 @@ export type DecisionWithOutcomes = DecisionRecord & {
   outcomes: OutcomeUpdate[]
   assumptionReviews?: AssumptionReview[]
   forecasts?: Forecast[]
+  fieldNotes?: FieldNote[]
+}
+
+/** A field note as exported. Imports ignore notes, as they ignore assumption reviews. */
+export type PortableFieldNote = { body: string; mood: number | null; energy: number | null; promoted: boolean; writtenAt: string }
+
+function toPortableFieldNote(note: FieldNote): PortableFieldNote {
+  return { body: note.body, mood: note.mood, energy: note.energy, promoted: note.promoted, writtenAt: note.createdAt.toISOString() }
+}
+
+function notesOldestFirst(notes: FieldNote[] | undefined): FieldNote[] {
+  return [...(notes ?? [])].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
 }
 
 /** A forecast as exported, with its resolution. Imports keep these: imported records are never sealed. */
@@ -109,6 +122,7 @@ export function toPortableDecision(
   record: DecisionWithOutcomes
 ): Omit<PortableDecision, 'forecasts'> & {
   forecasts: PortableForecast[]
+  fieldNotes: PortableFieldNote[]
   seal: PortableSeal | null
   assumptionReviews: PortableAssumptionReview[]
 } {
@@ -141,6 +155,7 @@ export function toPortableDecision(
       resolution: forecast.resolution,
       resolvedAt: forecast.resolvedAt?.toISOString() ?? null,
     })),
+    fieldNotes: notesOldestFirst(record.fieldNotes).map(toPortableFieldNote),
     seal: toPortableSeal(record),
     assumptionReviews: (record.assumptionReviews ?? []).map((review) => ({
       assumption: review.itemText,
@@ -151,11 +166,13 @@ export function toPortableDecision(
   }
 }
 
-export function buildArchiveExport(records: DecisionWithOutcomes[]) {
+/** The whole archive; `freeNotes` are the field notes not linked to any decision. */
+export function buildArchiveExport(records: DecisionWithOutcomes[], freeNotes: FieldNote[] = []) {
   return {
     schemaVersion: EXPORT_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     decisions: records.map(toPortableDecision),
+    notes: notesOldestFirst(freeNotes).map(toPortableFieldNote),
   }
 }
 
@@ -247,6 +264,14 @@ export function buildDecisionMarkdown(record: DecisionWithOutcomes) {
         lines.push('', `Lessons learned: ${outcome.lessonsLearned}`)
       }
       lines.push('')
+    }
+  }
+  const notes = notesOldestFirst(record.fieldNotes)
+  if (notes.length > 0) {
+    lines.push('', '## Field Notes', '')
+    for (const note of notes) {
+      const feeling = moodEnergyLabel(note.mood, note.energy)
+      lines.push(`- ${note.createdAt.toISOString().slice(0, 10)}: ${note.body}${feeling ? ` (${feeling})` : ''}`)
     }
   }
 

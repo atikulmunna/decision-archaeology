@@ -109,7 +109,7 @@ describe('seals in exports and imports', () => {
       retroactive: false,
     })
     expect(await computeSealHash(seal.payload)).toBe(seal.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.3.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.4.0')
   })
 
   it('exports null for unsealed records and adds a Seal block only for sealed ones', () => {
@@ -158,7 +158,7 @@ describe('assumption reviews in exports', () => {
         reviewedAt: record.assumptionReviews[1].updatedAt.toISOString(),
       },
     ])
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.3.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.4.0')
     const markdown = buildDecisionMarkdown(record)
     expect(markdown).toContain('## Assumptions')
     expect(markdown).toContain('- Whether the team is as good on a bad week as in interviews. Held up: The team was the whole bet, and it was right.')
@@ -201,7 +201,7 @@ describe('forecasts in exports and imports', () => {
     expect(portable.seal!.version).toBe('da-seal-v2')
     expect(portable.seal!.payload).toContain('"forecasts": [')
     expect(await computeSealHash(portable.seal!.payload)).toBe(portable.seal!.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.3.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.4.0')
   })
 
   it('writes a Forecasts section after the predicted outcome, and none without forecasts', () => {
@@ -245,3 +245,32 @@ describe('forecasts in exports and imports', () => {
     expect(() => parseImportPayload(bad)).toThrow()
   })
 })
+
+describe('field notes in exports', () => {
+  it('exports linked notes oldest first in JSON and Markdown, and free notes with the archive', () => {
+    const decision = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+    const record = { ...decision, outcomes: decision.outcomes }
+    const portable = toPortableDecision(record)
+    expect(portable.fieldNotes.map((note) => note.body)).toEqual(decision.fieldNotes.map((note) => note.body))
+    expect(portable.fieldNotes[0]).toEqual({
+      body: decision.fieldNotes[0].body,
+      mood: decision.fieldNotes[0].mood,
+      energy: decision.fieldNotes[0].energy,
+      promoted: true,
+      writtenAt: decision.fieldNotes[0].createdAt.toISOString(),
+    })
+    const markdown = buildDecisionMarkdown(record)
+    expect(markdown.indexOf('## Field Notes')).toBeGreaterThan(markdown.indexOf('## Outcome History'))
+    const first = decision.fieldNotes[0]
+    expect(markdown).toContain('- ' + first.createdAt.toISOString().slice(0, 10) + ': ' + first.body + ' (Steady · Lively)')
+    expect(buildDecisionMarkdown({ ...record, fieldNotes: [] })).not.toContain('## Field Notes')
+
+    const free = { ...decision.fieldNotes[0], id: 'free', decisionId: null, promoted: false, mood: null, energy: null }
+    const archive = buildArchiveExport([record], [free])
+    expect(archive.schemaVersion).toBe('1.4.0')
+    expect(archive.notes).toEqual([{ body: free.body, mood: null, energy: null, promoted: false, writtenAt: free.createdAt.toISOString() }])
+    const parsed = parseImportPayload(JSON.parse(JSON.stringify(archive)))
+    expect(parsed.decisions[0]).not.toHaveProperty('fieldNotes')
+  })
+})
+
