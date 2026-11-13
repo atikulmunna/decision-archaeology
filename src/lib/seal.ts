@@ -1,4 +1,4 @@
-import type { DecisionRecord } from '@prisma/client'
+import type { ChallengeOutcome, DecisionRecord } from '@prisma/client'
 import { formatCatalogNumber } from '@/lib/catalog'
 import { getDecisionLockDeadline } from '@/lib/locks'
 
@@ -11,9 +11,14 @@ import { getDecisionLockDeadline } from '@/lib/locks'
 export const SEAL_VERSION = 'da-seal-v1'
 /** Records with forecasts seal them too; records without keep the v1 payload byte for byte. */
 export const SEAL_VERSION_V2 = 'da-seal-v2'
+/** Records that went through the Devil's Advocate step seal its outcome, questions and answers (with forecasts, possibly none). */
+export const SEAL_VERSION_V3 = 'da-seal-v3'
 
 /** The parts of a forecast that lock with the decision. Resolutions stay open and are never sealed. */
 export type SealForecast = { position: number; statement: string; probability: number; resolveBy: Date }
+
+/** A question asked before sealing and its answer (null: left unanswered). */
+export type SealChallengeQuestion = { position: number; question: string; answer: string | null }
 
 export type SealableDecision = Pick<
   DecisionRecord,
@@ -32,7 +37,12 @@ export type SealableDecision = Pick<
   | 'confidenceLevel'
   | 'domainTag'
   | 'customTags'
-> & { forecasts?: SealForecast[] }
+> & {
+  forecasts?: SealForecast[]
+  challengeOutcome?: ChallengeOutcome | null
+  challengeModel?: string | null
+  challengeQuestions?: SealChallengeQuestion[]
+}
 
 /** Same words, same bytes: Unicode NFC, and CRLF or lone CR line endings become LF. */
 export function canonicalText(value: string): string {
@@ -44,6 +54,7 @@ function canonicalOptional(value: string | null | undefined): string | null {
 }
 
 export function sealVersion(record: SealableDecision): string {
+  if (record.challengeOutcome) return SEAL_VERSION_V3
   return record.forecasts && record.forecasts.length > 0 ? SEAL_VERSION_V2 : SEAL_VERSION
 }
 
@@ -76,7 +87,19 @@ export function buildSealPayload(record: SealableDecision): string {
       probability: forecast.probability,
       resolveBy: new Date(forecast.resolveBy).toISOString(),
     }))
-  return JSON.stringify({ ...ordered, forecasts }, null, 2)
+  if (version === SEAL_VERSION_V2) return JSON.stringify({ ...ordered, forecasts }, null, 2)
+  const challenge = {
+    outcome: record.challengeOutcome!.toLowerCase(),
+    model: record.challengeModel ?? null,
+    questions: [...(record.challengeQuestions ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .map((item) => ({ question: canonicalText(item.question), answer: canonicalOptional(item.answer) })),
+  }
+  return JSON.stringify({ ...ordered, forecasts, challenge }, null, 2)
+}
+
+function toSealChallengeQuestion(item: SealChallengeQuestion): SealChallengeQuestion {
+  return { position: item.position, question: item.question, answer: item.answer }
 }
 
 function toSealForecast(forecast: SealForecast): SealForecast {
@@ -134,6 +157,9 @@ export function toSealRecord(record: SealRecord): SealRecord {
     domainTag: record.domainTag,
     customTags: record.customTags,
     ...(record.forecasts ? { forecasts: record.forecasts.map(toSealForecast) } : {}),
+    challengeOutcome: record.challengeOutcome ?? null,
+    challengeModel: record.challengeModel ?? null,
+    ...(record.challengeQuestions ? { challengeQuestions: record.challengeQuestions.map(toSealChallengeQuestion) } : {}),
     sealHash: record.sealHash,
     sealedAt: record.sealedAt,
     isImported: record.isImported,

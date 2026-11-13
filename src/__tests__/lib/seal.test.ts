@@ -213,3 +213,65 @@ describe('seal helpers', () => {
     expect(sealFileName(null)).toBe('decision-seal.json')
   })
 })
+
+// Pinned from the first green run; the payload's shape is asserted separately above it.
+const V3_HASH = 'e6de7f23c411c046c30ea7aeeeb8a3c0d341d0a975b95a8f7ad2a583fe43d5d0'
+const asked: SealableDecision = {
+  ...withForecasts,
+  challengeOutcome: 'ASKED',
+  challengeModel: 'openai/gpt-5-mini',
+  challengeQuestions: [
+    { position: 1, question: 'Second?', answer: null },
+    { position: 0, question: `First?${CR}${LF}`, answer: ' kept ' },
+  ],
+}
+
+describe('seal v3', () => {
+  it('seals the challenge in a v3 payload, in position order, after the forecasts', () => {
+    const payload = JSON.parse(buildSealPayload(asked))
+    expect(payload.seal).toBe('da-seal-v3')
+    expect(Object.keys(payload).slice(-2)).toEqual(['forecasts', 'challenge'])
+    expect(payload.challenge).toEqual({
+      outcome: 'asked',
+      model: 'openai/gpt-5-mini',
+      questions: [
+        { question: `First?${LF}`, answer: ' kept ' },
+        { question: 'Second?', answer: null },
+      ],
+    })
+  })
+
+  it('uses v3 with an empty forecast list and no questions for a skip', () => {
+    const payload = JSON.parse(buildSealPayload({ ...fixture, challengeOutcome: 'SKIPPED', challengeModel: null, challengeQuestions: [] }))
+    expect(payload.forecasts).toEqual([])
+    expect(payload.challenge).toEqual({ outcome: 'skipped', model: null, questions: [] })
+  })
+
+  it('pins the v3 hash', async () => {
+    expect(await computeSealHash(buildSealPayload(asked))).toBe(V3_HASH)
+  })
+
+  it('changes the v3 hash when an answer changes', async () => {
+    const edited = { ...asked, challengeQuestions: [{ ...asked.challengeQuestions![1], answer: 'other' }, asked.challengeQuestions![0]] }
+    expect(await computeSealHash(buildSealPayload(edited))).not.toBe(await computeSealHash(buildSealPayload(asked)))
+  })
+
+  it('keeps v1 and v2 when no challenge outcome is set', () => {
+    expect(sealVersion({ ...fixture, challengeOutcome: null })).toBe('da-seal-v1')
+    expect(sealVersion({ ...withForecasts, challengeOutcome: null })).toBe('da-seal-v2')
+  })
+
+  it('passes only the sealed challenge fields to the client', () => {
+    const record = toSealRecord({
+      ...asked,
+      sealHash: null,
+      sealedAt: null,
+      isImported: false,
+      isLocked: false,
+      challengeQuestions: [{ ...asked.challengeQuestions![1], id: 'q1', decisionId: 'd1', createdAt: new Date() } as never],
+    })
+    expect(record.challengeOutcome).toBe('ASKED')
+    expect(record.challengeModel).toBe('openai/gpt-5-mini')
+    expect(record.challengeQuestions).toEqual([{ position: 0, question: `First?${CR}${LF}`, answer: ' kept ' }])
+  })
+})

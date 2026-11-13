@@ -50,6 +50,8 @@ describe('shared decision page seal props', () => {
       [
         'alternatives',
         'catalogNumber',
+        'challengeModel',
+        'challengeOutcome',
         'chosenOption',
         'confidenceLevel',
         'context',
