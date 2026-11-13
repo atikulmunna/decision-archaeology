@@ -1,4 +1,4 @@
-import type { DecisionRecord, OutcomeUpdate, CorrectionRequest, FieldNote, Forecast } from '@prisma/client'
+import type { ChallengeQuestion, DecisionRecord, OutcomeUpdate, CorrectionRequest, FieldNote, Forecast } from '@prisma/client'
 
 export type Decision = DecisionRecord & {
   outcomes: OutcomeUpdate[]
@@ -7,6 +7,8 @@ export type Decision = DecisionRecord & {
   forecasts?: Forecast[]
   /** Field notes linked to this decision, any order; split at the seal for Then and Now. */
   fieldNotes?: FieldNote[]
+  /** Questions the Devil's Advocate asked before sealing, with answers; sealed in v3. */
+  challengeQuestions?: ChallengeQuestion[]
 }
 
 export type CollaboratorShare = {

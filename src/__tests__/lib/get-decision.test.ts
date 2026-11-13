@@ -13,5 +13,6 @@ describe('getDecision', () => {
     await getDecision('db_1', 'd1')
     expect(mocks.findFirst.mock.calls[0][0].include.forecasts).toEqual({ orderBy: { position: 'asc' } })
     expect(mocks.findFirst.mock.calls[0][0].include.fieldNotes).toEqual({ orderBy: { createdAt: 'asc' } })
+    expect(mocks.findFirst.mock.calls[0][0].include.challengeQuestions).toEqual({ orderBy: { position: 'asc' } })
   })
 })

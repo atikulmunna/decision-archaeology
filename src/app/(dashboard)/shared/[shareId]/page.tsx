@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { SealBadge } from '@/components/seal/SealBadge'
 import { SealPanel } from '@/components/seal/SealPanel'
 import { normalizeDecisionLockState } from '@/lib/locks'
-import { isRetroactiveSeal, toSealRecord } from '@/lib/seal'
+import { isRetroactiveSeal, SEALED_RELATIONS, toSealRecord } from '@/lib/seal'
 import { forecastSentence } from '@/lib/forecasting'
 
 export const dynamic = 'force-dynamic'
@@ -34,8 +34,8 @@ export default async function SharedDecisionPage({ params }: Params) {
       decision: {
         include: {
           outcomes: { orderBy: { createdAt: 'asc' } },
-          // Sealed fields: shown, and needed to verify a v2 seal. Their resolutions are never rendered.
-          forecasts: { orderBy: { position: 'asc' } },
+          // Sealed fields: shown, and needed to verify a v2 or v3 seal. Forecast resolutions are never rendered.
+          ...SEALED_RELATIONS,
         },
       },
       owner: { select: { displayName: true } },

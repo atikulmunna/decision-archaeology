@@ -27,6 +27,8 @@ describe('export routes', () => {
     expect(mocks.findMany.mock.calls[0][0].include.forecasts).toEqual({ orderBy: { position: 'asc' } })
     expect(mocks.findFirst.mock.calls[0][0].include.fieldNotes).toEqual({ orderBy: { createdAt: 'asc' } })
     expect(mocks.findMany.mock.calls[0][0].include.fieldNotes).toEqual({ orderBy: { createdAt: 'asc' } })
+    expect(mocks.findFirst.mock.calls[0][0].include.challengeQuestions).toEqual({ orderBy: { position: 'asc' } })
+    expect(mocks.findMany.mock.calls[0][0].include.challengeQuestions).toEqual({ orderBy: { position: 'asc' } })
     // Notes on no decision, or on an unfinished draft (drafts are not exported), travel at the top level.
     expect(mocks.noteFindMany).toHaveBeenCalledWith({
       where: { userId: 'db_1', OR: [{ decisionId: null }, { decision: { isDraft: true } }] },

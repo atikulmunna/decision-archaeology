@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { SEALED_RELATIONS } from '@/lib/seal'
 import {
   buildArchiveExport,
   buildArchiveMarkdown,
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   const records = await prisma.decisionRecord.findMany({
     where: { userId: dbUser.id, isDraft: false },
-    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, forecasts: { orderBy: { position: 'asc' } }, fieldNotes: { orderBy: { createdAt: 'asc' } } },
+    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, ...SEALED_RELATIONS, fieldNotes: { orderBy: { createdAt: 'asc' } } },
     orderBy: { createdAt: 'asc' },
   })
   // Notes on no decision, or on an unfinished draft (drafts are not exported), travel at the top level.

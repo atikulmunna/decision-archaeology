@@ -1,9 +1,12 @@
-import { sealFields, type SealableDecision } from '@/lib/seal'
+import { SEALED_RELATIONS, sealFields, type SealableDecision } from '@/lib/seal'
 
 /** The slice of the Prisma client the backfill needs, so it can be tested without a database. */
 export type SealBackfillClient = {
   decisionRecord: {
-    findMany(args: { where: { isDraft: false; isImported: false; sealHash: null } }): Promise<Array<SealableDecision & { id: string }>>
+    findMany(args: {
+      where: { isDraft: false; isImported: false; sealHash: null }
+      include: typeof SEALED_RELATIONS
+    }): Promise<Array<SealableDecision & { id: string }>>
     update(args: { where: { id: string }; data: { sealHash: string; sealedAt: Date } }): Promise<unknown>
   }
 }
@@ -17,7 +20,11 @@ export async function backfillSeals(
   client: SealBackfillClient,
   opts: { write: boolean; now?: Date }
 ): Promise<{ candidates: Array<{ id: string; catalogNumber: number | null }>; sealed: number }> {
-  const records = await client.decisionRecord.findMany({ where: { isDraft: false, isImported: false, sealHash: null } })
+  // Forecasts and challenge questions are part of v2 and v3 payloads, so they are loaded too.
+  const records = await client.decisionRecord.findMany({
+    where: { isDraft: false, isImported: false, sealHash: null },
+    include: SEALED_RELATIONS,
+  })
   const candidates = records.map((record) => ({ id: record.id, catalogNumber: record.catalogNumber }))
   if (!opts.write) return { candidates, sealed: 0 }
 

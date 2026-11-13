@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { SEALED_RELATIONS } from '@/lib/seal'
 import {
   buildDecisionMarkdown,
   getDecisionFilename,
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const record = await prisma.decisionRecord.findFirst({
     where: { id, userId: dbUser.id, isDraft: false },
-    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, forecasts: { orderBy: { position: 'asc' } }, fieldNotes: { orderBy: { createdAt: 'asc' } } },
+    include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, ...SEALED_RELATIONS, fieldNotes: { orderBy: { createdAt: 'asc' } } },
   })
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 

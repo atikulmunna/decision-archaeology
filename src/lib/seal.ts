@@ -14,6 +14,12 @@ export const SEAL_VERSION_V2 = 'da-seal-v2'
 /** Records that went through the Devil's Advocate step seal its outcome, questions and answers (with forecasts, possibly none). */
 export const SEAL_VERSION_V3 = 'da-seal-v3'
 
+/** What every reader that builds or verifies a seal must load with the decision. */
+export const SEALED_RELATIONS = {
+  forecasts: { orderBy: { position: 'asc' } },
+  challengeQuestions: { orderBy: { position: 'asc' } },
+} as const
+
 /** The parts of a forecast that lock with the decision. Resolutions stay open and are never sealed. */
 export type SealForecast = { position: number; statement: string; probability: number; resolveBy: Date }
 

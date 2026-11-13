@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { prisma } from '@/lib/prisma'
+import { SEALED_RELATIONS } from '@/lib/seal'
 import { normalizeDecisionLockState } from '@/lib/locks'
 import { Prisma } from '@prisma/client'
 import { logError } from '@/lib/observability'
@@ -268,8 +269,8 @@ export async function getDecision(userId: string, id: string) {
       outcomes: { orderBy: { createdAt: 'asc' } },
       corrections: { orderBy: { createdAt: 'desc' } },
       assumptionReviews: { orderBy: { createdAt: 'asc' } },
-      // Sealed with the record (seal v2), so the seal panel needs them to verify.
-      forecasts: { orderBy: { position: 'asc' } },
+      // Sealed with the record (seals v2 and v3), so the seal panel needs them to verify.
+      ...SEALED_RELATIONS,
       fieldNotes: { orderBy: { createdAt: 'asc' } },
     },
   })

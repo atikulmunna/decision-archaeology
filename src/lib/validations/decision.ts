@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ChallengeAnswersSchema } from '@/lib/devils-advocate'
 
 const MIN_CHARS = 20
 
@@ -81,6 +82,8 @@ export const DraftDecisionSchema = z.object({
   domainTag: DomainTagEnum.optional().nullable(),
   customTags: z.array(z.string()).max(5, 'Maximum 5 custom tags').default([]),
   forecasts: z.array(DraftForecastSchema).max(FORECAST_MAX, 'At most 3 forecasts.').optional(),
+  // Answers to the Devil's Advocate questions; accepted only once questions were asked.
+  challengeAnswers: ChallengeAnswersSchema.optional(),
 })
 
 export type DraftDecisionInput = z.infer<typeof DraftDecisionSchema>
@@ -95,6 +98,9 @@ export type UpdateDraftInput = z.infer<typeof UpdateDraftSchema>
 
 export const FinalizeDecisionSchema = CreateDecisionSchema.extend({
   finalize: z.literal(true),
+  challengeAnswers: ChallengeAnswersSchema.optional(),
+  // "Seal without questions": recorded as an explicit skip unless the AI already failed or asked.
+  challengeSkipped: z.literal(true).optional(),
 })
 
 export type FinalizeDecisionInput = z.infer<typeof FinalizeDecisionSchema>

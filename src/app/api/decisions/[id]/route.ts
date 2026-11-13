@@ -20,7 +20,8 @@ import {
   withCatalogNumberRetry,
 } from '@/lib/catalog'
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
-import { afterUpdate, sealFields } from '@/lib/seal'
+import { afterUpdate, SEALED_RELATIONS, sealFields } from '@/lib/seal'
+import { resolveChallengeWrite } from '@/lib/devils-advocate'
 import { staleForecastIssues, toForecastRows } from '@/lib/forecast-input'
 
 export const dynamic = 'force-dynamic'
@@ -38,7 +39,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const record = await prisma.decisionRecord.findFirst({
     where: { id, userId: dbUser.id },
-    include: { outcomes: { orderBy: { createdAt: 'asc' } }, forecasts: { orderBy: { position: 'asc' } } },
+    include: { outcomes: { orderBy: { createdAt: 'asc' } }, ...SEALED_RELATIONS },
   })
 
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -54,13 +55,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  // Forecasts are loaded so a seal taken without new ones in the body still covers the stored set.
+  // Forecasts and challenge questions are loaded so a seal taken without new ones in the body still covers them.
   const record = await prisma.decisionRecord.findFirst({
     where: { id, userId: dbUser.id },
-    include: { forecasts: { orderBy: { position: 'asc' } } },
+    include: SEALED_RELATIONS,
   })
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   const storedForecasts = record.forecasts ?? []
+  const storedQuestions = record.challengeQuestions ?? []
+  const challengeStored = { outcome: record.challengeOutcome ?? null, questionCount: storedQuestions.length }
+  // Answers land on the stored questions by position; only the challenge route ever writes questions.
+  const answerWrite = (answers: Array<string | null> | null) =>
+    answers
+      ? { challengeQuestions: { updateMany: answers.map((answer, index) => ({ where: { position: storedQuestions[index].position }, data: { answer } })) } }
+      : {}
 
   const body: unknown = await req.json().catch(() => null)
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
@@ -100,6 +108,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       )
     }
 
+    const challenge = resolveChallengeWrite(challengeStored, {
+      answers: parsed.data.challengeAnswers,
+      skipped: parsed.data.challengeSkipped,
+      finalizing: true,
+    })
+    if (!challenge.ok) return NextResponse.json({ error: challenge.error }, { status: 400 })
+    const sealedQuestions = challenge.answers
+      ? storedQuestions.map((item, index) => ({ ...item, answer: challenge.answers![index] }))
+      : storedQuestions
+
     const finalizeData = {
       title: parsed.data.title,
       summary: parsed.data.summary,
@@ -117,6 +135,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       domainTag: parsed.data.domainTag ?? null,
       customTags: parsed.data.customTags,
       isDraft: false,
+      ...(challenge.outcome ? { challengeOutcome: challenge.outcome } : {}),
       ...buildFinalizeTimestamps(record, now),
     }
     const forecastRows = parsed.data.forecasts ? toForecastRows(parsed.data.forecasts) : null
@@ -131,10 +150,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       const updated = await withCatalogNumberRetry(
         async (catalogNumber) => {
           const seal = await sealFields(
-            { ...afterUpdate(record, { ...finalizeData, catalogNumber }), forecasts: forecastRows ?? storedForecasts },
+            {
+              ...afterUpdate(record, { ...finalizeData, catalogNumber }),
+              forecasts: forecastRows ?? storedForecasts,
+              challengeQuestions: sealedQuestions,
+            },
             now
           )
-          return prisma.decisionRecord.update({ where: { id }, data: { ...finalizeData, catalogNumber, ...forecastWrite, ...seal } })
+          return prisma.decisionRecord.update({
+            where: { id },
+            data: { ...finalizeData, catalogNumber, ...forecastWrite, ...answerWrite(challenge.answers), ...seal },
+          })
         },
         () => getMaxCatalogNumber(dbUser.id)
       )
@@ -156,7 +182,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       )
     }
 
-    const { forecasts: draftForecasts, ...draftFields } = parsed.data
+    const { forecasts: draftForecasts, challengeAnswers, ...draftFields } = parsed.data
+    const challenge = resolveChallengeWrite(challengeStored, { answers: challengeAnswers, finalizing: false })
+    if (!challenge.ok) return NextResponse.json({ error: challenge.error }, { status: 400 })
     const updated = await prisma.decisionRecord.update({
       where: { id },
       data: {
@@ -168,6 +196,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               ? new Date(draftFields.predictedTimeframe)
               : undefined,
         ...(draftForecasts ? { forecasts: { deleteMany: {}, create: toForecastRows(draftForecasts) } } : {}),
+        ...answerWrite(challenge.answers),
       },
     })
 

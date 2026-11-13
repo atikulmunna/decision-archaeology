@@ -73,10 +73,12 @@ export async function POST(req: NextRequest) {
 
   // The finalization time is set here, not by the database default, so the seal covers the stored value.
   const now = new Date()
+  // "Seal without questions" on a decision that was never saved as a draft.
+  const challengeFields = body?.challengeSkipped === true ? { challengeOutcome: 'SKIPPED' as const } : {}
   try {
     const record = await withCatalogNumberRetry(
       async (catalogNumber) => {
-        const finalized = { ...createData, catalogNumber, createdAt: now }
+        const finalized = { ...createData, ...challengeFields, catalogNumber, createdAt: now }
         const seal = await sealFields({ ...asCreated(finalized), forecasts: forecastRows }, now)
         return prisma.decisionRecord.create({ data: { ...finalized, ...forecastWrite, ...seal } })
       },
