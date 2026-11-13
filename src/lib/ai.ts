@@ -96,9 +96,16 @@ export async function generateStructured<T>(opts: {
   maxTokens?: number
   fetchImpl?: typeof fetch
   env?: Env
+  /** The whole call, repair included, must finish within this; the repair is skipped when no time remains. */
+  timeoutMs?: number
+  now?: () => number
 }): Promise<{ data: T; model: string }> {
   const env = opts.env ?? process.env
   const fetchImpl = opts.fetchImpl ?? fetch
+  const now = opts.now ?? Date.now
+  const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS
+  const deadline = now() + timeoutMs
+  const timedOut = () => new OpenRouterError(408, `OpenRouter request timed out after ${timeoutMs / 1000} seconds`)
   const apiKey = env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set')
 
@@ -118,7 +125,7 @@ export async function generateStructured<T>(opts: {
     try {
       return await fetchImpl(OPENROUTER_URL, {
         method: 'POST',
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(Math.max(1, deadline - now())),
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
@@ -140,10 +147,7 @@ export async function generateStructured<T>(opts: {
     } catch (error) {
       // AbortSignal.timeout rejects with a DOMException named TimeoutError
       if ((error as { name?: unknown } | null)?.name === 'TimeoutError') {
-        throw new OpenRouterError(
-          408,
-          `OpenRouter request timed out after ${REQUEST_TIMEOUT_MS / 1000} seconds`
-        )
+        throw timedOut()
       }
       throw error
     }
@@ -175,6 +179,7 @@ export async function generateStructured<T>(opts: {
   const firstOutcome = parseReply(first, opts.schema)
   if (firstOutcome.ok) return { data: firstOutcome.data, model: first.model ?? AUTO_ROUTER_MODEL }
 
+  if (deadline - now() <= 0) throw timedOut()
   const repair = await request([
     ...opts.messages,
     { role: 'assistant', content: firstOutcome.raw },

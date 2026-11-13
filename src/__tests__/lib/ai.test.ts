@@ -213,3 +213,31 @@ describe('toStrictJsonSchema', () => {
     expect(s).not.toHaveProperty('$schema')
   })
 })
+
+describe('generateStructured deadline', () => {
+  it('skips the repair when the deadline has passed and reports the custom timeout', async () => {
+    let clock = 0
+    const f = vi.fn(async () => {
+      clock = 21_000
+      return okReply({ wrong: true })
+    })
+    const error = await generateStructured({
+      messages: [],
+      schema: Schema,
+      schemaName: 'p',
+      fetchImpl: f as never,
+      env,
+      timeoutMs: 20_000,
+      now: () => clock,
+    }).catch((e) => e)
+    expect(f).toHaveBeenCalledTimes(1)
+    expect(error).toBeInstanceOf(OpenRouterError)
+    expect(error.message).toBe('OpenRouter request timed out after 20 seconds')
+  })
+
+  it('still repairs when time remains', async () => {
+    const f = vi.fn().mockResolvedValueOnce(okReply({ wrong: true })).mockResolvedValueOnce(okReply({ answer: 'a', score: 1 }))
+    await generateStructured({ messages: [], schema: Schema, schemaName: 'p', fetchImpl: f, env, timeoutMs: 20_000, now: () => 0 })
+    expect(f).toHaveBeenCalledTimes(2)
+  })
+})
