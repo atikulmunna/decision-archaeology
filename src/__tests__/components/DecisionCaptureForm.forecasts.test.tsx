@@ -79,7 +79,7 @@ describe('capture flow forecasts', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add a forecast' }))
     fireEvent.change(group(2).getByLabelText('What will happen'), { target: { value: 'Half filled' } })
 
-    await next('Review and seal')
+    await next()
     expect(group(2).getByText('Add a statement and a date, or remove this forecast.')).toBeInTheDocument()
     expect(screen.queryByText('Read it once more before it is sealed.')).toBeNull()
 
@@ -90,7 +90,8 @@ describe('capture flow forecasts', () => {
     await waitFor(() => expect(patches().at(-1)?.body?.forecasts).toEqual([complete]))
 
     await userEvent.click(group(2).getByRole('button', { name: 'Remove' }))
-    await next('Review and seal')
+    await next()
+    await next('Seal without questions')
     expect(screen.getByText('70% that I ship the new pipeline by Jun 30, 2027')).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Lock it in' }))
@@ -123,7 +124,7 @@ describe('capture flow forecasts', () => {
     fireEvent.change(group(1).getByLabelText('What will happen'), { target: { value: 'I ship the new pipeline' } })
     expect(group(1).getByLabelText('Resolve by')).toHaveAttribute('min', '2026-11-13')
     fireEvent.change(group(1).getByLabelText('Resolve by'), { target: { value: '2026-11-12' } })
-    await next('Review and seal')
+    await next()
     expect(group(1).getByText('Pick a date after today.')).toBeInTheDocument()
     expect(screen.queryByText('Read it once more before it is sealed.')).toBeNull()
   })
@@ -140,7 +141,8 @@ describe('capture flow forecasts', () => {
     // The first forecast stays blank, so the server's index 0 is the second forecast on screen.
     fireEvent.change(group(2).getByLabelText('What will happen'), { target: { value: 'I ship the new pipeline' } })
     fireEvent.change(group(2).getByLabelText('Resolve by'), { target: { value: '2026-11-13' } })
-    await next('Review and seal')
+    await next()
+    await next('Seal without questions')
     await userEvent.click(screen.getByRole('button', { name: 'Lock it in' }))
     expect(await group(2).findByText('Pick a date after today.')).toBeInTheDocument()
     expect(group(1).queryByText('Pick a date after today.')).toBeNull()

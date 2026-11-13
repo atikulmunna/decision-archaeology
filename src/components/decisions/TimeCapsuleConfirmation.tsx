@@ -9,6 +9,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { formatCatalogNumber } from '@/lib/catalog'
 import { forecastSentence } from '@/lib/forecasting'
 import type { CreateDecisionInput } from '@/lib/validations/decision'
+import type { CaptureChallenge } from '@/lib/devils-advocate'
 
 interface TimeCapsuleConfirmationProps {
   data: CreateDecisionInput
@@ -16,6 +17,8 @@ interface TimeCapsuleConfirmationProps {
   onBack: () => void
   loading: boolean
   upcomingCatalogNumber: number
+  /** What happened at the Devil's Advocate step; skipped is the person's "Seal without questions". */
+  challenge: CaptureChallenge & { skipped: boolean }
 }
 
 const LOCKED_FIELDS: { key: keyof CreateDecisionInput; label: string }[] = [
@@ -32,7 +35,11 @@ export function TimeCapsuleConfirmation({
   onBack,
   loading,
   upcomingCatalogNumber,
+  challenge,
 }: TimeCapsuleConfirmationProps) {
+  const asked = challenge.outcome === 'ASKED' && challenge.questions.length > 0
+  const challengeNote =
+    challenge.outcome === 'UNAVAILABLE' ? 'The AI could not be reached' : challenge.skipped ? 'Sealing without questions' : null
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -77,6 +84,34 @@ export function TimeCapsuleConfirmation({
                     </li>
                   ))}
                 </ul>
+              </dd>
+            </div>
+          )}
+          {(asked || challengeNote) && (
+            <div>
+              <dt>
+                <Eyebrow>Questions before sealing</Eyebrow>
+              </dt>
+              <dd className="mt-1">
+                {asked ? (
+                  <ol className="flex flex-col gap-3 text-sm leading-relaxed">
+                    {challenge.questions.map((item, index) => {
+                      const answer = (challenge.answers[index] ?? '').trim()
+                      return (
+                        <li key={item.position} className="flex flex-col gap-0.5">
+                          <span className="break-words text-ink">{item.question}</span>
+                          {answer ? (
+                            <span className="whitespace-pre-wrap break-words text-ink-2">{answer}</span>
+                          ) : (
+                            <span className="text-muted">Left unanswered</span>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ol>
+                ) : (
+                  <p className="text-sm text-ink-2">{challengeNote}</p>
+                )}
               </dd>
             </div>
           )}

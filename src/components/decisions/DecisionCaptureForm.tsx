@@ -10,20 +10,22 @@ import { Input, fieldClasses } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { StepIndicator } from '@/components/ui/StepIndicator'
 import { TimeCapsuleConfirmation } from './TimeCapsuleConfirmation'
+import { ChallengeStep } from './ChallengeStep'
 import { CountdownTimer } from './CountdownTimer'
 import { SealedNotice } from './SealedNotice'
 import { AttachmentManager } from './AttachmentManager'
 import { StarterDecisionWizard } from './StarterDecisionWizard'
 import { ForecastFields, completeForecasts, completeIndices, forecastErrors } from './ForecastFields'
 import { toForecastInputs } from '@/lib/forecast-input'
+import { EMPTY_CHALLENGE, type CaptureChallenge } from '@/lib/devils-advocate'
 import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
 
-const STEPS = ['Basics', 'Reasoning', 'Context', 'Confirm']
+const STEPS = ['Basics', 'Reasoning', 'Context', 'Challenge']
 const MIN = 20
 const DRAFT_STORAGE_KEY = 'decision-archaeology:draft-id'
 
 type FormState = Partial<CreateDecisionInput>
-type Step = 1 | 2 | 3 | 4 | 5 // 4 = confirm, 5 = saved+timer
+type Step = 1 | 2 | 3 | 4 | 5 | 6 // 4 = challenge, 5 = confirm, 6 = saved+timer
 
 const DOMAIN_OPTIONS = ['CAREER', 'FINANCE', 'HEALTH', 'RELATIONSHIPS', 'CREATIVE', 'OTHER'] as const
 
@@ -57,6 +59,9 @@ export function DecisionCaptureForm({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [forecastErrs, setForecastErrs] = useState<Record<number, string>>({})
   const [activeDecisionId, setActiveDecisionId] = useState<string | undefined>(initialDraftId)
+  const [challenge, setChallenge] = useState<CaptureChallenge>(EMPTY_CHALLENGE)
+  const [challengeSkipped, setChallengeSkipped] = useState(false)
+  const [challengeError, setChallengeError] = useState<string | null>(null)
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
   const draftRef = useRef<string | null>(null)
   const hydratedRef = useRef(false)
@@ -103,7 +108,8 @@ export function DecisionCaptureForm({
     customTags: form.customTags ?? [],
     // A half-filled forecast stays in the form but is not saved until it is complete.
     forecasts: completeForecasts(form.forecasts ?? []),
-  }), [form])
+    ...(challenge.outcome === 'ASKED' ? { challengeAnswers: challenge.answers } : {}),
+  }), [form, challenge])
 
   const ensureDraftDecision = useCallback(async (): Promise<string | null> => {
     if (draftRef.current) return draftRef.current
@@ -155,6 +161,15 @@ export function DecisionCaptureForm({
     }
   }, [buildDraftPayload, ensureDraftDecision, hasDraftContent, savedRecord])
 
+  const askChallenge = useCallback(async (): Promise<Response> => {
+    await saveDraft()
+    const id = draftRef.current
+    if (!id) {
+      return new Response(JSON.stringify({ error: 'We could not save your draft. Try again.' }), { status: 500 })
+    }
+    return fetch(`/api/decisions/${id}/challenge`, { method: 'POST' })
+  }, [saveDraft])
+
   useEffect(() => {
     hydratedRef.current = true
     autoSaveRef.current = setInterval(saveDraft, 30000)
@@ -202,6 +217,18 @@ export function DecisionCaptureForm({
           domainTag: draft.domainTag ?? undefined,
           customTags: draft.customTags ?? [],
           forecasts: draft.forecasts ? toForecastInputs(draft.forecasts) : undefined,
+        })
+        const rows = (Array.isArray(draft.challengeQuestions) ? [...draft.challengeQuestions] : []) as Array<{
+          position: number
+          question: string
+          answer: string | null
+        }>
+        rows.sort((a, b) => a.position - b.position)
+        setChallenge({
+          outcome: draft.challengeOutcome ?? null,
+          model: draft.challengeModel ?? null,
+          questions: rows.map((row) => ({ position: row.position, question: row.question })),
+          answers: rows.map((row) => row.answer ?? ''),
         })
         setDraftStatus('restored')
       } catch {
@@ -274,6 +301,11 @@ export function DecisionCaptureForm({
         domainTag: form.domainTag,
         customTags: form.customTags ?? [],
         forecasts: completeForecasts(form.forecasts ?? []),
+        ...(challenge.outcome === 'ASKED'
+          ? { challengeAnswers: challenge.answers }
+          : challengeSkipped
+            ? { challengeSkipped: true as const }
+            : {}),
       }
 
       const res = draftRef.current
@@ -304,6 +336,13 @@ export function DecisionCaptureForm({
           setStep(3)
           return
         }
+        // An answer the server refused goes back to the challenge step with its message.
+        const challengeIssue = ((err.issues ?? []) as Array<{ path?: Array<string | number>; message?: string }>).find((issue) => issue.path?.[0] === 'challengeAnswers')
+        if (challengeIssue || err.error === 'Answer each question, or leave it blank.' || err.error === 'There are no questions to answer.') {
+          setChallengeError(challengeIssue?.message ?? err.error)
+          setStep(4)
+          return
+        }
         console.error('Submit failed:', err)
         setSubmitError(err.error ?? 'We could not save this decision. Please try again.')
         return
@@ -319,7 +358,7 @@ export function DecisionCaptureForm({
         catalogNumber: record.catalogNumber ?? null,
         sealHash: record.sealHash ?? null,
       })
-      setStep(5)
+      setStep(6)
       router.prefetch(`/decisions/${record.id}`)
     } catch (error) {
       console.error('Submit failed:', error)
@@ -327,7 +366,7 @@ export function DecisionCaptureForm({
     } finally {
       setSubmitting(false)
     }
-  }, [form, router])
+  }, [form, router, challenge, challengeSkipped])
 
   const addTag = () => {
     const tag = tagInput.trim()
@@ -341,7 +380,7 @@ export function DecisionCaptureForm({
 
   // ── Render ─────────────────────────────────────────────────
 
-  if (step === 5 && savedRecord) {
+  if (step === 6 && savedRecord) {
     return (
       <div className="flex flex-col gap-6">
         <Callout tone="success" title="Decision recorded">
@@ -371,7 +410,7 @@ export function DecisionCaptureForm({
     )
   }
 
-  if (step === 4) {
+  if (step === 5) {
     const complete: CreateDecisionInput = {
       title: form.title!,
       summary: form.summary!,
@@ -397,9 +436,10 @@ export function DecisionCaptureForm({
         <TimeCapsuleConfirmation
           data={complete}
           onConfirm={handleSubmit}
-          onBack={() => setStep(3)}
+          onBack={() => setStep(4)}
           loading={submitting}
           upcomingCatalogNumber={upcomingCatalogNumber}
+          challenge={{ ...challenge, skipped: challengeSkipped }}
         />
       </div>
     )
@@ -410,7 +450,7 @@ export function DecisionCaptureForm({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <StepIndicator steps={STEPS.slice(0, 3)} currentStep={step} />
+        <StepIndicator steps={STEPS} currentStep={step} />
         {draftStatus === 'error' ? (
           <Callout tone="danger">Draft save failed. Your edits are still in the form.</Callout>
         ) : (
@@ -639,21 +679,50 @@ export function DecisionCaptureForm({
         </div>
       )}
 
+      {/* Step 4: the Devil's Advocate, asked only when the owner presses for it */}
+      {step === 4 && (
+        <div className="flex flex-col gap-4">
+          {challengeError && (
+            <Callout tone="danger" title="Could not seal this decision">
+              {challengeError}
+            </Callout>
+          )}
+          <ChallengeStep
+            challenge={challenge}
+            onChange={setChallenge}
+            ask={askChallenge}
+            onBack={() => setStep(3)}
+            onSkip={() => {
+              setChallengeSkipped(true)
+              setChallengeError(null)
+              setStep(5)
+            }}
+            onContinue={() => {
+              setChallengeError(null)
+              setStep(5)
+              void saveDraft()
+            }}
+          />
+        </div>
+      )}
+
       {/* Navigation */}
-      <div className="flex justify-between border-t border-rule pt-4">
-        {step > 1 ? (
-          <Button variant="ghost" onClick={() => setStep((s) => (s - 1) as Step)}>
-            <ArrowLeft aria-hidden="true" size={14} strokeWidth={1.5} />
-            Back
+      {step !== 4 && (
+        <div className="flex justify-between border-t border-rule pt-4">
+          {step > 1 ? (
+            <Button variant="ghost" onClick={() => setStep((s) => (s - 1) as Step)}>
+              <ArrowLeft aria-hidden="true" size={14} strokeWidth={1.5} />
+              Back
+            </Button>
+          ) : (
+            <div />
+          )}
+          <Button onClick={nextStep}>
+            Next
+            <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
           </Button>
-        ) : (
-          <div />
-        )}
-        <Button onClick={nextStep}>
-          {step === 3 ? 'Review and seal' : 'Next'}
-          <ArrowRight aria-hidden="true" size={14} strokeWidth={1.5} />
-        </Button>
-      </div>
+        </div>
+      )}
     </div>
   )
 }
