@@ -30,6 +30,9 @@ export const DEMO_ROUTES: AppRoutes = {
   report: (id) => `/demo/reports/${id}`,
 }
 
+/** Where an unfinished draft opens for editing. Drafts have no page of their own, and the demo has none. */
+export const draftHref = (id: string) => `/decisions/new?draftId=${id}`
+
 /** A masthead link. `prefixes` lists the paths whose sub-pages also mark it active (defaults to its own href). */
 export type NavLink = { href: string; label: string; prefixes?: readonly string[] }
 

@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'fs'
 import path from 'path'
-import { ENERGY_WORDS, MOOD_WORDS, moodEnergyLabel, promotedTitle, splitAroundSeal } from '@/lib/field-notes'
+import {
+  ENERGY_WORDS,
+  MOOD_WORDS,
+  formatNoteStamp,
+  moodEnergyLabel,
+  promotedTitle,
+  splitAroundSeal,
+  toFieldNoteView,
+} from '@/lib/field-notes'
 
 describe('field note helpers', () => {
   it('names moods and energies in words', () => {
@@ -26,6 +34,20 @@ describe('field note helpers', () => {
     const { before, after } = splitAroundSeal([at(1, 'later'), at(0, 'exact'), at(-1, 'earlier'), at(5000, 'latest')], seal)
     expect(before.map((note) => note.id)).toEqual(['earlier', 'exact'])
     expect(after.map((note) => note.id)).toEqual(['later', 'latest'])
+  })
+
+  it('links a note on an unfinished draft to the draft editor, since the draft has no page yet', () => {
+    const decisionHref = vi.fn((id: string) => `/decisions/${id}`)
+    const view = toFieldNoteView(
+      { id: 'n1', body: 'x', mood: null, energy: null, promoted: true, createdAt: new Date(), decision: { id: 'dr1', catalogNumber: null, title: 'Move?', isDraft: true } },
+      decisionHref
+    )
+    expect(view.decision).toEqual({ id: 'dr1', label: 'a draft', title: 'Move?', href: '/decisions/new?draftId=dr1' })
+    expect(decisionHref).not.toHaveBeenCalled()
+  })
+
+  it('says note times are in UTC', () => {
+    expect(formatNoteStamp(new Date('2025-09-05T08:30:00.000Z'))).toBe('Sep 5, 2025, 08:30 UTC')
   })
 
   it('keeps notes when their user goes and unlinks them when their decision goes', () => {

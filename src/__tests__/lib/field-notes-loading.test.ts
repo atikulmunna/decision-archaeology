@@ -32,7 +32,7 @@ describe('listNotes', () => {
       where: { userId: 'db_1', createdAt: { lt: before } },
       orderBy: { createdAt: 'desc' },
       take: 30,
-      include: { decision: { select: { id: true, catalogNumber: true, title: true } } },
+      include: { decision: { select: { id: true, catalogNumber: true, title: true, isDraft: true } } },
     })
     expect(notes[0]).toEqual({
       id: 'n1',

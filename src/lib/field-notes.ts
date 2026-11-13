@@ -3,6 +3,8 @@
  * decision as evidence or become a decision draft. Pure helpers, safe on the client.
  */
 
+import { draftHref } from '@/lib/routes'
+
 export const MOOD_WORDS = ['Low', 'Uneasy', 'Steady', 'Good', 'Great'] as const
 export const ENERGY_WORDS = ['Drained', 'Tired', 'Steady', 'Lively', 'Wired'] as const
 
@@ -53,10 +55,10 @@ type NoteRow = {
   energy: number | null
   promoted: boolean
   createdAt: Date
-  decision?: { id: string; catalogNumber: number | null; title: string } | null
+  decision?: { id: string; catalogNumber: number | null; title: string; isDraft?: boolean } | null
 }
 
-/** A stored note as plain view data. `decisionHref` runs where the note is mapped, never in the client. */
+/** A stored note as plain view data. A note on an unfinished draft links to the draft editor, since drafts have no page. */
 export function toFieldNoteView(note: NoteRow, decisionHref: (id: string) => string): FieldNoteView {
   const decision = note.decision ?? null
   return {
@@ -69,9 +71,13 @@ export function toFieldNoteView(note: NoteRow, decisionHref: (id: string) => str
     decision: decision
       ? {
           id: decision.id,
-          label: decision.catalogNumber === null ? 'Uncatalogued' : `DA-${String(decision.catalogNumber).padStart(4, '0')}`,
+          label: decision.isDraft
+            ? 'a draft'
+            : decision.catalogNumber === null
+              ? 'Uncatalogued'
+              : `DA-${String(decision.catalogNumber).padStart(4, '0')}`,
           title: decision.title,
-          href: decisionHref(decision.id),
+          href: decision.isDraft ? draftHref(decision.id) : decisionHref(decision.id),
         }
       : null,
   }
@@ -95,7 +101,7 @@ const stampFormat = new Intl.DateTimeFormat('en-US', {
   timeZone: 'UTC',
 })
 
-/** When a note was written, in UTC: "Sep 5, 2025, 08:30". */
+/** When a note was written, labelled as UTC like the seal panel: "Sep 5, 2025, 08:30 UTC". */
 export function formatNoteStamp(date: Date): string {
-  return stampFormat.format(new Date(date))
+  return `${stampFormat.format(new Date(date))} UTC`
 }

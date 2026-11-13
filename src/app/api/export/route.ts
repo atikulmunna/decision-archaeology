@@ -26,9 +26,9 @@ export async function GET(req: NextRequest) {
     include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, forecasts: { orderBy: { position: 'asc' } }, fieldNotes: { orderBy: { createdAt: 'asc' } } },
     orderBy: { createdAt: 'asc' },
   })
-  // Notes not linked to any decision travel with the archive too.
+  // Notes on no decision, or on an unfinished draft (drafts are not exported), travel at the top level.
   const freeNotes = await prisma.fieldNote.findMany({
-    where: { userId: dbUser.id, decisionId: null },
+    where: { userId: dbUser.id, OR: [{ decisionId: null }, { decision: { isDraft: true } }] },
     orderBy: { createdAt: 'asc' },
   })
 

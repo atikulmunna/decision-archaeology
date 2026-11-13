@@ -1,10 +1,11 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { fieldClasses } from '@/components/ui/Input'
 import { ENERGY_WORDS, MOOD_WORDS, NOTE_MAX, formatNoteStamp, moodEnergyLabel, type FieldNoteView } from '@/lib/field-notes'
+import { draftHref } from '@/lib/routes'
 import { ChipGroup, NoteCapture, noteFromResponse } from './NoteCapture'
 
 const mono = 'font-mono text-[11px] uppercase tracking-[0.09em]'
@@ -15,16 +16,18 @@ type ItemProps = {
   canEdit: boolean
   decisionOptions: Array<{ id: string; label: string }>
   error: string | undefined
+  promoting: boolean
   onPatch: (note: FieldNoteView, patch: Record<string, unknown>, optimistic: FieldNoteView) => void
   onDelete: (note: FieldNoteView) => void
   onPromote: (note: FieldNoteView) => void
 }
 
-function NoteItem({ note, canEdit, decisionOptions, error, onPatch, onDelete, onPromote }: ItemProps) {
+function NoteItem({ note, canEdit, decisionOptions, error, promoting, onPatch, onDelete, onPromote }: ItemProps) {
   const id = useId()
   const [editing, setEditing] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [linking, setLinking] = useState(false)
+  const [choice, setChoice] = useState('')
   const [draft, setDraft] = useState({ body: note.body, mood: note.mood, energy: note.energy })
   const chips = moodEnergyLabel(note.mood, note.energy)
 
@@ -121,7 +124,7 @@ function NoteItem({ note, canEdit, decisionOptions, error, onPatch, onDelete, on
                   Link
                 </Button>
               )}
-              <Button type="button" size="sm" variant="ghost" onClick={() => onPromote(note)}>
+              <Button type="button" size="sm" variant="ghost" disabled={promoting} onClick={() => onPromote(note)}>
                 Turn into a decision
               </Button>
             </>
@@ -133,25 +136,27 @@ function NoteItem({ note, canEdit, decisionOptions, error, onPatch, onDelete, on
       )}
 
       {canEdit && linking && !note.decision && (
-        <div className="flex flex-col gap-1">
+        // Choosing only selects; the link is made on confirm, so arrow keys on a closed select (which fire
+        // a change in some browsers) never link the first decision by accident.
+        <form
+          className="flex flex-col gap-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            const option = decisionOptions.find((candidate) => candidate.id === choice)
+            if (!option) return
+            setLinking(false)
+            setChoice('')
+            const [label, ...title] = option.label.split(' · ')
+            onPatch(note, { decisionId: option.id }, {
+              ...note,
+              decision: { id: option.id, label, title: title.join(' · '), href: note.decision?.href ?? '' },
+            })
+          }}
+        >
           <label htmlFor={`${id}-link`} className="text-sm font-medium text-ink-2">
             Link to a decision
           </label>
-          <select
-            id={`${id}-link`}
-            defaultValue=""
-            className={fieldClasses()}
-            onChange={(event) => {
-              const option = decisionOptions.find((candidate) => candidate.id === event.target.value)
-              if (!option) return
-              setLinking(false)
-              const [label, ...title] = option.label.split(' · ')
-              onPatch(note, { decisionId: option.id }, {
-                ...note,
-                decision: { id: option.id, label, title: title.join(' · '), href: note.decision?.href ?? '' },
-              })
-            }}
-          >
+          <select id={`${id}-link`} value={choice} onChange={(event) => setChoice(event.target.value)} className={fieldClasses()}>
             <option value="">Choose a decision</option>
             {decisionOptions.map((option) => (
               <option key={option.id} value={option.id}>
@@ -159,7 +164,23 @@ function NoteItem({ note, canEdit, decisionOptions, error, onPatch, onDelete, on
               </option>
             ))}
           </select>
-        </div>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" disabled={!choice}>
+              Link note
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setLinking(false)
+                setChoice('')
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
       )}
 
       {error && <p className="text-sm text-danger">{error}</p>}
@@ -187,7 +208,10 @@ export function NotesFeed({
   const router = useRouter()
   const [notes, setNotes] = useState(initialNotes)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const fail = (noteId: string) => setErrors((current) => ({ ...current, [noteId]: FAILED }))
+  // One promote at a time: the ref stops a second click before React re-renders the disabled button.
+  const promoting = useRef(false)
+  const [promotingId, setPromotingId] = useState<string | null>(null)
+  const fail = (noteId: string, message = FAILED) => setErrors((current) => ({ ...current, [noteId]: message }))
   const clear = (noteId: string) =>
     setErrors((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== noteId)))
   const replace = (next: FieldNoteView) => setNotes((current) => current.map((note) => (note.id === next.id ? next : note)))
@@ -223,14 +247,29 @@ export function NotesFeed({
   }
 
   async function promote(note: FieldNoteView) {
+    if (promoting.current) return
+    promoting.current = true
+    setPromotingId(note.id)
     clear(note.id)
+    const release = () => {
+      promoting.current = false
+      setPromotingId(null)
+    }
     try {
       const response = await fetch(`/api/notes/${note.id}/promote`, { method: 'POST' })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const { draftId } = (await response.json()) as { draftId: string }
-      router.push(`/decisions/new?draftId=${draftId}`)
+      const body = (await response.json().catch(() => null)) as { draftId?: string; error?: unknown } | null
+      if (!response.ok || !body?.draftId) {
+        // Already linked (409) and the free tier limit (403) say what to do; anything else is a retry.
+        const known = (response.status === 409 || response.status === 403) && typeof body?.error === 'string'
+        fail(note.id, known ? String(body.error) : FAILED)
+        release()
+        return
+      }
+      // Stay disabled while the draft editor loads.
+      router.push(draftHref(body.draftId))
     } catch {
       fail(note.id)
+      release()
     }
   }
 
@@ -254,6 +293,7 @@ export function NotesFeed({
               canEdit={canEdit}
               decisionOptions={decisionOptions}
               error={errors[note.id]}
+              promoting={promotingId !== null}
               onPatch={(previous, body, optimistic) => void patch(previous, body, optimistic)}
               onDelete={(target) => void remove(target)}
               onPromote={(target) => void promote(target)}

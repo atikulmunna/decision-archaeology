@@ -23,7 +23,9 @@ export function NotesView({
         title="Field Notes"
         meta="Quick, never-locked notes. Any of them can become a decision."
       />
+      {/* Keyed by the page it shows: the Notes link back to the newest page is a soft navigation, and the feed must start over from it. */}
       <NotesFeed
+        key={notes[0]?.id ?? 'empty'}
         initialNotes={notes}
         canEdit={mode === 'owner'}
         decisionOptions={decisionOptions}

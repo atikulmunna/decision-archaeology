@@ -12,7 +12,7 @@ export async function listNotes(
     where: { userId, ...(options.before ? { createdAt: { lt: options.before } } : {}) },
     orderBy: { createdAt: 'desc' },
     take: NOTES_PAGE_SIZE,
-    include: { decision: { select: { id: true, catalogNumber: true, title: true } } },
+    include: { decision: { select: { id: true, catalogNumber: true, title: true, isDraft: true } } },
   })
   const last = rows[rows.length - 1]
   return {

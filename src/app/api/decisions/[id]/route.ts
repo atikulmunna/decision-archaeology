@@ -226,6 +226,10 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Locked records cannot be deleted.' }, { status: 403 })
   }
 
-  await prisma.decisionRecord.delete({ where: { id } })
+  // A note promoted into this draft stays: the foreign key unlinks it, and it is no longer where a decision started.
+  await prisma.$transaction([
+    prisma.fieldNote.updateMany({ where: { decisionId: id }, data: { promoted: false } }),
+    prisma.decisionRecord.delete({ where: { id } }),
+  ])
   return NextResponse.json({ success: true })
 }

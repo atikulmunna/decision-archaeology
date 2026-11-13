@@ -24,8 +24,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { decisionId, ...fields } = parsed.data
   if (decisionId && !(await ownsDecision(owner.userId, decisionId))) return notFound()
 
-  // Unlinking also clears the promoted mark: the note is free-standing again.
-  const link = decisionId === undefined ? {} : decisionId === null ? { decisionId: null, promoted: false } : { decisionId }
+  // Only promoting marks a note as where a decision started; linking it elsewhere or unlinking it clears that.
+  const link = decisionId === undefined ? {} : { decisionId, promoted: false }
   const updated = await prisma.fieldNote.update({ where: { id: note.id }, data: { ...fields, ...link }, include: WITH_DECISION })
   return NextResponse.json(updated)
 }

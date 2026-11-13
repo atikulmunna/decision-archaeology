@@ -6,17 +6,17 @@ import { getOrCreateDbUser } from '@/lib/db-user'
 
 type Failure = { ok: false; response: NextResponse }
 
-/** The signed-in owner, or the 401 or 404 response to return. */
-export async function requireOwner(): Promise<{ ok: true; userId: string } | Failure> {
+/** The signed-in owner (with their tier, for record limits), or the 401 or 404 response to return. */
+export async function requireOwner(): Promise<{ ok: true; userId: string; tier: string } | Failure> {
   const { userId } = await auth()
   if (!userId) return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return { ok: false, response: NextResponse.json({ error: 'User not found' }, { status: 404 }) }
-  return { ok: true, userId: dbUser.id }
+  return { ok: true, userId: dbUser.id, tier: dbUser.tier }
 }
 
-/** Create and edit return the linked decision, so the page can draw its chip without another request. */
-export const WITH_DECISION = { decision: { select: { id: true, catalogNumber: true, title: true } } } as const
+/** Create and edit return the linked decision (and whether it is still a draft), so the page can draw its chip without another request. */
+export const WITH_DECISION = { decision: { select: { id: true, catalogNumber: true, title: true, isDraft: true } } } as const
 
 export const notFound = () => NextResponse.json({ error: 'Not found' }, { status: 404 })
 

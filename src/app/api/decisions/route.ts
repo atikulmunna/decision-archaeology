@@ -13,6 +13,7 @@ import {
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
 import { asCreated, sealFields } from '@/lib/seal'
 import { toForecastRows } from '@/lib/forecast-input'
+import { atFreeRecordLimit, FREE_LIMIT_MESSAGE } from '@/lib/record-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,17 +25,8 @@ export async function POST(req: NextRequest) {
   const dbUser = await getOrCreateDbUser(userId)
   if (!dbUser) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  // Free tier: max 20 records
-  if (dbUser.tier === 'FREE') {
-    const count = await prisma.decisionRecord.count({
-      where: { userId: dbUser.id, isDraft: false },
-    })
-    if (count >= 20) {
-      return NextResponse.json(
-        { error: 'Free tier limit reached. Upgrade to Pro for unlimited records.' },
-        { status: 403 }
-      )
-    }
+  if (await atFreeRecordLimit(dbUser)) {
+    return NextResponse.json({ error: FREE_LIMIT_MESSAGE }, { status: 403 })
   }
 
   const body = await req.json()
