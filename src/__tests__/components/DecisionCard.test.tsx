@@ -28,6 +28,8 @@ const cardFixture = {
   catalogNumber: null,
   isDraft: false,
   draftStartedAt: null,
+  challengeOutcome: null,
+  challengeModel: null,
   sealHash: null,
   sealedAt: null,
   createdAt: new Date('2026-03-14'),

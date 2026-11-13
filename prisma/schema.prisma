@@ -60,6 +60,13 @@ enum BiasReportStatus {
   FAILED
 }
 
+// What happened at the Devil's Advocate step before sealing (src/lib/devils-advocate.ts).
+enum ChallengeOutcome {
+  ASKED
+  SKIPPED
+  UNAVAILABLE
+}
+
 // ── Models ─────────────────────────────────────────────────────────────────
 
 model User {
@@ -77,6 +84,7 @@ model User {
   collaborations    CollaboratorShare[] @relation("CollaboratorUser")
   sharedDecisions   CollaboratorShare[] @relation("SharedDecisionOwner")
   fieldNotes        FieldNote[]
+  challengeAttempts ChallengeAttempt[]
 
   @@map("users")
 }
@@ -116,6 +124,8 @@ model DecisionRecord {
   sealedAt    DateTime? // when sealHash was computed; later than the lock deadline means a retroactive seal
   isDraft     Boolean  @default(true)
   draftStartedAt DateTime? // when the draft was first saved; createdAt restarts at finalize
+  challengeOutcome ChallengeOutcome? // null: never offered (older records, imports, finalizes that skip the step)
+  challengeModel   String?           // the routed model that asked the questions
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -125,6 +135,7 @@ model DecisionRecord {
   assumptionReviews AssumptionReview[]
   forecasts         Forecast[]
   fieldNotes        FieldNote[]
+  challengeQuestions ChallengeQuestion[]
 
   @@unique([userId, catalogNumber])
   @@map("decision_records")
@@ -273,4 +284,31 @@ model FieldNote {
   @@index([userId, createdAt])
   @@index([decisionId])
   @@map("field_notes")
+}
+
+// Questions the AI asked before sealing, with the owner's answers. Only the challenge route writes
+// questions; answers are fixed at finalize. Sealed in da-seal-v3 (src/lib/seal.ts).
+model ChallengeQuestion {
+  id         String         @id @default(cuid())
+  decisionId String
+  decision   DecisionRecord @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  position   Int            // 0, 1 or 2
+  question   String
+  answer     String?        // null: left unanswered
+  createdAt  DateTime       @default(now())
+
+  @@unique([decisionId, position])
+  @@map("challenge_questions")
+}
+
+// Every call that reaches the AI for a challenge, kept apart from drafts so deleting one never
+// gives an attempt back. Counts toward the daily cap.
+model ChallengeAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("challenge_attempts")
 }

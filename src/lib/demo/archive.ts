@@ -1,4 +1,4 @@
-import type { CorrectionRequest, DecisionRecord, Forecast, OutcomeUpdate } from '@prisma/client'
+import type { ChallengeOutcome, CorrectionRequest, DecisionRecord, Forecast, OutcomeUpdate } from '@prisma/client'
 import { DEMO_NOW, daysBefore } from './clock'
 import { DEMO_FORECASTS } from './forecasts'
 import { DEMO_SEEDS, type DemoDecisionSeed } from './seed'
@@ -104,6 +104,8 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
     isImported: false,
     catalogNumber,
     isDraft: false,
+    challengeOutcome: null as ChallengeOutcome | null,
+    challengeModel: null as string | null,
     draftStartedAt:
       seed.deliberationMinutes === undefined ? null : new Date(createdAt.getTime() - seed.deliberationMinutes * MINUTE_MS),
     createdAt,

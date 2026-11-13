@@ -35,6 +35,8 @@ function createDecision(overrides: Partial<DecisionRecord> = {}): DecisionRecord
     isImported: false,
     isDraft: false,
     draftStartedAt: null,
+    challengeOutcome: null,
+    challengeModel: null,
     sealHash: null,
     sealedAt: null,
     catalogNumber: null,
