@@ -18,6 +18,7 @@ import { splitAssumptions } from '@/lib/assumptions'
 import { forecastSentence } from '@/lib/forecasting'
 import { splitAroundSeal } from '@/lib/field-notes'
 import { NotesBefore } from './DecisionNotes'
+import { ChallengeRecord } from './ChallengeRecord'
 import type { Decision } from './detail-types'
 
 const LOCKED_FIELDS: { key: CorrectionField; label: string }[] = CORRECTION_FIELDS.map((field) => ({
@@ -403,6 +404,12 @@ export function ThenView({
           </ul>
         </section>
       )}
+
+      <ChallengeRecord
+        outcome={decision.challengeOutcome ?? null}
+        model={decision.challengeModel ?? null}
+        questions={decision.challengeQuestions ?? []}
+      />
 
       <NotesBefore notes={notesBefore} />
 

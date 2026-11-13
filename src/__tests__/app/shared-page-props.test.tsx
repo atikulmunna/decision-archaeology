@@ -80,3 +80,25 @@ describe('shared decision page seal props', () => {
     }
   })
 })
+
+describe('shared decision page challenge props', () => {
+  it('sends the sealed questions without their ids, as plain data', async () => {
+    const decision = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+    mocks.userFindUnique.mockResolvedValue({ id: 'db_collab' })
+    mocks.shareFindFirst.mockResolvedValue({
+      id: 'share_1',
+      decision: {
+        ...decision,
+        challengeOutcome: 'ASKED',
+        challengeModel: 'openai/gpt-5-mini',
+        challengeQuestions: [{ id: 'q1', decisionId: decision.id, position: 0, question: 'Why?', answer: null, createdAt: decision.createdAt }],
+      },
+      owner: { displayName: 'Rowan' },
+      comments: [],
+    })
+    renderToStaticMarkup(await SharedDecisionPage({ params: Promise.resolve({ shareId: 'share_1' }) }))
+    const record = captured.props!.record
+    expect(record.challengeQuestions).toEqual([{ position: 0, question: 'Why?', answer: null }])
+    expect(Object.values(record).some((value) => typeof value === 'function')).toBe(false)
+  })
+})

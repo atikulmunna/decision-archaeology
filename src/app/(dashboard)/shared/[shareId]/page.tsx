@@ -14,6 +14,7 @@ import { SealPanel } from '@/components/seal/SealPanel'
 import { normalizeDecisionLockState } from '@/lib/locks'
 import { isRetroactiveSeal, SEALED_RELATIONS, toSealRecord } from '@/lib/seal'
 import { forecastSentence } from '@/lib/forecasting'
+import { ChallengeRecord } from '@/components/decisions/ChallengeRecord'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision | Decision Archaeology' }
@@ -115,6 +116,7 @@ export default async function SharedDecisionPage({ params }: Params) {
             </ul>
           </div>
         )}
+        <ChallengeRecord outcome={d.challengeOutcome ?? null} model={d.challengeModel ?? null} questions={d.challengeQuestions ?? []} />
       </Card>
 
       {d.supplementaryNotes && (

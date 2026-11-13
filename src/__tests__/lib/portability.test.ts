@@ -111,7 +111,7 @@ describe('seals in exports and imports', () => {
       retroactive: false,
     })
     expect(await computeSealHash(seal.payload)).toBe(seal.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.4.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.5.0')
   })
 
   it('exports null for unsealed records and adds a Seal block only for sealed ones', () => {
@@ -160,7 +160,7 @@ describe('assumption reviews in exports', () => {
         reviewedAt: record.assumptionReviews[1].updatedAt.toISOString(),
       },
     ])
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.4.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.5.0')
     const markdown = buildDecisionMarkdown(record)
     expect(markdown).toContain('## Assumptions')
     expect(markdown).toContain('- Whether the team is as good on a bad week as in interviews. Held up: The team was the whole bet, and it was right.')
@@ -203,7 +203,7 @@ describe('forecasts in exports and imports', () => {
     expect(portable.seal!.version).toBe('da-seal-v2')
     expect(portable.seal!.payload).toContain('"forecasts": [')
     expect(await computeSealHash(portable.seal!.payload)).toBe(portable.seal!.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.4.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.5.0')
   })
 
   it('writes a Forecasts section after the predicted outcome, and none without forecasts', () => {
@@ -269,10 +269,66 @@ describe('field notes in exports', () => {
 
     const free = { ...decision.fieldNotes[0], id: 'free', decisionId: null, promoted: false, mood: null, energy: null }
     const archive = buildArchiveExport([record], [free])
-    expect(archive.schemaVersion).toBe('1.4.0')
+    expect(archive.schemaVersion).toBe('1.5.0')
     expect(archive.notes).toEqual([{ body: free.body, mood: null, energy: null, promoted: false, writtenAt: free.createdAt.toISOString() }])
     const parsed = parseImportPayload(JSON.parse(JSON.stringify(archive)))
     expect(parsed.decisions[0]).not.toHaveProperty('fieldNotes')
   })
 })
 
+
+describe('challenge in exports', () => {
+  const base = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+  const withChallenge = (outcome: 'ASKED' | 'SKIPPED' | 'UNAVAILABLE') => ({
+    ...base,
+    challengeOutcome: outcome,
+    challengeModel: outcome === 'ASKED' ? 'openai/gpt-5-mini' : null,
+    challengeQuestions:
+      outcome === 'ASKED'
+        ? [
+            { id: 'q2', decisionId: base.id, position: 1, question: 'Second?', answer: null, createdAt: base.createdAt },
+            { id: 'q1', decisionId: base.id, position: 0, question: 'First?', answer: 'kept', createdAt: base.createdAt },
+          ]
+        : [],
+  })
+
+  it('exports 1.5.0 with the challenge in position order', () => {
+    const archive = buildArchiveExport([withChallenge('ASKED')])
+    expect(archive.schemaVersion).toBe('1.5.0')
+    expect(archive.decisions[0].challenge).toEqual({
+      outcome: 'asked',
+      model: 'openai/gpt-5-mini',
+      questions: [
+        { question: 'First?', answer: 'kept' },
+        { question: 'Second?', answer: null },
+      ],
+    })
+    expect(toPortableDecision(base).challenge).toBeNull()
+  })
+
+  it('writes a Questions Before Sealing Markdown section after Forecasts', () => {
+    const markdown = buildDecisionMarkdown(withChallenge('ASKED'))
+    expect(markdown).toContain(['## Questions Before Sealing', '', '1. First?', '   Answer: kept', '2. Second?', '   Left unanswered.'].join('\n'))
+    expect(markdown.indexOf('## Forecasts')).toBeLessThan(markdown.indexOf('## Questions Before Sealing'))
+    expect(buildDecisionMarkdown(withChallenge('SKIPPED'))).toContain('## Questions Before Sealing\n\nSealed without questions.')
+    expect(buildDecisionMarkdown(withChallenge('UNAVAILABLE'))).toContain('## Questions Before Sealing\n\nThe AI could not be reached before sealing.')
+    expect(buildDecisionMarkdown(base)).not.toContain('## Questions Before Sealing')
+  })
+
+  it('exports a v3 seal whose payload matches the record', async () => {
+    const { buildSealPayload } = await import('@/lib/seal')
+    const record = withChallenge('ASKED')
+    const sealHash = await computeSealHash(buildSealPayload(record))
+    const seal = toPortableDecision({ ...record, sealHash, sealedAt: record.createdAt }).seal!
+    expect(seal.version).toBe('da-seal-v3')
+    expect(seal.payload).toBe(buildSealPayload(record))
+    expect(await computeSealHash(seal.payload)).toBe(sealHash)
+  })
+
+  it('imports a 1.5.0 file and ignores its challenge', async () => {
+    const parsed = parseImportPayload(JSON.parse(JSON.stringify(buildArchiveExport([withChallenge('ASKED')]))))
+    const rows = await importPortableDecisions({ id: 'u1' } as User, parsed.decisions)
+    expect(rows[0]).not.toHaveProperty('challengeQuestions')
+    expect(rows[0]).not.toHaveProperty('challengeOutcome')
+  })
+})

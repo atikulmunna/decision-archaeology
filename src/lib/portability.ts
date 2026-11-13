@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { AssumptionReview, DecisionRecord, FieldNote, Forecast, OutcomeUpdate, User, Tier } from '@prisma/client'
+import type { AssumptionReview, ChallengeQuestion, DecisionRecord, FieldNote, Forecast, OutcomeUpdate, User, Tier } from '@prisma/client'
 import { matchReviews, splitAssumptions, VERDICT_LABELS } from '@/lib/assumptions'
 import { CreateDecisionSchema, DomainTagEnum, DraftForecastSchema, FORECAST_MAX } from '@/lib/validations/decision'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
@@ -7,7 +7,7 @@ import { buildSealPayload, isRetroactiveSeal, sealVersion } from '@/lib/seal'
 import { displayStatement, RESOLUTION_LABELS, type ForecastResolution } from '@/lib/forecasting'
 import { moodEnergyLabel } from '@/lib/field-notes'
 
-export const EXPORT_SCHEMA_VERSION = '1.4.0'
+export const EXPORT_SCHEMA_VERSION = '1.5.0'
 
 const OutcomeRatingEnum = z.enum([
   'MUCH_BETTER',
@@ -23,6 +23,25 @@ export type DecisionWithOutcomes = DecisionRecord & {
   assumptionReviews?: AssumptionReview[]
   forecasts?: Forecast[]
   fieldNotes?: FieldNote[]
+  challengeQuestions?: ChallengeQuestion[]
+}
+
+/** What the Devil's Advocate asked before sealing. Imports ignore it: imported records are never sealed. */
+export type PortableChallenge = {
+  outcome: 'asked' | 'skipped' | 'unavailable'
+  model: string | null
+  questions: Array<{ question: string; answer: string | null }>
+}
+
+function toPortableChallenge(record: DecisionWithOutcomes): PortableChallenge | null {
+  if (!record.challengeOutcome) return null
+  return {
+    outcome: record.challengeOutcome.toLowerCase() as PortableChallenge['outcome'],
+    model: record.challengeModel ?? null,
+    questions: [...(record.challengeQuestions ?? [])]
+      .sort((a, b) => a.position - b.position)
+      .map((item) => ({ question: item.question, answer: item.answer })),
+  }
 }
 
 /** A field note as exported. Imports ignore notes, as they ignore assumption reviews. */
@@ -92,7 +111,7 @@ export type PortableDecision = z.infer<typeof PortableDecisionSchema>
 /** A record's seal as exported: enough to verify it offline by hashing `payload`. */
 export type PortableSeal = { version: string; hash: string; sealedAt: string; retroactive: boolean; payload: string }
 
-export function toPortableSeal(record: DecisionRecord & { forecasts?: Forecast[] }): PortableSeal | null {
+export function toPortableSeal(record: DecisionRecord & { forecasts?: Forecast[]; challengeQuestions?: ChallengeQuestion[] }): PortableSeal | null {
   if (!record.sealHash || !record.sealedAt) return null
   return {
     version: sealVersion(record),
@@ -122,6 +141,7 @@ export function toPortableDecision(
   record: DecisionWithOutcomes
 ): Omit<PortableDecision, 'forecasts'> & {
   forecasts: PortableForecast[]
+  challenge: PortableChallenge | null
   fieldNotes: PortableFieldNote[]
   seal: PortableSeal | null
   assumptionReviews: PortableAssumptionReview[]
@@ -155,6 +175,7 @@ export function toPortableDecision(
       resolution: forecast.resolution,
       resolvedAt: forecast.resolvedAt?.toISOString() ?? null,
     })),
+    challenge: toPortableChallenge(record),
     fieldNotes: notesOldestFirst(record.fieldNotes).map(toPortableFieldNote),
     seal: toPortableSeal(record),
     assumptionReviews: (record.assumptionReviews ?? []).map((review) => ({
@@ -236,6 +257,18 @@ export function buildDecisionMarkdown(record: DecisionWithOutcomes) {
   const forecasts = orderedForecasts(record)
   if (forecasts.length > 0) {
     lines.push('', '## Forecasts', '', ...forecasts.map(forecastMarkdownLine))
+  }
+  const challenge = toPortableChallenge(record)
+  if (challenge) {
+    lines.push('', '## Questions Before Sealing', '')
+    if (challenge.outcome === 'asked') {
+      challenge.questions.forEach((item, index) => {
+        // Continuation lines are indented so a multi-line answer stays inside its list item.
+        lines.push(`${index + 1}. ${item.question}`, item.answer ? `   Answer: ${item.answer.split('\n').join('\n   ')}` : '   Left unanswered.')
+      })
+    } else {
+      lines.push(challenge.outcome === 'skipped' ? 'Sealed without questions.' : 'The AI could not be reached before sealing.')
+    }
   }
   if (record.supplementaryNotes) {
     lines.push('', '## Supplementary Notes', '', record.supplementaryNotes)

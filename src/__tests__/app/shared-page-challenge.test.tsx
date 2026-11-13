@@ -55,3 +55,30 @@ describe('shared decision page challenge', () => {
     expect(markup).toContain('payload da-seal-v3 with 2 questions')
   })
 })
+
+describe('shared decision page challenge section', () => {
+  it('shows the questions and answers in the sealed record', async () => {
+    const decision = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+    mocks.userFindUnique.mockResolvedValue({ id: 'db_collab' })
+    mocks.shareFindFirst.mockResolvedValue({
+      id: 'share_1',
+      decision: {
+        ...decision,
+        challengeOutcome: 'ASKED',
+        challengeModel: 'openai/gpt-5-mini',
+        challengeQuestions: [
+          { id: 'q1', decisionId: decision.id, position: 0, question: 'Why this team?', answer: 'The interviews.', createdAt: decision.createdAt },
+          { id: 'q2', decisionId: decision.id, position: 1, question: 'What if it stalls?', answer: null, createdAt: decision.createdAt },
+        ],
+      },
+      owner: { displayName: 'Rowan' },
+      comments: [],
+    })
+    const markup = renderToStaticMarkup(await SharedDecisionPage({ params: Promise.resolve({ shareId: 'share_1' }) }))
+    expect(markup).toContain('Questions before sealing')
+    expect(markup).toContain('Why this team?')
+    expect(markup).toContain('The interviews.')
+    expect(markup).toContain('Left unanswered')
+    expect(markup).toContain('Asked by openai/gpt-5-mini via OpenRouter Auto Router')
+  })
+})
