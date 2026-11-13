@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "demo:report": "tsx --env-file=.env.local scripts/generate-demo-report.ts",
-    "seal:backfill": "tsx --env-file=.env.local scripts/seal-backfill.ts"
+    "seal:backfill": "tsx --env-file=.env.local scripts/seal-backfill.ts",
+    "demo:challenges": "tsx --env-file=.env.local scripts/generate-demo-challenges.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1006.0",

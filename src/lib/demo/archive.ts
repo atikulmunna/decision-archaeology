@@ -1,6 +1,7 @@
-import type { ChallengeOutcome, CorrectionRequest, DecisionRecord, Forecast, OutcomeUpdate } from '@prisma/client'
+import type { ChallengeQuestion, CorrectionRequest, DecisionRecord, Forecast, OutcomeUpdate } from '@prisma/client'
 import { DEMO_NOW, daysBefore } from './clock'
 import { DEMO_FORECASTS } from './forecasts'
+import { demoChallengeFor } from './challenges'
 import { DEMO_SEEDS, type DemoDecisionSeed } from './seed'
 import { buildSealPayload } from '@/lib/seal'
 import { computeSealHashSync } from '@/lib/seal-node'
@@ -11,6 +12,7 @@ export type DemoDecision = DecisionRecord & {
   outcomes: OutcomeUpdate[]
   corrections: CorrectionRequest[]
   forecasts: Forecast[]
+  challengeQuestions: ChallengeQuestion[]
 }
 
 const MINUTE_MS = 60 * 1000
@@ -76,6 +78,17 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
     }
   })
 
+  // Devil's Advocate questions for the eight decisions that show the step; the rest predate it.
+  const challenge = demoChallengeFor(seed.key)
+  const challengeQuestions: ChallengeQuestion[] = (challenge?.questions ?? []).map((item) => ({
+    id: `${id}-q${item.position + 1}`,
+    decisionId: id,
+    position: item.position,
+    question: item.question,
+    answer: item.answer,
+    createdAt,
+  }))
+
   const updatedAt = new Date(
     Math.max(createdAt.getTime(), ...outcomes.map((o) => o.createdAt.getTime()), ...corrections.map((c) => c.createdAt.getTime()))
   )
@@ -104,8 +117,8 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
     isImported: false,
     catalogNumber,
     isDraft: false,
-    challengeOutcome: null as ChallengeOutcome | null,
-    challengeModel: null as string | null,
+    challengeOutcome: challenge?.outcome ?? null,
+    challengeModel: challenge?.model ?? null,
     draftStartedAt:
       seed.deliberationMinutes === undefined ? null : new Date(createdAt.getTime() - seed.deliberationMinutes * MINUTE_MS),
     createdAt,
@@ -115,8 +128,9 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
     outcomes,
     corrections,
     forecasts,
+    challengeQuestions,
   }
-  // Demo seals are taken at finalization, so they are never retroactive. Forecasts make the payload v2.
+  // Demo seals are taken at finalization, so they are never retroactive. Forecasts make the payload v2; a challenge makes it v3.
   return { ...record, sealHash: computeSealHashSync(buildSealPayload(record)), sealedAt: createdAt }
 }
 

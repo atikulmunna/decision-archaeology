@@ -96,7 +96,8 @@ describe('capture flow forecasts', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Lock it in' }))
     await waitFor(() => expect(patches().at(-1)?.body).toMatchObject({ finalize: true, forecasts: [complete] }))
-  })
+    // The longest walk through the form (now with the challenge step); allow for a loaded test runner.
+  }, 15_000)
 
   it('restores forecasts from a saved draft', async () => {
     window.localStorage.setItem('decision-archaeology:draft-id', 'draft1')

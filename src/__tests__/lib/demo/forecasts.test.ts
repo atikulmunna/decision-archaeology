@@ -56,7 +56,8 @@ describe("Rowan's forecasts", () => {
     for (const decision of archive) {
       const payload = buildSealPayload(decision)
       expect(computeSealHashSync(payload)).toBe(decision.sealHash)
-      if (decision.forecasts.length > 0) expect(payload).toContain('"seal": "da-seal-v2"')
+      // A sealed challenge makes the payload v3; forecasts alone keep v2.
+      if (decision.forecasts.length > 0) expect(payload).toContain(decision.challengeOutcome ? '"seal": "da-seal-v3"' : '"seal": "da-seal-v2"')
       if (decision.outcomes.length === 0) expect(scoredCount(decision.forecasts)).toBe(0)
     }
     for (const decision of archive.slice(-3)) {

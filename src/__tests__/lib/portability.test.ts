@@ -104,8 +104,8 @@ describe('seals in exports and imports', () => {
     const record = sealedRecord()
     const seal = toPortableDecision(record).seal!
     expect(seal).toMatchObject({
-      // Northwind carries forecasts, so its seal payload is v2.
-      version: 'da-seal-v2',
+      // Northwind carries forecasts and a sealed challenge, so its seal payload is v3.
+      version: 'da-seal-v3',
       hash: record.sealHash,
       sealedAt: record.sealedAt!.toISOString(),
       retroactive: false,
@@ -187,7 +187,7 @@ describe('forecasts in exports and imports', () => {
   const withForecasts = (key: string) => ({ ...getDemoDecision(demoDecisionIdForKey(key))!, outcomes: [] })
   const day = (date: Date) => date.toISOString().slice(0, 10)
 
-  it('exports forecasts with their resolutions and a v2 seal that re-hashes', async () => {
+  it('exports forecasts with their resolutions and a seal that re-hashes', async () => {
     const record = withForecasts('northwind-offer')
     const portable = toPortableDecision(record)
     expect(portable.forecasts).toEqual(
@@ -200,7 +200,7 @@ describe('forecasts in exports and imports', () => {
       }))
     )
     expect(portable.forecasts[0]).toMatchObject({ statement: 'I own a major part of the product within a year', probability: 80, resolution: 'HAPPENED' })
-    expect(portable.seal!.version).toBe('da-seal-v2')
+    expect(portable.seal!.version).toBe('da-seal-v3')
     expect(portable.seal!.payload).toContain('"forecasts": [')
     expect(await computeSealHash(portable.seal!.payload)).toBe(portable.seal!.hash)
     expect(buildArchiveExport([record]).schemaVersion).toBe('1.5.0')
@@ -278,7 +278,8 @@ describe('field notes in exports', () => {
 
 
 describe('challenge in exports', () => {
-  const base = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+  // Northwind's own demo challenge is stripped, so each case sets exactly the challenge it tests.
+  const base = { ...getDemoDecision(demoDecisionIdForKey('northwind-offer'))!, challengeOutcome: null, challengeModel: null, challengeQuestions: [] }
   const withChallenge = (outcome: 'ASKED' | 'SKIPPED' | 'UNAVAILABLE') => ({
     ...base,
     challengeOutcome: outcome,

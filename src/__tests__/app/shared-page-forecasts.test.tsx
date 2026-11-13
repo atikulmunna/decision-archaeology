@@ -44,6 +44,10 @@ describe('shared decision page forecasts', () => {
       id: 'share_1',
       decision: {
         ...decision,
+        // Without a challenge, so the payload stays v2.
+        challengeOutcome: null,
+        challengeModel: null,
+        challengeQuestions: [],
         forecasts: [
           {
             id: 'f1',

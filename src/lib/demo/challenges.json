@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-11-13T18:38:05.740Z",
+  "challenges": {
+    "northwind-offer": {
+      "model": "moonshotai/kimi-k3.1-pro",
+      "questions": [
+        "You say the role compounds your options only if the team is strong and hours do not erase the gains, but you accept anyway. What evidence would show in the first months that these conditions are failing?",
+        "You forecast 90% glad six months in and 70% under fifty hours, yet longer hours are stated up front. What are those percentages based on?",
+        "You list keep interviewing for a bigger startup but never weigh it. What did Northwind offer that made stopping the search better than another month of options?"
+      ]
+    },
+    "start-therapy": {
+      "model": "deepseek/deepseek-v4.1-flash-1017",
+      "questions": [
+        "You say managing alone is not working, but you listed exercise as the alternative you dismissed. Did you actually try exercise, or is 'not working' about what you have been doing without it?",
+        "You give 30% odds you stop after the first month but say six months is 'short enough to commit to.' How does that 30% sit with calling it a commitment?",
+        "You name cost as a key uncertainty but state no plan for it. What would make the six months unaffordable, and what happens then?"
+      ]
+    },
+    "move-across-city": {
+      "model": "openai/gpt-6-luna",
+      "questions": [
+        "You list “Ask to work from home three days a week” but don’t explain why you ruled it out. Have you checked whether Northwind would allow it before giving up your neighborhood?",
+        "You predict you’ll “barely miss the old area,” but name missing your neighborhood and people as the key uncertainty. What evidence supports that prediction?",
+        "You expect ten hours back, but only give a 60% chance of using the time for exercise. What will the saved time realistically go toward if exercise doesn’t become a habit?"
+      ]
+    },
+    "cofound-fernhill": {
+      "model": "anthropic/claude-opus-5.5",
+      "questions": [
+        "You call three pilots \"real demand,\" but your top uncertainty is whether small clinics will pay. Have any of the three agreed to a price, or is the 70% for a paying customer by September based on something beyond their willingness to try it free?",
+        "You list working with Dana under pressure as a key uncertainty, yet the plan has no step for it. What would you do if you two split on direction in month five, and have you agreed in writing on equity, roles and how either of you exits?",
+        "You give 25% to more than three paying clinics by October, yet predict ten within a year. What makes you expect the pace to jump in the last seven months, and what number at the six-month mark would tell you to stop?"
+      ]
+    },
+    "negotiate-equity": {
+      "model": "openai/gpt-6-luna",
+      "questions": [
+        "You say the options matter “far more” if Northwind works, but what evidence supports the forecast that their value will exceed the salary you give up, given the strike price, dilution, and chance of an exit?",
+        "You forecast just a 15% chance of selling options within a year. What makes the longer-term payoff likely enough to justify giving up salary now, and what time horizon are you assuming?",
+        "You dismissed “Take the offer as written” without comparing its value against the extra options. What grant size or terms would make the salary trade worthwhile to you?"
+      ]
+    },
+    "index-funds": {
+      "model": "openai/gpt-6-luna",
+      "questions": [
+        "You say cash “loses value every year.” How does that support investing money you might need soon, given that index funds can also lose value over shorter periods?",
+        "You predict only a 45% chance you check the balance less than monthly. What makes you confident that automating transfers will stop you thinking about the investment?",
+        "You assign just 10% odds to selling during a dip. What past behavior or other evidence is that estimate based on?"
+      ]
+    },
+    "weekly-parents-call": {
+      "model": "openai/gpt-6-luna",
+      "questions": [
+        "You say a fixed slot will make the call a habit, but what makes Sunday evening workable when your schedule changes or you’re away from home?",
+        "You dismissed “visit monthly instead,” but did you consider whether visits could matter more to your parents than a weekly call, or fit better with what they want?",
+        "What is the basis for the 65% chance of not missing a Sunday, given that good intentions have not worked for months?"
+      ]
+    }
+  }
+}
