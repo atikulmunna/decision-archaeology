@@ -40,6 +40,8 @@ describe('shared decision page challenge', () => {
       id: 'share_1',
       decision: {
         ...decision,
+        // Without its letter, so the payload stays v3.
+        letter: null,
         challengeOutcome: 'ASKED',
         challengeModel: 'openai/gpt-5-mini',
         challengeQuestions: [
@@ -64,6 +66,8 @@ describe('shared decision page challenge section', () => {
       id: 'share_1',
       decision: {
         ...decision,
+        // Without its letter, so the payload stays v3.
+        letter: null,
         challengeOutcome: 'ASKED',
         challengeModel: 'openai/gpt-5-mini',
         challengeQuestions: [

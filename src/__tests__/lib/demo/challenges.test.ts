@@ -58,6 +58,7 @@ describe('demo challenges in the archive', () => {
     for (const record of archive) {
       expect(computeSealHashSync(buildSealPayload(record))).toBe(record.sealHash)
     }
-    for (const record of challenged) expect(sealVersion(record)).toBe('da-seal-v3')
+    // Challenged decisions that also carry a letter seal as v4.
+    for (const record of challenged) expect(sealVersion(record)).toBe(record.letter ? 'da-seal-v4' : 'da-seal-v3')
   })
 })

@@ -104,8 +104,8 @@ describe('seals in exports and imports', () => {
     const record = sealedRecord()
     const seal = toPortableDecision(record).seal!
     expect(seal).toMatchObject({
-      // Northwind carries forecasts and a sealed challenge, so its seal payload is v3.
-      version: 'da-seal-v3',
+      // Northwind carries forecasts, a sealed challenge and a letter, so its seal payload is v4.
+      version: 'da-seal-v4',
       hash: record.sealHash,
       sealedAt: record.sealedAt!.toISOString(),
       retroactive: false,
@@ -200,7 +200,7 @@ describe('forecasts in exports and imports', () => {
       }))
     )
     expect(portable.forecasts[0]).toMatchObject({ statement: 'I own a major part of the product within a year', probability: 80, resolution: 'HAPPENED' })
-    expect(portable.seal!.version).toBe('da-seal-v3')
+    expect(portable.seal!.version).toBe('da-seal-v4')
     expect(portable.seal!.payload).toContain('"forecasts": [')
     expect(await computeSealHash(portable.seal!.payload)).toBe(portable.seal!.hash)
     expect(buildArchiveExport([record]).schemaVersion).toBe('1.6.0')
@@ -279,7 +279,7 @@ describe('field notes in exports', () => {
 
 describe('challenge in exports', () => {
   // Northwind's own demo challenge is stripped, so each case sets exactly the challenge it tests.
-  const base = { ...getDemoDecision(demoDecisionIdForKey('northwind-offer'))!, challengeOutcome: null, challengeModel: null, challengeQuestions: [] }
+  const base = { ...getDemoDecision(demoDecisionIdForKey('northwind-offer'))!, challengeOutcome: null, challengeModel: null, challengeQuestions: [], letter: null }
   const withChallenge = (outcome: 'ASKED' | 'SKIPPED' | 'UNAVAILABLE') => ({
     ...base,
     challengeOutcome: outcome,
@@ -335,7 +335,7 @@ describe('challenge in exports', () => {
 })
 
 describe('letters in exports', () => {
-  const base = { ...getDemoDecision(demoDecisionIdForKey('northwind-offer'))!, challengeOutcome: null, challengeModel: null, challengeQuestions: [] }
+  const base = { ...getDemoDecision(demoDecisionIdForKey('northwind-offer'))!, challengeOutcome: null, challengeModel: null, challengeQuestions: [], letter: null }
   const letter = { opensAt: new Date('2027-03-01T00:00:00.000Z'), sha256: 'd'.repeat(64) }
 
   it('exports 1.6.0 with the letter day and fingerprint, and the body only once opened', () => {

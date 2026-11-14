@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { DecisionDetail } from '@/components/decisions/DecisionDetail'
 import { DecisionPageBar } from '@/components/decisions/DecisionPageBar'
-import { getDemoAssumptionReviews, getDemoDecision } from '@/lib/demo/queries'
+import { demoLetterPeek, getDemoAssumptionReviews, getDemoDecision } from '@/lib/demo/queries'
 import { defaultDetailView, parseDetailView } from '@/lib/detail-view'
 import { splitAroundSeal } from '@/lib/field-notes'
 import { DEMO_NOW } from '@/lib/demo/clock'
@@ -40,6 +40,13 @@ export default async function DemoDecisionPage({ params, searchParams }: PagePro
         now={DEMO_NOW}
         reviews={reviews}
         initialView={initialView}
+        revisit={{
+          letter: demoLetterPeek(record.id),
+          due: false,
+          lastRevisitedAt: null,
+          nextCheckIn: null,
+          revisitHref: `${DEMO_ROUTES.decision(record.id)}/revisit`,
+        }}
       />
     </div>
   )

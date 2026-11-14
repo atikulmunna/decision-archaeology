@@ -48,6 +48,7 @@ describe('shared decision page forecasts', () => {
         challengeOutcome: null,
         challengeModel: null,
         challengeQuestions: [],
+        letter: null,
         forecasts: [
           {
             id: 'f1',

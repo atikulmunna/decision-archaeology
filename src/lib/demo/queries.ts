@@ -6,6 +6,8 @@ import { buildDemoArchive, demoDecisionIdForKey, type DemoDecision } from './arc
 import { DEMO_SEEDS } from './seed'
 import { DEMO_NOW } from './clock'
 import { buildDemoNotes } from './notes'
+import { DEMO_LETTERS } from './letters'
+import type { LetterPeek } from '@/lib/revisit-summary'
 import type { StrataRecord } from '@/lib/strata'
 
 /** A list row: like getDecisions, `outcomes` holds only the latest outcome. */
@@ -115,4 +117,14 @@ export function listDemoStrataRecords(filters: DecisionFilters, now: Date = DEMO
       outcomes: record.outcomes.map(({ createdAt, outcomeRating }) => ({ createdAt, outcomeRating })),
     }))
   return { records, total: records.length }
+}
+
+/** The demo's letter state. A letter whose day has passed reads as opened on that day; the demo writes nothing. */
+export function demoLetterPeek(id: string, now: Date = DEMO_NOW): LetterPeek {
+  const seed = DEMO_SEEDS.find((candidate) => demoDecisionIdForKey(candidate.key) === id)
+  const record = getDemoDecision(id, now)
+  const letter = seed ? DEMO_LETTERS[seed.key] : undefined
+  if (!record?.letter || !letter) return { state: 'none' }
+  if (record.letter.opensAt.getTime() > now.getTime()) return { state: 'sealed', opensAt: record.letter.opensAt }
+  return { state: 'open', opensAt: record.letter.opensAt, openedAt: record.letter.opensAt, sha256: record.letter.sha256, body: letter.body }
 }

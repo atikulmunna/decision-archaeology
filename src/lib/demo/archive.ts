@@ -2,6 +2,7 @@ import type { ChallengeQuestion, CorrectionRequest, DecisionRecord, Forecast, Ou
 import { DEMO_NOW, daysBefore } from './clock'
 import { DEMO_FORECASTS } from './forecasts'
 import { demoChallengeFor } from './challenges'
+import { demoLetterSeal } from './letters'
 import { DEMO_SEEDS, type DemoDecisionSeed } from './seed'
 import { buildSealPayload } from '@/lib/seal'
 import { computeSealHashSync } from '@/lib/seal-node'
@@ -13,6 +14,7 @@ export type DemoDecision = DecisionRecord & {
   corrections: CorrectionRequest[]
   forecasts: Forecast[]
   challengeQuestions: ChallengeQuestion[]
+  letter: { opensAt: Date; sha256: string } | null
 }
 
 const MINUTE_MS = 60 * 1000
@@ -129,6 +131,7 @@ function buildDecision(seed: DemoDecisionSeed, catalogNumber: number, now: Date)
     corrections,
     forecasts,
     challengeQuestions,
+    letter: demoLetterSeal(seed.key, createdAt),
   }
   // Demo seals are taken at finalization, so they are never retroactive. Forecasts make the payload v2; a challenge makes it v3.
   return { ...record, sealHash: computeSealHashSync(buildSealPayload(record)), sealedAt: createdAt }
