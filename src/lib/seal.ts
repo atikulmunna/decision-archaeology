@@ -13,15 +13,22 @@ export const SEAL_VERSION = 'da-seal-v1'
 export const SEAL_VERSION_V2 = 'da-seal-v2'
 /** Records that went through the Devil's Advocate step seal its outcome, questions and answers (with forecasts, possibly none). */
 export const SEAL_VERSION_V3 = 'da-seal-v3'
+/** Records with a letter to future you seal its opening day and fingerprint, never its text. */
+export const SEAL_VERSION_V4 = 'da-seal-v4'
 
 /** What every reader that builds or verifies a seal must load with the decision. */
 export const SEALED_RELATIONS = {
   forecasts: { orderBy: { position: 'asc' } },
   challengeQuestions: { orderBy: { position: 'asc' } },
+  // Only the day and fingerprint: a letter's body never travels with a seal.
+  letter: { select: { opensAt: true, sha256: true } },
 } as const
 
 /** The parts of a forecast that lock with the decision. Resolutions stay open and are never sealed. */
 export type SealForecast = { position: number; statement: string; probability: number; resolveBy: Date }
+
+/** What the seal holds of a letter to future you: its opening day and the SHA-256 of its canonical text. */
+export type SealLetter = { opensAt: Date; sha256: string }
 
 /** A question asked before sealing and its answer (null: left unanswered). */
 export type SealChallengeQuestion = { position: number; question: string; answer: string | null }
@@ -48,6 +55,7 @@ export type SealableDecision = Pick<
   challengeOutcome?: ChallengeOutcome | null
   challengeModel?: string | null
   challengeQuestions?: SealChallengeQuestion[]
+  letter?: SealLetter | null
 }
 
 /** Same words, same bytes: Unicode NFC, and CRLF or lone CR line endings become LF. */
@@ -60,6 +68,7 @@ function canonicalOptional(value: string | null | undefined): string | null {
 }
 
 export function sealVersion(record: SealableDecision): string {
+  if (record.letter) return SEAL_VERSION_V4
   if (record.challengeOutcome) return SEAL_VERSION_V3
   return record.forecasts && record.forecasts.length > 0 ? SEAL_VERSION_V2 : SEAL_VERSION
 }
@@ -94,15 +103,18 @@ export function buildSealPayload(record: SealableDecision): string {
       resolveBy: new Date(forecast.resolveBy).toISOString(),
     }))
   if (version === SEAL_VERSION_V2) return JSON.stringify({ ...ordered, forecasts }, null, 2)
-  const challenge = {
-    outcome: record.challengeOutcome!.toLowerCase(),
+  // v4 keeps the v3 shape; without a challenge step its challenge is null.
+  const challenge = record.challengeOutcome ? {
+    outcome: record.challengeOutcome.toLowerCase(),
     model: record.challengeModel ?? null,
     // Only asked questions are sealed, so stray rows can never make a skip or a failure read as asked.
     questions: (record.challengeOutcome === 'ASKED' ? [...(record.challengeQuestions ?? [])] : [])
       .sort((a, b) => a.position - b.position)
       .map((item) => ({ question: canonicalText(item.question), answer: canonicalOptional(item.answer) })),
-  }
-  return JSON.stringify({ ...ordered, forecasts, challenge }, null, 2)
+  } : null
+  if (version === SEAL_VERSION_V3) return JSON.stringify({ ...ordered, forecasts, challenge }, null, 2)
+  const letter = { opensAt: new Date(record.letter!.opensAt).toISOString(), sha256: record.letter!.sha256 }
+  return JSON.stringify({ ...ordered, forecasts, challenge, letter }, null, 2)
 }
 
 function toSealChallengeQuestion(item: SealChallengeQuestion): SealChallengeQuestion {
@@ -167,6 +179,7 @@ export function toSealRecord(record: SealRecord): SealRecord {
     challengeOutcome: record.challengeOutcome ?? null,
     challengeModel: record.challengeModel ?? null,
     ...(record.challengeQuestions ? { challengeQuestions: record.challengeQuestions.map(toSealChallengeQuestion) } : {}),
+    letter: record.letter ? { opensAt: record.letter.opensAt, sha256: record.letter.sha256 } : null,
     sealHash: record.sealHash,
     sealedAt: record.sealedAt,
     isImported: record.isImported,

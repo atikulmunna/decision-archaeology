@@ -62,6 +62,7 @@ describe('shared decision page seal props', () => {
         'forecasts',
         'isImported',
         'isLocked',
+        'letter',
         'predictedOutcome',
         'predictedTimeframe',
         'reasoning',

@@ -47,7 +47,11 @@ describe('backfillSeals', () => {
     })
     expect(client.decisionRecord.findMany).toHaveBeenCalledWith({
       where: { isDraft: false, isImported: false, sealHash: null },
-      include: { forecasts: { orderBy: { position: 'asc' } }, challengeQuestions: { orderBy: { position: 'asc' } } },
+      include: {
+        forecasts: { orderBy: { position: 'asc' } },
+        challengeQuestions: { orderBy: { position: 'asc' } },
+        letter: { select: { opensAt: true, sha256: true } },
+      },
     })
     expect(client.decisionRecord.update).not.toHaveBeenCalled()
   })

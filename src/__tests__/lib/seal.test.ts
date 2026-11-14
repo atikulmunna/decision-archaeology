@@ -3,6 +3,7 @@ import {
   buildSealPayload,
   computeSealHash,
   isRetroactiveSeal,
+  SEALED_RELATIONS,
   sealFields,
   sealFileName,
   sealVersion,
@@ -280,5 +281,52 @@ describe('seal v3 hardening', () => {
   it('seals no questions unless the outcome is ASKED', () => {
     const stray = { ...fixture, challengeOutcome: 'SKIPPED' as const, challengeModel: null, challengeQuestions: [{ position: 0, question: 'Stray?', answer: null }] }
     expect(JSON.parse(buildSealPayload(stray)).challenge.questions).toEqual([])
+  })
+})
+
+// Pinned from the first green run; the payload's shape is asserted separately.
+const V4_HASH = 'b5ad59059bbd0969610bc6ed2cf9743a9950995f2b1b52906a861d3142d5ee3d'
+const lettered: SealableDecision = { ...asked, letter: { opensAt: new Date('2027-03-01T00:00:00.000Z'), sha256: 'a'.repeat(64) } }
+
+describe('seal v4', () => {
+  it('seals the letter fingerprint and day after the challenge in a v4 payload', () => {
+    const payload = JSON.parse(buildSealPayload(lettered))
+    expect(payload.seal).toBe('da-seal-v4')
+    expect(Object.keys(payload).slice(-3)).toEqual(['forecasts', 'challenge', 'letter'])
+    expect(payload.letter).toEqual({ opensAt: '2027-03-01T00:00:00.000Z', sha256: 'a'.repeat(64) })
+    expect(payload.challenge.outcome).toBe('asked')
+  })
+
+  it('uses challenge null in v4 when there was no challenge step', () => {
+    const payload = JSON.parse(buildSealPayload({ ...fixture, letter: lettered.letter }))
+    expect(payload.seal).toBe('da-seal-v4')
+    expect(payload.forecasts).toEqual([])
+    expect(payload.challenge).toBeNull()
+  })
+
+  it('pins the v4 hash', async () => {
+    expect(await computeSealHash(buildSealPayload(lettered))).toBe(V4_HASH)
+  })
+
+  it('keeps v1, v2 and v3 when there is no letter', () => {
+    expect(sealVersion({ ...asked, letter: null })).toBe('da-seal-v3')
+    expect(sealVersion({ ...withForecasts, letter: null })).toBe('da-seal-v2')
+    expect(sealVersion({ ...fixture, letter: null })).toBe('da-seal-v1')
+  })
+
+  it('never selects the letter body for seal readers', () => {
+    expect(SEALED_RELATIONS.letter).toEqual({ select: { opensAt: true, sha256: true } })
+  })
+
+  it('passes only the sealed letter fields to the client', () => {
+    const record = toSealRecord({
+      ...lettered,
+      sealHash: null,
+      sealedAt: null,
+      isImported: false,
+      isLocked: false,
+      letter: { ...lettered.letter!, body: 'secret', id: 'l1' } as never,
+    })
+    expect(record.letter).toEqual(lettered.letter)
   })
 })
