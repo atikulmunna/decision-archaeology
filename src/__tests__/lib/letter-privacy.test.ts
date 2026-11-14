@@ -4,7 +4,8 @@ import path from 'path'
 
 const SRC = path.resolve(__dirname, '../..')
 // The only code allowed to read a letter's body: the reading library and the draft routes.
-const ALLOWED = ['lib/letters.ts', 'app/api/decisions/[id]/route.ts']
+// The export routes read it too, but only for letters whose owner has opened them.
+const ALLOWED = ['lib/letters.ts', 'app/api/decisions/[id]/route.ts', 'app/api/decisions/[id]/export/route.ts', 'app/api/export/route.ts']
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

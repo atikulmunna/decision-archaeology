@@ -111,7 +111,7 @@ describe('seals in exports and imports', () => {
       retroactive: false,
     })
     expect(await computeSealHash(seal.payload)).toBe(seal.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.5.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.6.0')
   })
 
   it('exports null for unsealed records and adds a Seal block only for sealed ones', () => {
@@ -160,7 +160,7 @@ describe('assumption reviews in exports', () => {
         reviewedAt: record.assumptionReviews[1].updatedAt.toISOString(),
       },
     ])
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.5.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.6.0')
     const markdown = buildDecisionMarkdown(record)
     expect(markdown).toContain('## Assumptions')
     expect(markdown).toContain('- Whether the team is as good on a bad week as in interviews. Held up: The team was the whole bet, and it was right.')
@@ -203,7 +203,7 @@ describe('forecasts in exports and imports', () => {
     expect(portable.seal!.version).toBe('da-seal-v3')
     expect(portable.seal!.payload).toContain('"forecasts": [')
     expect(await computeSealHash(portable.seal!.payload)).toBe(portable.seal!.hash)
-    expect(buildArchiveExport([record]).schemaVersion).toBe('1.5.0')
+    expect(buildArchiveExport([record]).schemaVersion).toBe('1.6.0')
   })
 
   it('writes a Forecasts section after the predicted outcome, and none without forecasts', () => {
@@ -269,7 +269,7 @@ describe('field notes in exports', () => {
 
     const free = { ...decision.fieldNotes[0], id: 'free', decisionId: null, promoted: false, mood: null, energy: null }
     const archive = buildArchiveExport([record], [free])
-    expect(archive.schemaVersion).toBe('1.5.0')
+    expect(archive.schemaVersion).toBe('1.6.0')
     expect(archive.notes).toEqual([{ body: free.body, mood: null, energy: null, promoted: false, writtenAt: free.createdAt.toISOString() }])
     const parsed = parseImportPayload(JSON.parse(JSON.stringify(archive)))
     expect(parsed.decisions[0]).not.toHaveProperty('fieldNotes')
@@ -293,9 +293,9 @@ describe('challenge in exports', () => {
         : [],
   })
 
-  it('exports 1.5.0 with the challenge in position order', () => {
+  it('exports the challenge in position order', () => {
     const archive = buildArchiveExport([withChallenge('ASKED')])
-    expect(archive.schemaVersion).toBe('1.5.0')
+    expect(archive.schemaVersion).toBe('1.6.0')
     expect(archive.decisions[0].challenge).toEqual({
       outcome: 'asked',
       model: 'openai/gpt-5-mini',
@@ -331,5 +331,31 @@ describe('challenge in exports', () => {
     const rows = await importPortableDecisions({ id: 'u1' } as User, parsed.decisions)
     expect(rows[0]).not.toHaveProperty('challengeQuestions')
     expect(rows[0]).not.toHaveProperty('challengeOutcome')
+  })
+})
+
+describe('letters in exports', () => {
+  const base = { ...getDemoDecision(demoDecisionIdForKey('northwind-offer'))!, challengeOutcome: null, challengeModel: null, challengeQuestions: [] }
+  const letter = { opensAt: new Date('2027-03-01T00:00:00.000Z'), sha256: 'd'.repeat(64) }
+
+  it('exports 1.6.0 with the letter day and fingerprint, and the body only once opened', () => {
+    const sealed = toPortableDecision({ ...base, letter, letterBody: null })
+    expect(sealed.letter).toEqual({ opensAt: '2027-03-01T00:00:00.000Z', sha256: 'd'.repeat(64) })
+    const opened = toPortableDecision({ ...base, letter, letterBody: 'Dear me' })
+    expect(opened.letter).toEqual({ opensAt: '2027-03-01T00:00:00.000Z', sha256: 'd'.repeat(64), body: 'Dear me' })
+    expect(toPortableDecision({ ...base, letter: null }).letter).toBeNull()
+    expect(buildArchiveExport([{ ...base, letter }]).schemaVersion).toBe('1.6.0')
+  })
+
+  it('writes a Letter to Future Me Markdown section: Sealed until a day, or the text', () => {
+    expect(buildDecisionMarkdown({ ...base, letter, letterBody: null })).toContain('## Letter to Future Me\n\nSealed until 2027-03-01')
+    expect(buildDecisionMarkdown({ ...base, letter, letterBody: 'Dear me' })).toContain('## Letter to Future Me\n\nDear me')
+    expect(buildDecisionMarkdown(base)).not.toContain('## Letter to Future Me')
+  })
+
+  it('imports a 1.6.0 file and ignores its letter', async () => {
+    const parsed = parseImportPayload(JSON.parse(JSON.stringify(buildArchiveExport([{ ...base, letter, letterBody: 'Dear me' }]))))
+    const rows = await importPortableDecisions({ id: 'u1' } as User, parsed.decisions)
+    expect(rows[0]).not.toHaveProperty('letter')
   })
 })

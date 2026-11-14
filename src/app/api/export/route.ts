@@ -33,9 +33,17 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'asc' },
   })
 
+  // Letters travel with their text only once their owner has opened them.
+  const opened = await prisma.letter.findMany({
+    where: { decisionId: { in: records.map((record) => record.id) }, openedAt: { not: null } },
+    select: { decisionId: true, body: true },
+  })
+  const bodies = new Map(opened.map((letter) => [letter.decisionId, letter.body]))
+  const exported = records.map((record) => ({ ...record, letterBody: bodies.get(record.id) ?? null }))
+
   const body = format === 'json'
-    ? JSON.stringify(buildArchiveExport(records, freeNotes), null, 2)
-    : buildArchiveMarkdown(records)
+    ? JSON.stringify(buildArchiveExport(exported, freeNotes), null, 2)
+    : buildArchiveMarkdown(exported)
 
   return new NextResponse(body, {
     headers: {

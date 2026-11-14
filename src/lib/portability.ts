@@ -7,7 +7,7 @@ import { buildSealPayload, isRetroactiveSeal, sealVersion } from '@/lib/seal'
 import { displayStatement, RESOLUTION_LABELS, type ForecastResolution } from '@/lib/forecasting'
 import { moodEnergyLabel } from '@/lib/field-notes'
 
-export const EXPORT_SCHEMA_VERSION = '1.5.0'
+export const EXPORT_SCHEMA_VERSION = '1.6.0'
 
 const OutcomeRatingEnum = z.enum([
   'MUCH_BETTER',
@@ -24,6 +24,19 @@ export type DecisionWithOutcomes = DecisionRecord & {
   forecasts?: Forecast[]
   fieldNotes?: FieldNote[]
   challengeQuestions?: ChallengeQuestion[]
+  /** The sealed part of a letter to future you. */
+  letter?: { opensAt: Date; sha256: string } | null
+  /** The letter text, attached by the export routes only once its owner has opened it. */
+  letterBody?: string | null
+}
+
+/** A letter as exported: its day and fingerprint, and its text only once opened. Imports ignore letters. */
+export type PortableLetter = { opensAt: string; sha256: string; body?: string }
+
+function toPortableLetter(record: DecisionWithOutcomes): PortableLetter | null {
+  if (!record.letter) return null
+  const sealed = { opensAt: new Date(record.letter.opensAt).toISOString(), sha256: record.letter.sha256 }
+  return record.letterBody ? { ...sealed, body: record.letterBody } : sealed
 }
 
 /** What the Devil's Advocate asked before sealing. Imports ignore it: imported records are never sealed. */
@@ -111,7 +124,9 @@ export type PortableDecision = z.infer<typeof PortableDecisionSchema>
 /** A record's seal as exported: enough to verify it offline by hashing `payload`. */
 export type PortableSeal = { version: string; hash: string; sealedAt: string; retroactive: boolean; payload: string }
 
-export function toPortableSeal(record: DecisionRecord & { forecasts?: Forecast[]; challengeQuestions?: ChallengeQuestion[] }): PortableSeal | null {
+export function toPortableSeal(
+  record: DecisionRecord & { forecasts?: Forecast[]; challengeQuestions?: ChallengeQuestion[]; letter?: { opensAt: Date; sha256: string } | null }
+): PortableSeal | null {
   if (!record.sealHash || !record.sealedAt) return null
   return {
     version: sealVersion(record),
@@ -142,6 +157,7 @@ export function toPortableDecision(
 ): Omit<PortableDecision, 'forecasts'> & {
   forecasts: PortableForecast[]
   challenge: PortableChallenge | null
+  letter: PortableLetter | null
   fieldNotes: PortableFieldNote[]
   seal: PortableSeal | null
   assumptionReviews: PortableAssumptionReview[]
@@ -176,6 +192,7 @@ export function toPortableDecision(
       resolvedAt: forecast.resolvedAt?.toISOString() ?? null,
     })),
     challenge: toPortableChallenge(record),
+    letter: toPortableLetter(record),
     fieldNotes: notesOldestFirst(record.fieldNotes).map(toPortableFieldNote),
     seal: toPortableSeal(record),
     assumptionReviews: (record.assumptionReviews ?? []).map((review) => ({
@@ -269,6 +286,10 @@ export function buildDecisionMarkdown(record: DecisionWithOutcomes) {
     } else {
       lines.push(challenge.outcome === 'skipped' ? 'Sealed without questions.' : 'The AI could not be reached before sealing.')
     }
+  }
+  const letter = toPortableLetter(record)
+  if (letter) {
+    lines.push('', '## Letter to Future Me', '', letter.body ?? `Sealed until ${letter.opensAt.slice(0, 10)}`)
   }
   if (record.supplementaryNotes) {
     lines.push('', '## Supplementary Notes', '', record.supplementaryNotes)

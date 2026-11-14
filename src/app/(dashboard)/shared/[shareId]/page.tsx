@@ -15,6 +15,7 @@ import { normalizeDecisionLockState } from '@/lib/locks'
 import { isRetroactiveSeal, SEALED_RELATIONS, toSealRecord } from '@/lib/seal'
 import { forecastSentence } from '@/lib/forecasting'
 import { ChallengeRecord } from '@/components/decisions/ChallengeRecord'
+import { formatDay } from '@/lib/revisit-summary'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Shared Decision | Decision Archaeology' }
@@ -117,6 +118,8 @@ export default async function SharedDecisionPage({ params }: Params) {
           </div>
         )}
         <ChallengeRecord outcome={d.challengeOutcome ?? null} model={d.challengeModel ?? null} questions={d.challengeQuestions ?? []} />
+        {/* Collaborators learn that a letter exists, never what it says. */}
+        {d.letter && <p className="text-sm text-ink-2">{`Its author wrote a letter, sealed until ${formatDay(d.letter.opensAt)}.`}</p>}
       </Card>
 
       {d.supplementaryNotes && (

@@ -30,10 +30,15 @@ export async function GET(req: NextRequest, { params }: Params) {
     include: { outcomes: { orderBy: { createdAt: 'asc' } }, assumptionReviews: { orderBy: { createdAt: 'asc' } }, ...SEALED_RELATIONS, fieldNotes: { orderBy: { createdAt: 'asc' } } },
   })
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  // A letter travels with its text only once its owner has opened it.
+  const opened = record.letter
+    ? await prisma.letter.findFirst({ where: { decisionId: id, openedAt: { not: null } }, select: { body: true } })
+    : null
+  const exported = { ...record, letterBody: opened?.body ?? null }
 
   const body = format === 'json'
-    ? JSON.stringify(toPortableDecision(record), null, 2)
-    : buildDecisionMarkdown(record)
+    ? JSON.stringify(toPortableDecision(exported), null, 2)
+    : buildDecisionMarkdown(exported)
 
   return new NextResponse(body, {
     headers: {

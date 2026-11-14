@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), findMany: vi.fn(), noteFindMany: vi.fn() }))
+const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), findMany: vi.fn(), noteFindMany: vi.fn(), letterFindMany: vi.fn(), letterFindFirst: vi.fn() }))
 
 vi.mock('@clerk/nextjs/server', () => ({ auth: async () => ({ userId: 'user_1' }) }))
 vi.mock('@/lib/prisma', () => ({
@@ -10,6 +10,7 @@ vi.mock('@/lib/prisma', () => ({
     user: { findUnique: async () => ({ id: 'db_1' }) },
     decisionRecord: { findFirst: mocks.findFirst, findMany: mocks.findMany },
     fieldNote: { findMany: mocks.noteFindMany },
+    letter: { findMany: mocks.letterFindMany, findFirst: mocks.letterFindFirst },
   },
 }))
 
@@ -21,6 +22,7 @@ describe('export routes', () => {
     mocks.findFirst.mockResolvedValue(null)
     mocks.findMany.mockResolvedValue([])
     mocks.noteFindMany.mockResolvedValue([])
+    mocks.letterFindMany.mockResolvedValue([])
     await exportOne(new NextRequest('http://localhost/api/decisions/d1/export?format=json'), { params: Promise.resolve({ id: 'd1' }) })
     await exportAll(new NextRequest('http://localhost/api/export?format=json'))
     expect(mocks.findFirst.mock.calls[0][0].include.forecasts).toEqual({ orderBy: { position: 'asc' } })
@@ -34,5 +36,7 @@ describe('export routes', () => {
       where: { userId: 'db_1', OR: [{ decisionId: null }, { decision: { isDraft: true } }] },
       orderBy: { createdAt: 'asc' },
     })
+    // Letter text is read only for letters their owner has opened.
+    expect(mocks.letterFindMany).toHaveBeenCalledWith({ where: { decisionId: { in: [] }, openedAt: { not: null } }, select: { decisionId: true, body: true } })
   })
 })
