@@ -32,7 +32,9 @@ export default async function DemoDecisionPage({ params, searchParams }: PagePro
   return (
     <div className="flex flex-col gap-6">
       <DecisionPageBar backHref={DEMO_ROUTES.archive} />
+      {/* A new ?view= on the same route (tour stops 2 and 3) must remount the view state. */}
       <DecisionDetail
+        key={initialView}
         decision={record}
         readOnly
         timeZone="UTC"

@@ -1,4 +1,6 @@
+import { Suspense } from 'react'
 import { auth } from '@clerk/nextjs/server'
+import { TourBar } from '@/components/demo/TourBar'
 import { DemoStrip } from '@/components/shell/DemoStrip'
 import { Masthead } from '@/components/shell/Masthead'
 import { PageContainer } from '@/components/shell/PageContainer'
@@ -20,6 +22,9 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
       <main>
         <PageContainer>{children}</PageContainer>
       </main>
+      <Suspense fallback={null}>
+        <TourBar />
+      </Suspense>
     </div>
   )
 }
