@@ -21,6 +21,8 @@ vi.mock('@/lib/decisions', () => ({ getDecisions: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     decisionRecord: { create: mocks.create, update: mocks.update, findFirst: mocks.findFirst, count: mocks.count },
+    // No draft letter: these tests are about other sealed fields.
+    letter: { findUnique: async () => null, deleteMany: async () => ({ count: 0 }) },
     correctionRequest: { findFirst: mocks.correctionFindFirst, update: mocks.correctionUpdate },
     user: { findUnique: mocks.userFindUnique },
   },

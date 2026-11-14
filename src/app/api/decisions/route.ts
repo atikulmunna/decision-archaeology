@@ -14,6 +14,7 @@ import { getMaxCatalogNumber } from '@/lib/catalog-db'
 import { asCreated, sealFields } from '@/lib/seal'
 import { toForecastRows } from '@/lib/forecast-input'
 import { atFreeRecordLimit, FREE_LIMIT_MESSAGE } from '@/lib/record-limit'
+import { checkLetter, letterFingerprint, LetterInputSchema } from '@/lib/letter-rules'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,12 +76,25 @@ export async function POST(req: NextRequest) {
   const now = new Date()
   // "Seal without questions" on a decision that was never saved as a draft.
   const challengeFields = body?.challengeSkipped === true ? { challengeOutcome: 'SKIPPED' as const } : {}
+  // A letter to future you, sealed by fingerprint in the same write.
+  const letterParsed = LetterInputSchema.nullable().optional().safeParse(body?.letter)
+  if (!letterParsed.success) {
+    return NextResponse.json({ error: 'Validation failed', issues: letterParsed.error.issues }, { status: 400 })
+  }
+  const letterCheck = checkLetter(letterParsed.data, now)
+  if (!letterCheck.ok) return NextResponse.json({ error: letterCheck.error }, { status: 400 })
+  const letter = letterCheck.letter ? { ...letterCheck.letter, sha256: await letterFingerprint(letterCheck.letter.body) } : null
   try {
     const record = await withCatalogNumberRetry(
       async (catalogNumber) => {
         const finalized = { ...createData, ...challengeFields, catalogNumber, createdAt: now }
-        const seal = await sealFields({ ...asCreated(finalized), forecasts: forecastRows }, now)
-        return prisma.decisionRecord.create({ data: { ...finalized, ...forecastWrite, ...seal } })
+        const seal = await sealFields(
+          { ...asCreated(finalized), forecasts: forecastRows, letter: letter ? { opensAt: letter.opensAt, sha256: letter.sha256 } : null },
+          now
+        )
+        return prisma.decisionRecord.create({
+          data: { ...finalized, ...forecastWrite, ...(letter ? { letter: { create: letter } } : {}), ...seal },
+        })
       },
       () => getMaxCatalogNumber(dbUser.id)
     )

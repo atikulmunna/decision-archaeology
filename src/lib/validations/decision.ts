@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { ChallengeAnswersSchema } from '@/lib/devils-advocate'
+import { LetterInputSchema } from '@/lib/letter-rules'
 
 const MIN_CHARS = 20
 
@@ -84,6 +85,8 @@ export const DraftDecisionSchema = z.object({
   forecasts: z.array(DraftForecastSchema).max(FORECAST_MAX, 'At most 3 forecasts.').optional(),
   // Answers to the Devil's Advocate questions; accepted only once questions were asked.
   challengeAnswers: ChallengeAnswersSchema.optional(),
+  // A letter to future you, kept with the draft until it is sealed; null or a blank body removes it.
+  letter: LetterInputSchema.nullable().optional(),
 })
 
 export type DraftDecisionInput = z.infer<typeof DraftDecisionSchema>
@@ -101,6 +104,7 @@ export const FinalizeDecisionSchema = CreateDecisionSchema.extend({
   challengeAnswers: ChallengeAnswersSchema.optional(),
   // "Seal without questions": recorded as an explicit skip unless the AI already failed or asked.
   challengeSkipped: z.literal(true).optional(),
+  letter: LetterInputSchema.nullable().optional(),
 })
 
 export type FinalizeDecisionInput = z.infer<typeof FinalizeDecisionSchema>

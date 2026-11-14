@@ -22,6 +22,8 @@ import {
 import { getMaxCatalogNumber } from '@/lib/catalog-db'
 import { afterUpdate, SEALED_RELATIONS, sealFields } from '@/lib/seal'
 import { resolveChallengeWrite } from '@/lib/devils-advocate'
+import { checkLetter, letterFingerprint } from '@/lib/letter-rules'
+import { isoDay, parseIsoDay } from '@/lib/utc-days'
 import { staleForecastIssues, toForecastRows } from '@/lib/forecast-input'
 
 export const dynamic = 'force-dynamic'
@@ -46,6 +48,14 @@ export async function GET(_req: NextRequest, { params }: Params) {
   })
 
   if (!record) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  // A draft shows its letter so the author can keep writing; once sealed, only the day and fingerprint travel.
+  if (record.isDraft) {
+    const draftLetter = await prisma.letter.findUnique({ where: { decisionId: id }, select: { body: true, opensAt: true } })
+    return NextResponse.json({
+      ...normalizeDecisionLockState(record),
+      letter: draftLetter ? { body: draftLetter.body, opensOn: isoDay(draftLetter.opensAt) } : null,
+    })
+  }
   return NextResponse.json(normalizeDecisionLockState(record))
 }
 
@@ -121,6 +131,18 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ? storedQuestions.map((item, index) => ({ ...item, answer: challenge.answers![index] }))
       : storedQuestions
 
+    // The letter sealed is the one sent, or else the one kept with the draft; blank means none.
+    let letterInput = parsed.data.letter
+    if (letterInput === undefined) {
+      const kept = await prisma.letter.findUnique({ where: { decisionId: id }, select: { body: true, opensAt: true } })
+      letterInput = kept ? { body: kept.body, opensOn: isoDay(kept.opensAt) } : null
+    }
+    const letterCheck = checkLetter(letterInput, now)
+    if (!letterCheck.ok) return NextResponse.json({ error: letterCheck.error }, { status: 400 })
+    const letter = letterCheck.letter ? { ...letterCheck.letter, sha256: await letterFingerprint(letterCheck.letter.body) } : null
+    if (!letter) await prisma.letter.deleteMany({ where: { decisionId: id } })
+    const letterWrite = letter ? { letter: { upsert: { create: letter, update: letter } } } : {}
+
     const finalizeData = {
       title: parsed.data.title,
       summary: parsed.data.summary,
@@ -157,13 +179,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               ...afterUpdate(record, { ...finalizeData, catalogNumber }),
               forecasts: forecastRows ?? storedForecasts,
               challengeQuestions: sealedQuestions,
+              letter: letter ? { opensAt: letter.opensAt, sha256: letter.sha256 } : null,
             },
             now
           )
           // Written only onto the draft as it was read, so a challenge that landed meanwhile is never sealed over.
           return prisma.decisionRecord.update({
             where: { id, isDraft: true, challengeOutcome: record.challengeOutcome ?? null },
-            data: { ...finalizeData, catalogNumber, ...forecastWrite, ...answerWrite(challenge.answers), ...seal },
+            data: { ...finalizeData, catalogNumber, ...forecastWrite, ...answerWrite(challenge.answers), ...letterWrite, ...seal },
           })
         },
         () => getMaxCatalogNumber(dbUser.id)
@@ -189,9 +212,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       )
     }
 
-    const { forecasts: draftForecasts, challengeAnswers, ...draftFields } = parsed.data
+    const { forecasts: draftForecasts, challengeAnswers, letter: draftLetter, ...draftFields } = parsed.data
     const challenge = resolveChallengeWrite(challengeStored, { answers: challengeAnswers, finalizing: false })
     if (!challenge.ok) return NextResponse.json({ error: challenge.error }, { status: 400 })
+    // Drafts keep the letter as typed; the rules and the fingerprint apply at sealing.
+    const draftLetterDay = draftLetter && draftLetter.body.trim() ? parseIsoDay(draftLetter.opensOn) : null
+    if (draftLetter !== undefined && !draftLetterDay) await prisma.letter.deleteMany({ where: { decisionId: id } })
+    const draftLetterRow = draftLetter && draftLetterDay ? { body: draftLetter.body, opensAt: draftLetterDay, sha256: '' } : null
     // A late autosave never lands on a decision that was finalized after this request read it.
     const updated = await prisma.decisionRecord
       .update({
@@ -206,6 +233,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               : undefined,
         ...(draftForecasts ? { forecasts: { deleteMany: {}, create: toForecastRows(draftForecasts) } } : {}),
         ...answerWrite(challenge.answers),
+        ...(draftLetterRow ? { letter: { upsert: { create: draftLetterRow, update: draftLetterRow } } } : {}),
         },
       })
       .catch((error: unknown) => {

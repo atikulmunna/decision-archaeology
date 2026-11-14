@@ -16,7 +16,11 @@ vi.mock('@/lib/db-user', () => ({ getOrCreateDbUser: async () => ({ id: 'db_1', 
 vi.mock('@/lib/catalog-db', () => ({ getMaxCatalogNumber: mocks.getMaxCatalogNumber }))
 vi.mock('@/lib/decisions', () => ({ getDecisions: vi.fn() }))
 vi.mock('@/lib/prisma', () => ({
-  prisma: { decisionRecord: { create: mocks.create, update: mocks.update, findFirst: mocks.findFirst, count: mocks.count } },
+  prisma: {
+    decisionRecord: { create: mocks.create, update: mocks.update, findFirst: mocks.findFirst, count: mocks.count },
+    // No draft letter: these tests are about other sealed fields.
+    letter: { findUnique: async () => null, deleteMany: async () => ({ count: 0 }) },
+  },
 }))
 
 import { POST } from '@/app/api/decisions/route'
