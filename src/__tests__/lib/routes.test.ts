@@ -12,6 +12,10 @@ describe('route sets', () => {
     expect(APP_ROUTES.archive).toBe('/decisions')
   })
 
+  it('makes the job routes public to the proxy, since each checks its own signature or secret', () => {
+    expect(PUBLIC_ROUTES).toContain('/api/jobs/(.*)')
+  })
+
   it('makes the demo public without dropping existing public routes', () => {
     expect(PUBLIC_ROUTES).toEqual(
       expect.arrayContaining(['/', '/sign-in(.*)', '/sign-up(.*)', '/demo(.*)', '/api/webhooks/(.*)'])
