@@ -16,6 +16,10 @@ import { SupplementaryNotesEditor } from './SupplementaryNotesEditor'
 import { SharePanel } from '@/components/sharing/SharePanel'
 import { CommentThread } from '@/components/sharing/CommentThread'
 import type { CollaborationData, Decision } from './detail-types'
+import { Button } from '@/components/ui/Button'
+import { Callout } from '@/components/ui/Callout'
+import { CheckInControl } from './CheckInControl'
+import { formatDay, type RevisitSummary } from '@/lib/revisit-summary'
 
 const sectionLabel = 'mb-3 font-mono text-[11px] uppercase tracking-[0.09em] text-muted'
 
@@ -28,6 +32,7 @@ export function NowView({
   reviews,
   onReviewsChange,
   now,
+  revisit,
 }: {
   decision: Decision
   readOnly: boolean
@@ -36,6 +41,7 @@ export function NowView({
   reviews: ReviewLike[]
   onReviewsChange: (next: ReviewLike[]) => void
   now: Date
+  revisit?: RevisitSummary
 }) {
   const [outcomes, setOutcomes] = useState<OutcomeUpdate[]>(decision.outcomes)
   const [forecasts, setForecasts] = useState<Forecast[]>(decision.forecasts ?? [])
@@ -43,6 +49,26 @@ export function NowView({
 
   return (
     <div className="flex flex-col gap-8">
+      {revisit && (
+        <section className="flex flex-col gap-3">
+          {revisit.due && (
+            <Callout title="Time to revisit">A letter or a check-in is waiting. Look back at what you expected and what happened.</Callout>
+          )}
+          <div className="flex flex-wrap items-center gap-3">
+            <Button href={revisit.revisitHref} size="sm" variant={revisit.due ? 'primary' : 'secondary'}>
+              Revisit
+            </Button>
+            {revisit.lastRevisitedAt && (
+              <span className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{`Last revisited ${formatDay(revisit.lastRevisitedAt)}`}</span>
+            )}
+            {readOnly && revisit.nextCheckIn && (
+              <span className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">{`Next check-in ${formatDay(revisit.nextCheckIn)}`}</span>
+            )}
+          </div>
+          {!readOnly && <CheckInControl decisionId={decision.id} nextCheckIn={revisit.nextCheckIn} />}
+        </section>
+      )}
+
       {latest && (
         <section>
           <h2 className={sectionLabel}>Latest outcome</h2>

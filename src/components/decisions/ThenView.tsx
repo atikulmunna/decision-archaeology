@@ -19,6 +19,8 @@ import { forecastSentence } from '@/lib/forecasting'
 import { splitAroundSeal } from '@/lib/field-notes'
 import { NotesBefore } from './DecisionNotes'
 import { ChallengeRecord } from './ChallengeRecord'
+import { LetterSection } from './LetterSection'
+import type { RevisitSummary } from '@/lib/revisit-summary'
 import type { Decision } from './detail-types'
 
 const LOCKED_FIELDS: { key: CorrectionField; label: string }[] = CORRECTION_FIELDS.map((field) => ({
@@ -42,6 +44,7 @@ export function ThenView({
   sealRecord,
   tamper,
   onTamperedChange,
+  revisit,
 }: {
   decision: Decision
   readOnly: boolean
@@ -49,6 +52,7 @@ export function ThenView({
   sealRecord: SealRecord
   tamper: { text: string; start: number; end: number } | null
   onTamperedChange?: (next: boolean) => void
+  revisit?: RevisitSummary
 }) {
   const [corrections, setCorrections] = useState<CorrectionRequest[]>(decision.corrections)
   const [activeCorrectionField, setActiveCorrectionField] = useState<CorrectionField | null>(null)
@@ -410,6 +414,8 @@ export function ThenView({
         model={decision.challengeModel ?? null}
         questions={decision.challengeQuestions ?? []}
       />
+
+      {revisit && <LetterSection letter={revisit.letter} fingerprint={decision.letter?.sha256 ?? null} revisitHref={revisit.revisitHref} />}
 
       <NotesBefore notes={notesBefore} />
 

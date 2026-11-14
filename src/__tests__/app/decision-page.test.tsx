@@ -14,6 +14,9 @@ vi.mock('next/navigation', () => ({
 vi.mock('@clerk/nextjs/server', () => ({ auth: async () => ({ userId: 'user_1' }) }))
 vi.mock('@/lib/db-user', () => ({ getOrCreateDbUser: async () => ({ id: 'db_1' }) }))
 vi.mock('@/lib/decisions', () => ({ getDecision: mocks.getDecision }))
+vi.mock('@/lib/revisit-db', () => ({
+  getRevisitSummary: async () => ({ letter: { state: 'none' }, due: false, lastRevisitedAt: null, nextCheckIn: null, revisitHref: '/decisions/d1/revisit' }),
+}))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     collaboratorShare: { findMany: async () => [] },

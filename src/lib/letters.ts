@@ -6,11 +6,9 @@ import { prisma } from '@/lib/prisma'
  * letter's body, and it never returns the body before the letter's day, or before its owner opens it
  * when only peeking.
  */
-export type LetterPeek =
-  | { state: 'none' }
-  | { state: 'sealed'; opensAt: Date }
-  | { state: 'ready'; opensAt: Date }
-  | { state: 'open'; opensAt: Date; openedAt: Date; sha256: string; body: string }
+import type { LetterPeek } from '@/lib/revisit-summary'
+
+export type { LetterPeek } from '@/lib/revisit-summary'
 
 const META = { opensAt: true, openedAt: true, sha256: true } as const
 

@@ -15,6 +15,7 @@ import type { CollaborationData, Decision } from './detail-types'
 import { NowView } from './NowView'
 import { ThenView } from './ThenView'
 import { ViewToggle } from './ViewToggle'
+import type { RevisitSummary } from '@/lib/revisit-summary'
 
 /**
  * The decision detail: a shared header, then a Then / Now toggle. Then is the sealed
@@ -32,6 +33,7 @@ export function DecisionDetail({
   reviews: initialReviews = [],
   initialView,
   now,
+  revisit,
 }: {
   decision: Decision
   collaboration?: CollaborationData
@@ -40,6 +42,8 @@ export function DecisionDetail({
   /** Demo only: a toggle that changes one word in the browser so the seal visibly fails. */
   tamperTest?: boolean
   reviews?: ReviewLike[]
+  /** The letter and revisit state, resolved on the server; plain data only. */
+  revisit?: RevisitSummary
   initialView?: DetailView
   now: Date
 }) {
@@ -140,6 +144,7 @@ export function DecisionDetail({
           sealRecord={sealRecord}
           tamper={tamper}
           onTamperedChange={tamperTest ? setTampered : undefined}
+          revisit={revisit}
         />
       </div>
       <div role="tabpanel" id="decision-view-now" aria-labelledby="decision-tab-now" hidden={view !== 'now'}>
@@ -151,6 +156,7 @@ export function DecisionDetail({
           reviews={reviews}
           onReviewsChange={setReviews}
           now={now}
+          revisit={revisit}
         />
       </div>
     </div>

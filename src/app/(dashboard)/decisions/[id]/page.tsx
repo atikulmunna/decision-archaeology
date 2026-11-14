@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { getDecision } from '@/lib/decisions'
+import { getRevisitSummary } from '@/lib/revisit-db'
 import { DecisionDetail } from '@/components/decisions/DecisionDetail'
 import { DecisionPageBar } from '@/components/decisions/DecisionPageBar'
 import { getOrCreateDbUser } from '@/lib/db-user'
@@ -60,6 +61,9 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
     )
   )
 
+  // The letter is peeked, never opened here: it opens as the first step of the revisit.
+  const revisit = await getRevisitSummary(dbUser.id, record.id, new Date(), `${APP_ROUTES.decision(record.id)}/revisit`)
+
   const authorIds = [...new Set(shares.flatMap((share) => share.comments.map((comment) => comment.authorId)))]
   const authors = authorIds.length > 0
     ? await prisma.user.findMany({
@@ -76,6 +80,7 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
       <div>
         <DecisionDetail
           decision={record}
+          revisit={revisit}
           now={new Date()}
           reviews={record.assumptionReviews}
           initialView={initialView}

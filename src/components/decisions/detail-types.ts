@@ -9,6 +9,8 @@ export type Decision = DecisionRecord & {
   fieldNotes?: FieldNote[]
   /** Questions the Devil's Advocate asked before sealing, with answers; sealed in v3. */
   challengeQuestions?: ChallengeQuestion[]
+  /** The sealed part of a letter to future you: its day and fingerprint, never its text. */
+  letter?: { opensAt: Date; sha256: string } | null
 }
 
 export type CollaboratorShare = {

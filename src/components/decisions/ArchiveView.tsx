@@ -33,6 +33,8 @@ export type ArchiveViewProps = {
   intro?: string
   view?: ArchiveViewMode
   strata?: { layout: StrataLayout; cappedTotal: number | null }
+  /** Owner only: decisions with an opened letter or a check-in that has arrived, hrefs resolved on the server. */
+  dueForRevisit?: Array<{ id: string; label: string; title: string; href: string }>
 }
 
 const PAGE_SIZE = 20
@@ -54,6 +56,7 @@ export function ArchiveView({
   intro,
   view = 'list',
   strata,
+  dueForRevisit = [],
 }: ArchiveViewProps) {
   const isOwner = mode === 'owner'
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -73,6 +76,22 @@ export function ArchiveView({
       />
 
       {intro && <p className="-mt-4 max-w-2xl text-sm leading-relaxed text-ink-2">{intro}</p>}
+
+      {isOwner && dueForRevisit.length > 0 && (
+        <section className="flex flex-col gap-2 rounded-sm border border-rule bg-surface p-4">
+          <h2 className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">Due for revisit</h2>
+          <ul className="flex flex-col gap-1">
+            {dueForRevisit.slice(0, 5).map((item) => (
+              <li key={item.id}>
+                <a href={item.href} className="text-sm text-ink underline-offset-2 hover:underline">
+                  <span className="mr-2 font-mono text-[11px] text-muted">{item.label}</span>
+                  {item.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {isOwner && allCount < BIAS_REPORT_THRESHOLD && (
         <div className="flex flex-col gap-2">

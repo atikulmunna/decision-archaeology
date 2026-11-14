@@ -7,6 +7,7 @@ import { layoutStrata, type StrataLayout } from '@/lib/strata'
 import { getOrCreateDbUser } from '@/lib/db-user'
 import { logError } from '@/lib/observability'
 import { APP_ROUTES } from '@/lib/routes'
+import { listDueForRevisit } from '@/lib/revisit-db'
 import { createTimer } from '@/lib/timing'
 
 export const dynamic = 'force-dynamic'
@@ -33,8 +34,11 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
   let allCount = 0
   let archiveError = false
   let strata: { layout: StrataLayout; cappedTotal: number | null } | undefined
+  let dueForRevisit: Awaited<ReturnType<typeof listDueForRevisit>> = []
 
   try {
+    // A failure here only hides the due list; it never takes the archive down.
+    dueForRevisit = await listDueForRevisit(dbUser.id, new Date(), (id) => `${APP_ROUTES.decision(id)}/revisit`).catch(() => [])
     const counts = Promise.all([
       getDraftDecisions(dbUser.id, 3),
       prisma.decisionRecord.count({
@@ -84,6 +88,7 @@ export default async function DecisionsPage({ searchParams }: { searchParams: Pr
       canImport={dbUser.tier === 'POWER'}
       view={view}
       strata={strata}
+      dueForRevisit={dueForRevisit}
     />
   )
 }
