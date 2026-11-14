@@ -20,6 +20,14 @@ afterEach(() => {
 })
 
 describe('DecisionDetail read-only', () => {
+  it('keeps the address bar untouched when syncUrl is false', async () => {
+    const replaceState = vi.spyOn(window.history, 'replaceState')
+    render(<DecisionDetail decision={demo('northwind-offer')} readOnly timeZone="UTC" now={DEMO_NOW} initialView="now" syncUrl={false} />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Then' }))
+    expect(screen.getByRole('tab', { name: 'Then' })).toHaveAttribute('aria-selected', 'true')
+    expect(replaceState).not.toHaveBeenCalled()
+  })
+
   it('renders a sealed demo record without any controls', () => {
     const decision = demo('on-call-redesign')
     const { container } = render(<DecisionDetail decision={decision} readOnly now={DEMO_NOW} initialView="then" />)

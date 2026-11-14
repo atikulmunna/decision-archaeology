@@ -40,18 +40,18 @@ const LEGEND: Array<{ style: OutcomeStyle; label: string }> = [
   { style: 'early', label: 'Too early to tell' },
 ]
 
-function YearChips({ layout, pageParams }: { layout: StrataLayout; pageParams: string }) {
+function YearChips({ layout, pageParams, yearBase }: { layout: StrataLayout; pageParams: string; yearBase: string }) {
   const chip = (selected: boolean) =>
     `rounded-sm border px-2.5 py-1 ${mono} ${selected ? 'border-ink bg-signal text-on-signal' : 'border-rule bg-surface text-ink-2 hover:text-ink'}`
   return (
     <nav aria-label="Year" className="flex flex-wrap gap-2">
-      <a href={archiveViewHref(pageParams, 'strata')} aria-current={layout.year === null ? 'true' : undefined} className={chip(layout.year === null)}>
+      <a href={`${yearBase}${archiveViewHref(pageParams, 'strata')}`} aria-current={layout.year === null ? 'true' : undefined} className={chip(layout.year === null)}>
         All time
       </a>
       {layout.years.map((year) => (
         <a
           key={year}
-          href={archiveViewHref(pageParams, 'strata', year)}
+          href={`${yearBase}${archiveViewHref(pageParams, 'strata', year)}`}
           aria-current={layout.year === year ? 'true' : undefined}
           className={chip(layout.year === year)}
         >
@@ -71,12 +71,15 @@ export function StrataCanvas({
   hrefs,
   pageParams,
   cappedTotal,
+  yearBase = '',
 }: {
   layout: StrataLayout
   /** Decision id to its link. */
   hrefs: Record<string, string>
   pageParams: string
   cappedTotal: number | null
+  /** Where the year chips point; empty keeps them on the current page, '/demo' sends an embedded canvas to the demo. */
+  yearBase?: string
 }) {
   const [active, setActive] = useState<string | null>(null)
   const current = layout.specimens.find((specimen) => specimen.id === active) ?? null
@@ -96,7 +99,7 @@ export function StrataCanvas({
 
   return (
     <section aria-label="Strata" className="flex flex-col gap-4">
-      <YearChips layout={layout} pageParams={pageParams} />
+      <YearChips layout={layout} pageParams={pageParams} yearBase={yearBase} />
       {cappedTotal !== null && <p className="text-sm text-ink-2">{`Showing the newest 500 of ${cappedTotal} decisions.`}</p>}
 
       <div className="relative w-full max-w-[560px]">

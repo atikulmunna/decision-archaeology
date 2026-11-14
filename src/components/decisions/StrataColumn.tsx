@@ -12,12 +12,14 @@ export function StrataColumn({
   routes,
   pageParams,
   cappedTotal,
+  yearBase,
 }: {
   layout: StrataLayout
   routes: AppRoutes
   pageParams: string
   cappedTotal: number | null
+  yearBase?: string
 }) {
   const hrefs = Object.fromEntries(layout.specimens.map((specimen) => [specimen.id, routes.decision(specimen.id)]))
-  return <StrataCanvas layout={layout} hrefs={hrefs} pageParams={pageParams} cappedTotal={cappedTotal} />
+  return <StrataCanvas layout={layout} hrefs={hrefs} pageParams={pageParams} cappedTotal={cappedTotal} yearBase={yearBase} />
 }

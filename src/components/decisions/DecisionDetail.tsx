@@ -34,6 +34,7 @@ export function DecisionDetail({
   initialView,
   now,
   revisit,
+  syncUrl = true,
 }: {
   decision: Decision
   collaboration?: CollaborationData
@@ -46,6 +47,8 @@ export function DecisionDetail({
   revisit?: RevisitSummary
   initialView?: DetailView
   now: Date
+  /** False when embedded on another page, so switching Then and Now never rewrites that page's address. */
+  syncUrl?: boolean
 }) {
   const [reviews, setReviews] = useState<ReviewLike[]>(initialReviews)
   const [view, setView] = useState<DetailView>(
@@ -85,6 +88,7 @@ export function DecisionDetail({
 
   function changeView(next: DetailView) {
     setView(next)
+    if (!syncUrl) return
     const url = new URL(window.location.href)
     url.searchParams.set('view', next)
     window.history.replaceState(null, '', url)

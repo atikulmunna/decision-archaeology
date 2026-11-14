@@ -92,3 +92,17 @@ describe('StrataColumn', () => {
     expect(Math.max(...delays)).toBeLessThanOrEqual(300)
   })
 })
+
+describe('StrataColumn year links', () => {
+  it('points the year chips at another page when given a base', () => {
+    render(<StrataColumn layout={allTime} routes={DEMO_ROUTES} pageParams="" cappedTotal={null} yearBase="/demo" />)
+    const years = screen.getAllByRole('link').filter((link) => link.closest('nav[aria-label="Year"]'))
+    expect(years.length).toBeGreaterThan(1)
+    for (const link of years) expect(link.getAttribute('href')).toMatch(/^\/demo\?view=strata/)
+  })
+
+  it('keeps the year chips relative by default', () => {
+    render(<StrataColumn layout={allTime} routes={DEMO_ROUTES} pageParams="" cappedTotal={null} />)
+    expect(screen.getByRole('link', { name: 'All time' })).toHaveAttribute('href', '?view=strata')
+  })
+})
