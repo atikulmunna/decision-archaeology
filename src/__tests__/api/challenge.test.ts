@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => {
     challengeQuestion: { createMany: vi.fn(), findMany: vi.fn() },
     challengeAttempt: { count: vi.fn(), create: vi.fn() },
   }
-  return { userId: 'user_1' as string | null, generate: vi.fn(), order: [] as string[], db }
+  return { userId: 'user_1' as string | null, generate: vi.fn(), lock: vi.fn(), order: [] as string[], db }
 })
 
 vi.mock('server-only', () => ({}))
@@ -19,7 +19,9 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     ...mocks.db,
     $transaction: async (arg: unknown) =>
-      typeof arg === 'function' ? (arg as (tx: typeof mocks.db) => unknown)(mocks.db) : Promise.all(arg as Promise<unknown>[]),
+      typeof arg === 'function'
+        ? (arg as (tx: typeof mocks.db & { $executeRaw: typeof mocks.lock }) => unknown)({ ...mocks.db, $executeRaw: mocks.lock })
+        : Promise.all(arg as Promise<unknown>[]),
   },
 }))
 
@@ -59,8 +61,16 @@ beforeEach(() => {
   mocks.order.length = 0
   for (const group of Object.values(db)) for (const fn of Object.values(group)) fn.mockReset()
   mocks.generate.mockReset()
+  mocks.lock.mockReset()
+  mocks.lock.mockImplementation(async () => {
+    mocks.order.push('lock')
+    return 1
+  })
   db.decisionRecord.findFirst.mockResolvedValue(draft)
-  db.challengeAttempt.count.mockResolvedValue(0)
+  db.challengeAttempt.count.mockImplementation(async () => {
+    mocks.order.push('count')
+    return 0
+  })
   db.challengeAttempt.create.mockImplementation(async () => {
     mocks.order.push('attempt')
     return { id: 'a1' }
@@ -126,7 +136,7 @@ describe('POST /api/decisions/[id]/challenge', () => {
   it('logs an attempt, asks with a 20 second deadline and stores cleaned questions as ASKED', async () => {
     const res = await ask()
     expect(res.status).toBe(201)
-    expect(mocks.order).toEqual(['attempt', 'ai'])
+    expect(mocks.order).toEqual(['lock', 'count', 'attempt', 'ai'])
     expect(db.challengeAttempt.create).toHaveBeenCalledWith({ data: { userId: 'db_1' } })
     expect(mocks.generate).toHaveBeenCalledWith(expect.objectContaining({ schema: ChallengeSchema, costTier: 'medium', timeoutMs: 20000 }))
     const questions = reply.data.questions.map((item) => cleanQuestion(item.question))
@@ -180,6 +190,14 @@ describe('POST /api/decisions/[id]/challenge', () => {
     const res = await ask()
     expect([res.status, await res.json()]).toEqual([409, { error: 'This decision is already sealed.' }])
     expect(db.challengeQuestion.createMany).not.toHaveBeenCalled()
+  })
+
+  it('counts and logs attempts under a per-user lock, so two tabs cannot both pass the cap', async () => {
+    await ask()
+    const [strings, ...values] = mocks.lock.mock.calls[0]
+    expect((strings as string[]).join('?')).toContain('pg_advisory_xact_lock')
+    expect(values).toEqual(['db_1'])
+    expect(mocks.order.slice(0, 3)).toEqual(['lock', 'count', 'attempt'])
   })
 
   it('requires a signed-in user', async () => {

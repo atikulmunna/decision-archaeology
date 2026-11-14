@@ -48,16 +48,22 @@ export async function POST(_req: NextRequest, { params }: Params) {
   }
 
   // Every call that reaches the AI counts, kept apart from drafts so deleting one gives nothing back.
-  const attempts = await prisma.challengeAttempt.count({
-    where: { userId: dbUser.id, createdAt: { gte: new Date(Date.now() - DAY_MS) } },
+  // The count and the new attempt run under a per-user lock, so two tabs cannot both pass the cap.
+  const allowed = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${dbUser.id}))`
+    const attempts = await tx.challengeAttempt.count({
+      where: { userId: dbUser.id, createdAt: { gte: new Date(Date.now() - DAY_MS) } },
+    })
+    if (attempts >= CHALLENGE_DAILY_CAP) return false
+    await tx.challengeAttempt.create({ data: { userId: dbUser.id } })
+    return true
   })
-  if (attempts >= CHALLENGE_DAILY_CAP) {
+  if (!allowed) {
     return NextResponse.json(
       { error: "You have used today's 20 challenges. Seal without questions, or try again tomorrow." },
       { status: 429 }
     )
   }
-  await prisma.challengeAttempt.create({ data: { userId: dbUser.id } })
 
   let reply: { data: { questions: Array<{ question: string }> }; model: string }
   try {

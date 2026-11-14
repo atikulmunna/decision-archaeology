@@ -133,8 +133,9 @@ export function DecisionCaptureForm({
   }, [buildDraftPayload])
 
   // Auto-save draft every 30s after step 1 is complete
-  const saveDraft = useCallback(async () => {
-    if (!hydratedRef.current || savedRecord || !hasDraftContent()) return
+  // Resolves false when the save failed, so a caller that depends on the stored draft can stop.
+  const saveDraft = useCallback(async (): Promise<boolean> => {
+    if (!hydratedRef.current || savedRecord || !hasDraftContent()) return true
 
     setDraftStatus('saving')
 
@@ -156,18 +157,22 @@ export function DecisionCaptureForm({
       setDraftStatus('saved')
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = setTimeout(() => setDraftStatus('idle'), 2000)
+      return true
     } catch {
       setDraftStatus('error')
+      return false
     }
   }, [buildDraftPayload, ensureDraftDecision, hasDraftContent, savedRecord])
 
   const askChallenge = useCallback(async (): Promise<Response> => {
-    await saveDraft()
+    // The route reads the stored draft, so it must hold what is on screen before the AI reads it.
+    const saved = await saveDraft()
     const id = draftRef.current
-    if (!id) {
+    if (!saved || !id) {
       return new Response(JSON.stringify({ error: 'We could not save your draft. Try again.' }), { status: 500 })
     }
-    return fetch(`/api/decisions/${id}/challenge`, { method: 'POST' })
+    // A stalled server must not leave the step stuck: after 30 seconds the step offers Try again and the skip.
+    return fetch(`/api/decisions/${id}/challenge`, { method: 'POST', signal: AbortSignal.timeout(30_000) })
   }, [saveDraft])
 
   useEffect(() => {

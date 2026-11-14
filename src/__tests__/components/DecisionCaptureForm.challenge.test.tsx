@@ -143,3 +143,40 @@ describe('capture flow challenge step', () => {
     expect(screen.getByRole('heading', { name: 'Before you seal' })).toBeInTheDocument()
   })
 })
+
+describe('capture flow challenge request', () => {
+  it('does not ask when saving the draft first fails', async () => {
+    let failSaves = false
+    calls = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input)
+      const method = init?.method ?? 'GET'
+      calls.push({ url, method, body: init?.body ? JSON.parse(String(init.body)) : null })
+      if (url.endsWith('/challenge')) return new Response(JSON.stringify(asked), { status: 201 })
+      if (method === 'GET') return new Response('{}', { status: 404 })
+      if (method === 'POST') return new Response(JSON.stringify({ id: 'draft1' }))
+      return failSaves ? new Response('{}', { status: 500 }) : new Response(JSON.stringify({ id: 'draft1' }))
+    })
+    render(<DecisionCaptureForm upcomingCatalogNumber={4} />)
+    await walkToChallenge()
+    failSaves = true
+    await click('Challenge my reasoning')
+    expect(await screen.findByText('We could not save your draft. Try again.')).toBeInTheDocument()
+    expect(challengeCalls()).toHaveLength(0)
+  })
+
+  it('gives the challenge request a 30 second limit, so a stalled server still leaves a way to seal', async () => {
+    const signals: Array<AbortSignal | null | undefined> = []
+    mockFetch()
+    const inner = vi.mocked(globalThis.fetch).getMockImplementation()!
+    vi.mocked(globalThis.fetch).mockImplementation(async (input, init) => {
+      if (String(input).endsWith('/challenge')) signals.push(init?.signal)
+      return inner(input, init)
+    })
+    render(<DecisionCaptureForm upcomingCatalogNumber={4} />)
+    await walkToChallenge()
+    await click('Challenge my reasoning')
+    await screen.findByText('Why not stay on payments?')
+    expect(signals[0]).toBeInstanceOf(AbortSignal)
+  })
+})
