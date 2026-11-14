@@ -16,6 +16,14 @@ describe('route sets', () => {
     expect(PUBLIC_ROUTES).toContain('/api/jobs/(.*)')
   })
 
+  it('makes the case study and its link preview images public', () => {
+    const isPublic = (path: string) => PUBLIC_ROUTES.some((pattern) => new RegExp(`^${pattern}$`).test(path))
+    expect(isPublic('/how-it-works')).toBe(true)
+    expect(isPublic('/how-it-works/opengraph-image')).toBe(true)
+    expect(isPublic('/opengraph-image')).toBe(true)
+    expect(isPublic('/decisions')).toBe(false)
+  })
+
   it('makes the demo public without dropping existing public routes', () => {
     expect(PUBLIC_ROUTES).toEqual(
       expect.arrayContaining(['/', '/sign-in(.*)', '/sign-up(.*)', '/demo(.*)', '/api/webhooks/(.*)'])

@@ -52,3 +52,6 @@ tasks.md
 TASKS.md
 docs/superpowers/
 .superpowers/
+
+# generated at install and build time by scripts/count-tests.ts
+/src/generated/test-stats.json
