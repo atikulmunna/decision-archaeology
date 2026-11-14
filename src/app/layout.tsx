@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import { ClerkProvider } from '@clerk/nextjs'
 import { clerkAppearance } from '@/lib/design/clerk-appearance'
 import { parseThemePreference, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/design/theme'
+import { siteUrl } from '@/lib/site'
 import './globals.css'
 
 const display = Instrument_Serif({
@@ -15,10 +16,16 @@ const display = Instrument_Serif({
 const sans = Inter_Tight({ subsets: ['latin'], variable: '--font-inter-tight' })
 const mono = IBM_Plex_Mono({ weight: ['400', '500'], subsets: ['latin'], variable: '--font-plex-mono' })
 
+const DESCRIPTION =
+  'Decision Archaeology records why you chose, before hindsight rewrites it. Each decision is sealed, then measured against what actually happened.'
+
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: 'Decision Archaeology',
-  description:
-    'Structured decision logging platform with outcome tracking, AI-powered bias detection, and calibration scoring.',
+  description: DESCRIPTION,
+  // The preview images come from the opengraph-image files beside the pages.
+  openGraph: { siteName: 'Decision Archaeology', type: 'website', title: 'Decision Archaeology', description: DESCRIPTION },
+  twitter: { card: 'summary_large_image', title: 'Decision Archaeology', description: DESCRIPTION },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
