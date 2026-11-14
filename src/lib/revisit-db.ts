@@ -76,3 +76,13 @@ export async function listDueForRevisit(
       href: revisitHref(record.id),
     }))
 }
+
+/** The day of the owner's pending check-in for a decision, if one is set. */
+export async function getPendingCheckIn(userId: string, decisionId: string): Promise<Date | null> {
+  const pending = await prisma.checkInReminder.findFirst({
+    where: { decisionId, completedAt: null, decision: { userId } },
+    orderBy: { scheduledFor: 'asc' },
+    select: { scheduledFor: true },
+  })
+  return pending?.scheduledFor ?? null
+}
