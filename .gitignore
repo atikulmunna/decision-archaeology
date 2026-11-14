@@ -55,3 +55,7 @@ docs/superpowers/
 
 # generated at install and build time by scripts/count-tests.ts
 /src/generated/test-stats.json
+
+# Playwright output
+/test-results
+/playwright-report
