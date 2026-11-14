@@ -136,6 +136,9 @@ model DecisionRecord {
   forecasts         Forecast[]
   fieldNotes        FieldNote[]
   challengeQuestions ChallengeQuestion[]
+  letter            Letter?
+  revisits          Revisit[]
+  checkInReminders  CheckInReminder[]
 
   @@unique([userId, catalogNumber])
   @@map("decision_records")
@@ -255,14 +258,19 @@ model CorrectionRequest {
   @@map("correction_requests")
 }
 
+// A check-in the owner scheduled. At most one is pending (completedAt null) per decision;
+// the daily job emails it when due, and finishing a revisit completes it.
 model CheckInReminder {
-  id           String   @id @default(cuid())
+  id           String         @id @default(cuid())
   decisionId   String
+  decision     DecisionRecord @relation(fields: [decisionId], references: [id], onDelete: Cascade)
   scheduledFor DateTime
   snoozedUntil DateTime?
   sentAt       DateTime?
-  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime       @default(now())
 
+  @@index([scheduledFor])
   @@map("check_in_reminders")
 }
 
@@ -311,4 +319,33 @@ model ChallengeAttempt {
 
   @@index([userId, createdAt])
   @@map("challenge_attempts")
+}
+
+// A letter to future you, written at sealing (src/lib/letter-rules.ts). Its body is read only by
+// src/lib/letters.ts and the draft routes, and never before its owner opens it; the seal covers sha256.
+model Letter {
+  id         String         @id @default(cuid())
+  decisionId String         @unique
+  decision   DecisionRecord @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  body       String
+  opensAt    DateTime       // midnight UTC of the chosen day
+  sha256     String         // SHA-256 of canonicalText(body), lowercase hex; set at finalize
+  openedAt   DateTime?      // first time the owner read it after opensAt
+  emailedAt  DateTime?      // when the daily job announced it
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([opensAt])
+  @@map("letters")
+}
+
+// A finished revisit (src/lib/revisit.ts).
+model Revisit {
+  id          String         @id @default(cuid())
+  decisionId  String
+  decision    DecisionRecord @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  completedAt DateTime       @default(now())
+
+  @@index([decisionId, completedAt])
+  @@map("revisits")
 }
