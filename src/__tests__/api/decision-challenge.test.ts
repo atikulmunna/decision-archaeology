@@ -164,6 +164,22 @@ describe('challenge answers and skips in the decision routes', () => {
     expect(data.sealHash).toBe(await computeSealHash(buildSealPayload({ ...sealed, ...data })))
   })
 
+  it('finalizes only onto the draft as it was read, and says so when it changed', async () => {
+    findFirst.mockResolvedValue(draftRecord)
+    update.mockRejectedValueOnce(Object.assign(new Error('Record to update not found.'), { code: 'P2025' }))
+    const res = await patch({ ...validCreateBody, finalize: true, challengeSkipped: true })
+    expect([res.status, (await res.json()).error]).toEqual([409, 'This decision changed while sealing. Review it and try again.'])
+    expect(update.mock.calls[0][0].where).toEqual({ id: 'd1', isDraft: true, challengeOutcome: null })
+  })
+
+  it('never writes a draft save onto a decision that was finalized meanwhile', async () => {
+    findFirst.mockResolvedValue(askedDraft)
+    update.mockRejectedValueOnce(Object.assign(new Error('Record to update not found.'), { code: 'P2025' }))
+    const res = await patch({ challengeAnswers: ['Late answer', ''] })
+    expect([res.status, (await res.json()).error]).toEqual([409, 'This decision is already finalized.'])
+    expect(update.mock.calls[0][0].where).toEqual({ id: 'd1', isDraft: true })
+  })
+
   it('returns the questions with a draft', async () => {
     findFirst.mockResolvedValue(askedDraft)
     await GET(new NextRequest('http://localhost/api/decisions/d1'), { params: Promise.resolve({ id: 'd1' }) })

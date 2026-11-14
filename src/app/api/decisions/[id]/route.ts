@@ -28,6 +28,9 @@ export const dynamic = 'force-dynamic'
 
 type Params = { params: Promise<{ id: string }> }
 
+// A conditional write found no matching row: the draft changed (or was finalized) after it was read.
+const isRecordMissing = (error: unknown) => (error as { code?: unknown } | null)?.code === 'P2025'
+
 // GET /api/decisions/:id
 export async function GET(_req: NextRequest, { params }: Params) {
   const { userId } = await auth()
@@ -157,8 +160,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
             },
             now
           )
+          // Written only onto the draft as it was read, so a challenge that landed meanwhile is never sealed over.
           return prisma.decisionRecord.update({
-            where: { id },
+            where: { id, isDraft: true, challengeOutcome: record.challengeOutcome ?? null },
             data: { ...finalizeData, catalogNumber, ...forecastWrite, ...answerWrite(challenge.answers), ...seal },
           })
         },
@@ -168,6 +172,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     } catch (error) {
       if (error instanceof CatalogNumberConflictError) {
         return NextResponse.json({ error: CATALOG_CONFLICT_MESSAGE }, { status: 409 })
+      }
+      if (isRecordMissing(error)) {
+        return NextResponse.json({ error: 'This decision changed while sealing. Review it and try again.' }, { status: 409 })
       }
       throw error
     }
@@ -185,9 +192,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const { forecasts: draftForecasts, challengeAnswers, ...draftFields } = parsed.data
     const challenge = resolveChallengeWrite(challengeStored, { answers: challengeAnswers, finalizing: false })
     if (!challenge.ok) return NextResponse.json({ error: challenge.error }, { status: 400 })
-    const updated = await prisma.decisionRecord.update({
-      where: { id },
-      data: {
+    // A late autosave never lands on a decision that was finalized after this request read it.
+    const updated = await prisma.decisionRecord
+      .update({
+        where: { id, isDraft: true },
+        data: {
         ...draftFields,
         predictedTimeframe:
           draftFields.predictedTimeframe === null
@@ -197,8 +206,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
               : undefined,
         ...(draftForecasts ? { forecasts: { deleteMany: {}, create: toForecastRows(draftForecasts) } } : {}),
         ...answerWrite(challenge.answers),
-      },
-    })
+        },
+      })
+      .catch((error: unknown) => {
+        if (isRecordMissing(error)) return null
+        throw error
+      })
+    if (!updated) return NextResponse.json({ error: 'This decision is already finalized.' }, { status: 409 })
 
     return NextResponse.json(updated)
   }

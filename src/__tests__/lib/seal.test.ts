@@ -275,3 +275,10 @@ describe('seal v3', () => {
     expect(record.challengeQuestions).toEqual([{ position: 0, question: `First?${CR}${LF}`, answer: ' kept ' }])
   })
 })
+
+describe('seal v3 hardening', () => {
+  it('seals no questions unless the outcome is ASKED', () => {
+    const stray = { ...fixture, challengeOutcome: 'SKIPPED' as const, challengeModel: null, challengeQuestions: [{ position: 0, question: 'Stray?', answer: null }] }
+    expect(JSON.parse(buildSealPayload(stray)).challenge.questions).toEqual([])
+  })
+})

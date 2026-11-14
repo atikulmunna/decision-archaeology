@@ -241,3 +241,18 @@ describe('generateStructured deadline', () => {
     expect(f).toHaveBeenCalledTimes(2)
   })
 })
+
+describe('generateStructured default timeout', () => {
+  it('keeps the per-request timeout when no timeoutMs is given, so a slow first reply is still repaired', async () => {
+    let clock = 0
+    const f = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        clock = 100_000
+        return okReply({ wrong: true })
+      })
+      .mockResolvedValueOnce(okReply({ answer: 'a', score: 1 }))
+    await generateStructured({ messages: [], schema: Schema, schemaName: 'p', fetchImpl: f, env, now: () => clock })
+    expect(f).toHaveBeenCalledTimes(2)
+  })
+})

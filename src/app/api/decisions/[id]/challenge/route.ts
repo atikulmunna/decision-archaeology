@@ -22,7 +22,6 @@ const REQUIRED = ['title', 'summary', 'context', 'alternatives', 'chosenOption',
 
 type QuestionRow = { position: number; question: string }
 const asQuestions = (rows: QuestionRow[]) => rows.map((row) => ({ position: row.position, question: row.question }))
-const isUniqueViolation = (error: unknown) => (error as { code?: unknown } | null)?.code === 'P2002'
 
 // POST /api/decisions/:id/challenge: the Devil's Advocate asks two or three questions about a draft.
 // Only this route writes questions, so a seal can never vouch for questions the browser made up.
@@ -72,25 +71,35 @@ export async function POST(_req: NextRequest, { params }: Params) {
     })
   } catch (error) {
     console.error("Devil's Advocate failed:", error instanceof Error ? error.message : error)
+    // Only a draft records a failure, so a decision sealed meanwhile keeps its outcome and its seal.
     await prisma.decisionRecord.updateMany({
-      where: { id, OR: [{ challengeOutcome: null }, { challengeOutcome: 'UNAVAILABLE' }] },
+      where: { id, isDraft: true, OR: [{ challengeOutcome: null }, { challengeOutcome: 'UNAVAILABLE' }] },
       data: { challengeOutcome: 'UNAVAILABLE' },
     })
     return NextResponse.json({ error: 'The AI could not be reached. Try again, or seal without questions.' }, { status: 503 })
   }
 
   const rows = reply.data.questions.map((item, position) => ({ decisionId: id, position, question: cleanQuestion(item.question) }))
-  try {
-    await prisma.$transaction([
-      prisma.challengeQuestion.createMany({ data: rows }),
-      prisma.decisionRecord.update({ where: { id }, data: { challengeOutcome: 'ASKED', challengeModel: reply.model } }),
-    ])
-  } catch (error) {
-    if (!isUniqueViolation(error)) throw error
-    // A second request for the same draft won the race: hand back what it stored.
-    const stored = await prisma.challengeQuestion.findMany({ where: { decisionId: id }, orderBy: { position: 'asc' } })
-    const owner = await prisma.decisionRecord.findFirst({ where: { id, userId: dbUser.id }, select: { challengeModel: true } })
-    return NextResponse.json({ questions: asQuestions(stored), model: owner?.challengeModel ?? null })
+  // Claim the draft before writing: the conditional update locks the row, so a finalize or a second
+  // request that got there first wins, and questions are never written onto a sealed decision.
+  const stored = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.decisionRecord.updateMany({
+      where: { id, isDraft: true, OR: [{ challengeOutcome: null }, { challengeOutcome: 'UNAVAILABLE' }] },
+      data: { challengeOutcome: 'ASKED', challengeModel: reply.model },
+    })
+    if (claimed.count === 0) return false
+    await tx.challengeQuestion.createMany({ data: rows })
+    return true
+  })
+  if (!stored) {
+    const current = await prisma.decisionRecord.findFirst({
+      where: { id, userId: dbUser.id },
+      include: { challengeQuestions: { orderBy: { position: 'asc' } } },
+    })
+    if (current?.isDraft && current.challengeOutcome === 'ASKED') {
+      return NextResponse.json({ questions: asQuestions(current.challengeQuestions), model: current.challengeModel })
+    }
+    return NextResponse.json({ error: 'This decision is already sealed.' }, { status: 409 })
   }
 
   return NextResponse.json({ questions: asQuestions(rows), model: reply.model }, { status: 201 })

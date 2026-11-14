@@ -97,7 +97,8 @@ export function buildSealPayload(record: SealableDecision): string {
   const challenge = {
     outcome: record.challengeOutcome!.toLowerCase(),
     model: record.challengeModel ?? null,
-    questions: [...(record.challengeQuestions ?? [])]
+    // Only asked questions are sealed, so stray rows can never make a skip or a failure read as asked.
+    questions: (record.challengeOutcome === 'ASKED' ? [...(record.challengeQuestions ?? [])] : [])
       .sort((a, b) => a.position - b.position)
       .map((item) => ({ question: canonicalText(item.question), answer: canonicalOptional(item.answer) })),
   }

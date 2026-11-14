@@ -16,7 +16,11 @@ vi.mock('@clerk/nextjs/server', () => ({ auth: async () => ({ userId: mocks.user
 vi.mock('@/lib/db-user', () => ({ getOrCreateDbUser: async () => ({ id: 'db_1', tier: 'PRO' }) }))
 vi.mock('@/lib/ai', () => ({ generateStructured: mocks.generate }))
 vi.mock('@/lib/prisma', () => ({
-  prisma: { ...mocks.db, $transaction: async (writes: Promise<unknown>[]) => Promise.all(writes) },
+  prisma: {
+    ...mocks.db,
+    $transaction: async (arg: unknown) =>
+      typeof arg === 'function' ? (arg as (tx: typeof mocks.db) => unknown)(mocks.db) : Promise.all(arg as Promise<unknown>[]),
+  },
 }))
 
 import { POST as challenge } from '@/app/api/decisions/[id]/challenge/route'
@@ -129,7 +133,11 @@ describe('POST /api/decisions/[id]/challenge', () => {
     expect(db.challengeQuestion.createMany).toHaveBeenCalledWith({
       data: questions.map((question, position) => ({ decisionId: 'd1', position, question })),
     })
-    expect(db.decisionRecord.update).toHaveBeenCalledWith({ where: { id: 'd1' }, data: { challengeOutcome: 'ASKED', challengeModel: 'openai/gpt-5-mini' } })
+    // The draft is claimed first, so questions are only ever written onto a draft that still has none.
+    expect(db.decisionRecord.updateMany).toHaveBeenCalledWith({
+      where: { id: 'd1', isDraft: true, OR: [{ challengeOutcome: null }, { challengeOutcome: 'UNAVAILABLE' }] },
+      data: { challengeOutcome: 'ASKED', challengeModel: 'openai/gpt-5-mini' },
+    })
     expect(await res.json()).toEqual({ questions: questions.map((question, position) => ({ position, question })), model: 'openai/gpt-5-mini' })
   })
 
@@ -140,25 +148,38 @@ describe('POST /api/decisions/[id]/challenge', () => {
     expect([res.status, await res.json()]).toEqual([503, { error: 'The AI could not be reached. Try again, or seal without questions.' }])
     expect(db.challengeAttempt.create).toHaveBeenCalled()
     expect(db.decisionRecord.updateMany).toHaveBeenCalledWith({
-      where: { id: 'd1', OR: [{ challengeOutcome: null }, { challengeOutcome: 'UNAVAILABLE' }] },
+      where: { id: 'd1', isDraft: true, OR: [{ challengeOutcome: null }, { challengeOutcome: 'UNAVAILABLE' }] },
       data: { challengeOutcome: 'UNAVAILABLE' },
     })
     expect(db.challengeQuestion.createMany).not.toHaveBeenCalled()
   })
 
   it('answers a racing second request with the stored questions', async () => {
-    db.challengeQuestion.createMany.mockRejectedValue(Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }))
-    db.challengeQuestion.findMany.mockResolvedValue([
-      { id: 'q1', decisionId: 'd1', position: 0, question: 'Stored first?', answer: null, createdAt: new Date() },
-      { id: 'q2', decisionId: 'd1', position: 1, question: 'Stored second?', answer: null, createdAt: new Date() },
-    ])
+    db.decisionRecord.updateMany.mockResolvedValue({ count: 0 })
+    db.decisionRecord.findFirst.mockResolvedValueOnce(draft).mockResolvedValueOnce({
+      ...draft,
+      challengeOutcome: 'ASKED',
+      challengeModel: 'openai/gpt-5-mini',
+      challengeQuestions: [
+        { id: 'q1', decisionId: 'd1', position: 0, question: 'Stored first?', answer: null, createdAt: new Date() },
+        { id: 'q2', decisionId: 'd1', position: 1, question: 'Stored second?', answer: null, createdAt: new Date() },
+      ],
+    })
     const res = await ask()
     expect(res.status).toBe(200)
     expect((await res.json()).questions).toEqual([
       { position: 0, question: 'Stored first?' },
       { position: 1, question: 'Stored second?' },
     ])
-    expect(db.challengeQuestion.findMany).toHaveBeenCalledWith({ where: { decisionId: 'd1' }, orderBy: { position: 'asc' } })
+    expect(db.challengeQuestion.createMany).not.toHaveBeenCalled()
+  })
+
+  it('never writes questions onto a decision that was sealed while the AI was asked', async () => {
+    db.decisionRecord.updateMany.mockResolvedValue({ count: 0 })
+    db.decisionRecord.findFirst.mockResolvedValueOnce(draft).mockResolvedValueOnce({ ...draft, isDraft: false, challengeOutcome: 'SKIPPED' })
+    const res = await ask()
+    expect([res.status, await res.json()]).toEqual([409, { error: 'This decision is already sealed.' }])
+    expect(db.challengeQuestion.createMany).not.toHaveBeenCalled()
   })
 
   it('requires a signed-in user', async () => {

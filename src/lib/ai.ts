@@ -103,8 +103,11 @@ export async function generateStructured<T>(opts: {
   const env = opts.env ?? process.env
   const fetchImpl = opts.fetchImpl ?? fetch
   const now = opts.now ?? Date.now
+  // With timeoutMs the whole call, repair included, shares one deadline. Without it each request keeps
+  // its own 90 second limit, as callers that predate the option expect.
+  const overall = opts.timeoutMs !== undefined
   const timeoutMs = opts.timeoutMs ?? REQUEST_TIMEOUT_MS
-  const deadline = now() + timeoutMs
+  const deadline = overall ? now() + timeoutMs : Number.POSITIVE_INFINITY
   const timedOut = () => new OpenRouterError(408, `OpenRouter request timed out after ${timeoutMs / 1000} seconds`)
   const apiKey = env.OPENROUTER_API_KEY
   if (!apiKey) throw new Error('OPENROUTER_API_KEY is not set')
@@ -125,7 +128,7 @@ export async function generateStructured<T>(opts: {
     try {
       return await fetchImpl(OPENROUTER_URL, {
         method: 'POST',
-        signal: AbortSignal.timeout(Math.max(1, deadline - now())),
+        signal: AbortSignal.timeout(overall ? Math.max(1, deadline - now()) : REQUEST_TIMEOUT_MS),
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
@@ -179,7 +182,7 @@ export async function generateStructured<T>(opts: {
   const firstOutcome = parseReply(first, opts.schema)
   if (firstOutcome.ok) return { data: firstOutcome.data, model: first.model ?? AUTO_ROUTER_MODEL }
 
-  if (deadline - now() <= 0) throw timedOut()
+  if (overall && deadline - now() <= 0) throw timedOut()
   const repair = await request([
     ...opts.messages,
     { role: 'assistant', content: firstOutcome.raw },

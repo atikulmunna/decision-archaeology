@@ -1,9 +1,8 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Callout } from '@/components/ui/Callout'
 import { fieldClasses } from '@/components/ui/Input'
 import { CHALLENGE_ANSWER_MAX, type CaptureChallenge } from '@/lib/devils-advocate'
 
@@ -37,10 +36,22 @@ export function ChallengeStep({
   // One request at a time: the ref stops a second press before React re-renders the disabled button.
   const asking = useRef(false)
   const asked = challenge.outcome === 'ASKED' && challenge.questions.length > 0
+  // What the live region says once the questions arrive, and whether focus should move to them.
+  const [ready, setReady] = useState<string | null>(null)
+  const focusQuestions = useRef(false)
+  const listRef = useRef<HTMLOListElement>(null)
+
+  useEffect(() => {
+    if (asked && focusQuestions.current) {
+      focusQuestions.current = false
+      listRef.current?.focus()
+    }
+  }, [asked])
 
   async function request() {
     if (asking.current) return
     asking.current = true
+    setReady(null)
     setStatus({ kind: 'asking' })
     try {
       const response = await ask()
@@ -52,6 +63,8 @@ export function ChallengeStep({
       const message = typeof body?.error === 'string' ? body.error : FAILED
       if (response.ok && Array.isArray(body?.questions)) {
         const questions = body.questions
+        focusQuestions.current = true
+        setReady(`${questions.length} questions are ready.`)
         onChange({ outcome: 'ASKED', model: body.model ?? null, questions, answers: questions.map((_, index) => challenge.answers[index] ?? '') })
         setStatus({ kind: 'idle' })
       } else if (response.status === 429) {
@@ -71,6 +84,15 @@ export function ChallengeStep({
   const answer = (index: number, value: string) =>
     onChange({ ...challenge, answers: challenge.questions.map((_, i) => (i === index ? value : (challenge.answers[i] ?? ''))) })
 
+  // One live region, always mounted, so screen readers hear the wait, the result and any failure.
+  const failed = status.kind === 'failed' || status.kind === 'capped'
+  const live = status.kind === 'asking' ? 'Reading your reasoning...' : failed ? status.message : asked ? (ready ?? '') : ''
+  const liveClass = failed
+    ? 'rounded-sm border border-rule bg-sunken px-4 py-3 text-sm text-ink'
+    : asked
+      ? 'sr-only'
+      : 'font-mono text-[11px] uppercase tracking-[0.09em] text-muted'
+
   const back = (
     <Button variant="ghost" onClick={onBack} disabled={status.kind === 'asking'}>
       <ArrowLeft aria-hidden="true" size={14} strokeWidth={1.5} />
@@ -87,15 +109,19 @@ export function ChallengeStep({
         {!asked && <p className="text-sm leading-relaxed text-ink-2">{INTRO}</p>}
       </div>
 
+      <p role="status" aria-live="polite" className={liveClass}>
+        {live}
+      </p>
+
       {asked ? (
         <>
-          <ol className="flex flex-col gap-5">
+          <ol ref={listRef} tabIndex={-1} aria-label="Questions" className="flex flex-col gap-5 focus:outline-none">
             {challenge.questions.map((item, index) => {
               const value = challenge.answers[index] ?? ''
               return (
                 <li key={item.position} className="flex flex-col gap-2">
-                  <p className="break-words font-display text-[18px] leading-snug text-ink">
-                    <span className="mr-2 font-mono text-[12px] text-muted">{index + 1}.</span>
+                  <p id={`${id}-q-${index}`} className="break-words font-display text-[18px] leading-snug text-ink">
+                    <span className="mr-1 font-mono text-[12px] text-muted">{index + 1}.</span>{' '}
                     {item.question}
                   </p>
                   <label htmlFor={`${id}-answer-${index}`} className="text-sm font-medium text-ink-2">
@@ -105,11 +131,12 @@ export function ChallengeStep({
                     id={`${id}-answer-${index}`}
                     value={value}
                     maxLength={CHALLENGE_ANSWER_MAX}
+                    aria-describedby={`${id}-q-${index} ${id}-count-${index}`}
                     rows={3}
                     onChange={(event) => answer(index, event.target.value)}
                     className={`${fieldClasses()} resize-y`}
                   />
-                  <p className="self-end font-mono text-[11px] text-muted">
+                  <p id={`${id}-count-${index}`} className="self-end font-mono text-[11px] text-muted">
                     {value.length}/{CHALLENGE_ANSWER_MAX}
                   </p>
                 </li>
@@ -131,12 +158,6 @@ export function ChallengeStep({
         </>
       ) : (
         <>
-          {status.kind === 'asking' && (
-            <p role="status" className="font-mono text-[11px] uppercase tracking-[0.09em] text-muted">
-              Reading your reasoning...
-            </p>
-          )}
-          {(status.kind === 'failed' || status.kind === 'capped') && <Callout tone="warning">{status.message}</Callout>}
           <div className="flex flex-wrap justify-between gap-3 border-t border-rule pt-4">
             {back}
             <div className="flex flex-wrap gap-3">

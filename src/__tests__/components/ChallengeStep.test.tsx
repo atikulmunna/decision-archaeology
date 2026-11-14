@@ -75,3 +75,34 @@ describe('ChallengeStep', () => {
     expect(screen.getByText('3/1000')).toBeInTheDocument()
   })
 })
+
+describe('ChallengeStep accessibility', () => {
+  it('announces progress and the result in one live region and moves focus to the questions', async () => {
+    let answer: (response: Response) => void = () => {}
+    render(<Harness ask={vi.fn(() => new Promise<Response>((resolve) => (answer = resolve)))} />)
+    const live = screen.getByRole('status')
+    expect(live).toHaveTextContent('')
+    await userEvent.click(screen.getByRole('button', { name: 'Challenge my reasoning' }))
+    expect(live).toHaveTextContent('Reading your reasoning...')
+    await act(async () => answer(json(asked, 201)))
+    expect(screen.getByRole('status')).toBe(live)
+    expect(live).toHaveTextContent('2 questions are ready.')
+    expect(document.activeElement).toBe(screen.getByRole('list', { name: 'Questions' }))
+  })
+
+  it('announces a failure in the same live region', async () => {
+    const message = 'The AI could not be reached. Try again, or seal without questions.'
+    render(<Harness ask={vi.fn(async () => json({ error: message }, 503))} />)
+    const live = screen.getByRole('status')
+    await userEvent.click(screen.getByRole('button', { name: 'Challenge my reasoning' }))
+    await screen.findByText(message)
+    expect(live).toHaveTextContent(message)
+  })
+
+  it('describes each answer box with its question and its counter', () => {
+    render(<Harness ask={vi.fn()} initial={{ outcome: 'ASKED', model: 'm', questions: asked.questions, answers: ['', ''] }} />)
+    const [first, second] = screen.getAllByLabelText('Your answer (optional)')
+    expect(first).toHaveAccessibleDescription('1. Why not stay? 0/1000')
+    expect(second).toHaveAccessibleDescription('2. What if it stalls? 0/1000')
+  })
+})
