@@ -8,9 +8,11 @@ const mocks = vi.hoisted(() => ({
     checkInReminder: { findMany: vi.fn(), updateMany: vi.fn() },
   },
   send: vi.fn(),
+  logError: vi.fn(),
 }))
 
 vi.mock('@/lib/prisma', () => ({ prisma: mocks.db }))
+vi.mock('@/lib/observability', () => ({ logError: mocks.logError }))
 vi.mock('resend', () => ({
   Resend: class {
     emails = { send: mocks.send }
@@ -55,10 +57,11 @@ describe('GET /api/jobs/daily', () => {
     const res = await run()
     expect(await res.json()).toEqual({ letters: { sent: 1, failed: 0 }, checkIns: { sent: 0, failed: 0 } })
     const query = db.letter.findMany.mock.calls[0][0]
-    expect(query.where).toEqual({ opensAt: { lte: expect.any(Date) }, emailedAt: null, decision: { isDraft: false } })
+    // A letter its owner already opened in the app is never announced.
+    expect(query.where).toEqual({ opensAt: { lte: expect.any(Date) }, emailedAt: null, openedAt: null, decision: { isDraft: false } })
     expect(query.take).toBe(200)
     expect(JSON.stringify(query.select)).not.toContain('body')
-    expect(db.letter.updateMany).toHaveBeenCalledWith({ where: { id: 'l1', emailedAt: null }, data: { emailedAt: expect.any(Date) } })
+    expect(db.letter.updateMany).toHaveBeenCalledWith({ where: { id: 'l1', emailedAt: null, openedAt: null }, data: { emailedAt: expect.any(Date) } })
     const sent = send.mock.calls[0][0]
     expect(sent.to).toBe('owner@example.com')
     expect(sent.html).toContain('https://da.example/decisions/d1/revisit')
@@ -93,6 +96,9 @@ describe('GET /api/jobs/daily', () => {
     expect(db.letter.updateMany).toHaveBeenCalledWith({ where: { id: 'l2' }, data: { emailedAt: null } })
     expect(db.letter.updateMany).toHaveBeenCalledWith({ where: { id: 'l3' }, data: { emailedAt: null } })
     expect(db.letter.updateMany).not.toHaveBeenCalledWith({ where: { id: 'l1' }, data: { emailedAt: null } })
+    // The reason is logged, with the kind and id only.
+    expect(mocks.logError).toHaveBeenCalledWith('[daily] Letter email failed', expect.any(Error), { letterId: 'l2' })
+    expect(mocks.logError).toHaveBeenCalledWith('[daily] Letter email failed', expect.any(Error), { letterId: 'l3' })
   })
 
   it('sends nothing twice when two runs overlap', async () => {

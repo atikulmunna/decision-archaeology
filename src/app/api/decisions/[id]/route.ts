@@ -140,7 +140,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const letterCheck = checkLetter(letterInput, now)
     if (!letterCheck.ok) return NextResponse.json({ error: letterCheck.error }, { status: 400 })
     const letter = letterCheck.letter ? { ...letterCheck.letter, sha256: await letterFingerprint(letterCheck.letter.body) } : null
-    if (!letter) await prisma.letter.deleteMany({ where: { decisionId: id } })
     const letterWrite = letter ? { letter: { upsert: { create: letter, update: letter } } } : {}
 
     const finalizeData = {
@@ -191,6 +190,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         },
         () => getMaxCatalogNumber(dbUser.id)
       )
+      // A draft letter is removed only once the decision has sealed without one, so a failed seal keeps it.
+      if (!letter) await prisma.letter.deleteMany({ where: { decisionId: id } })
       return NextResponse.json(updated)
     } catch (error) {
       if (error instanceof CatalogNumberConflictError) {
@@ -217,7 +218,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (!challenge.ok) return NextResponse.json({ error: challenge.error }, { status: 400 })
     // Drafts keep the letter as typed; the rules and the fingerprint apply at sealing.
     const draftLetterDay = draftLetter && draftLetter.body.trim() ? parseIsoDay(draftLetter.opensOn) : null
-    if (draftLetter !== undefined && !draftLetterDay) await prisma.letter.deleteMany({ where: { decisionId: id } })
+    // Gated on the decision still being a draft, so a late autosave can never remove a sealed letter.
+    if (draftLetter !== undefined && !draftLetterDay) {
+      await prisma.letter.deleteMany({ where: { decisionId: id, decision: { isDraft: true } } })
+    }
     const draftLetterRow = draftLetter && draftLetterDay ? { body: draftLetter.body, opensAt: draftLetterDay, sha256: '' } : null
     // A late autosave never lands on a decision that was finalized after this request read it.
     const updated = await prisma.decisionRecord

@@ -126,3 +126,39 @@ describe('RevisitFlow', () => {
     expect(screen.getByText('The demo is read-only.')).toBeInTheDocument()
   })
 })
+
+describe('RevisitFlow fixes', () => {
+  it('starts on 3 months when the pending check-in is already due, and finishes with it', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ revisitId: 'r1', nextCheckIn: '2027-06-10' }), { status: 201 }))
+    flow({ state: 'none' }, { pendingCheckIn: day('2027-03-01') })
+    for (let i = 0; i < 5; i += 1) await next()
+    expect(screen.getByRole('radio', { name: '3 months' })).toBeChecked()
+    await userEvent.click(screen.getByRole('button', { name: 'Finish revisit' }))
+    expect(JSON.parse(String(fetchSpy.mock.calls[0][1]!.body))).toEqual({ nextCheckIn: '2027-06-10' })
+  })
+
+  it('shows the server reason when finishing is refused, and keeps the date input within two years', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ error: 'Pick a day in the next two years.' }), { status: 400 }))
+    flow()
+    for (let i = 0; i < 5; i += 1) await next()
+    expect(screen.getByLabelText('On a day')).toHaveAttribute('min', '2027-03-11')
+    expect(screen.getByLabelText('On a day')).toHaveAttribute('max', '2029-03-10')
+    await userEvent.click(screen.getByRole('button', { name: 'Finish revisit' }))
+    expect(await screen.findByText('Pick a day in the next two years.')).toBeInTheDocument()
+  })
+
+  it('disables Finish until a chosen day has a date', async () => {
+    flow()
+    for (let i = 0; i < 5; i += 1) await next()
+    await userEvent.click(screen.getByRole('radio', { name: 'A chosen day' }))
+    expect(screen.getByRole('button', { name: 'Finish revisit' })).toBeDisabled()
+  })
+
+  it('announces each step and moves focus to it', async () => {
+    flow()
+    expect(screen.getByRole('status')).toHaveTextContent('Step 1 of 6')
+    await next()
+    expect(screen.getByRole('status')).toHaveTextContent('Step 2 of 6')
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Sealed' }))
+  })
+})

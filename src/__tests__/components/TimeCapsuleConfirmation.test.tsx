@@ -80,3 +80,17 @@ describe('TimeCapsuleConfirmation letter', () => {
     expect(onLetterChange).toHaveBeenLastCalledWith({ body: 'Hi there', opensOn: '2027-05-15' })
   })
 })
+
+describe('TimeCapsuleConfirmation letter accessibility', () => {
+  it('links the hint and the error to the letter box and announces the error', () => {
+    render(
+      <TimeCapsuleConfirmation data={validInput} onConfirm={vi.fn()} onBack={vi.fn()} loading={false} upcomingCatalogNumber={43}
+        challenge={{ outcome: null, model: null, questions: [], answers: [], skipped: true }} letter={{ body: 'Hi', opensOn: '2027-05-15' }} onLetterChange={vi.fn()} letterError="Pick an opening day at least a month away." />
+    )
+    const box = screen.getByLabelText('A letter to future you (optional)')
+    expect(box).toHaveAccessibleDescription(/stays sealed until the day you pick/)
+    expect(screen.getByLabelText('Opens on')).toHaveAccessibleDescription(/Pick an opening day at least a month away/)
+    expect(screen.getByLabelText('Opens on')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('alert')).toHaveTextContent('Pick an opening day at least a month away.')
+  })
+})

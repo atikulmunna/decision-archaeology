@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { Forecast, OutcomeUpdate } from '@prisma/client'
 import { Button } from '@/components/ui/Button'
 import { fieldClasses } from '@/components/ui/Input'
@@ -10,7 +10,7 @@ import { AddOutcomeForm } from '@/components/decisions/AddOutcomeForm'
 import { ChallengeRecord } from '@/components/decisions/ChallengeRecord'
 import { LetterSection } from '@/components/decisions/LetterSection'
 import { checkInChoices } from '@/lib/revisit'
-import { isoDay } from '@/lib/utc-days'
+import { addUtcDays, addUtcYears, isoDay, startOfUtcDay } from '@/lib/utc-days'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
 import type { ReviewLike } from '@/lib/assumptions'
 import type { LetterPeek } from '@/lib/revisit-summary'
@@ -33,9 +33,23 @@ export function RevisitFlow({ mode, data, letter, now }: { mode: 'owner' | 'demo
   // The forecasts due when the revisit started stay listed after they are resolved here.
   const [dueIds] = useState(() => new Set(data.forecasts.filter((f) => f.resolution === null && new Date(f.resolveBy) < now).map((f) => f.id)))
   const choices = checkInChoices(now)
-  const [pick, setPick] = useState<Pick>(data.pendingCheckIn ? 'day' : '3 months')
-  const [day, setDay] = useState(data.pendingCheckIn ? isoDay(new Date(data.pendingCheckIn)) : '')
+  // Start on the pending check-in only while it is still ahead; one already due would be refused.
+  const today = startOfUtcDay(now)
+  const pendingAhead = data.pendingCheckIn !== null && startOfUtcDay(new Date(data.pendingCheckIn)) > today
+  const [pick, setPick] = useState<Pick>(pendingAhead ? 'day' : '3 months')
+  const [day, setDay] = useState(pendingAhead ? isoDay(new Date(data.pendingCheckIn!)) : '')
   const [status, setStatus] = useState<'idle' | 'saving' | 'done' | 'failed'>('idle')
+  const [failure, setFailure] = useState(FAILED)
+  // Each step change moves focus to the new step, so keyboard and screen reader users land on it.
+  const stepRef = useRef<HTMLElement>(null)
+  const moved = useRef(false)
+  useEffect(() => {
+    if (!moved.current) {
+      moved.current = true
+      return
+    }
+    stepRef.current?.focus()
+  }, [step])
 
   const last = step === STEPS.length - 1
   const nextCheckIn = pick === 'never' ? null : pick === 'day' ? day : (choices.find((choice) => choice.label === pick)?.day ?? null)
@@ -51,8 +65,15 @@ export function RevisitFlow({ mode, data, letter, now }: { mode: 'owner' | 'demo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nextCheckIn }),
       })
-      setStatus(response.ok ? 'done' : 'failed')
+      if (response.ok) {
+        setStatus('done')
+        return
+      }
+      const body = (await response.json().catch(() => null)) as { error?: unknown } | null
+      setFailure(response.status === 400 && typeof body?.error === 'string' ? body.error : FAILED)
+      setStatus('failed')
     } catch {
+      setFailure(FAILED)
       setStatus('failed')
     }
   }
@@ -67,7 +88,9 @@ export function RevisitFlow({ mode, data, letter, now }: { mode: 'owner' | 'demo
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <p className={label}>{`Step ${step + 1} of ${STEPS.length}`}</p>
+        <p role="status" aria-live="polite" className={label}>
+          {`Step ${step + 1} of ${STEPS.length}`}
+        </p>
         <ol aria-label="Revisit steps" className="flex flex-wrap gap-1">
           {STEPS.map((name, index) => (
             <li
@@ -81,7 +104,7 @@ export function RevisitFlow({ mode, data, letter, now }: { mode: 'owner' | 'demo
         </ol>
       </div>
 
-      <section className="flex flex-col gap-4 rounded-sm border border-rule bg-surface p-4 sm:p-6">
+      <section ref={stepRef} tabIndex={-1} aria-label={STEPS[step]} className="flex flex-col gap-4 rounded-sm border border-rule bg-surface p-4 focus:outline-none sm:p-6">
         {step === 0 &&
           (letter.state === 'none' ? (
             <p className="text-sm text-ink-2">No letter for this decision.</p>
@@ -172,6 +195,8 @@ export function RevisitFlow({ mode, data, letter, now }: { mode: 'owner' | 'demo
                 setDay(event.target.value)
                 setPick('day')
               }}
+              min={isoDay(addUtcDays(today, 1))}
+              max={isoDay(addUtcYears(today, 2))}
               disabled={status === 'done'}
               className={`${fieldClasses()} max-w-[200px]`}
             />
@@ -191,14 +216,18 @@ export function RevisitFlow({ mode, data, letter, now }: { mode: 'owner' | 'demo
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          {status === 'failed' && <p className="text-sm text-danger">{FAILED}</p>}
+          {status === 'failed' && (
+            <p role="alert" className="text-sm text-danger">
+              {failure}
+            </p>
+          )}
           {readOnly && last && <p className="text-sm text-muted">The demo is read-only.</p>}
           <div className="flex flex-wrap justify-between gap-3 border-t border-rule pt-4">
             <Button variant="ghost" onClick={() => setStep((current) => Math.max(0, current - 1))} disabled={step === 0}>
               Back
             </Button>
             {last ? (
-              <Button onClick={() => void finish()} disabled={readOnly || status === 'saving'} loading={status === 'saving'}>
+              <Button onClick={() => void finish()} disabled={readOnly || status === 'saving' || (pick === 'day' && !day)} loading={status === 'saving'}>
                 Finish revisit
               </Button>
             ) : (

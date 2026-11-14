@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import { prisma } from '@/lib/prisma'
 import { formatCatalogNumber } from '@/lib/catalog'
 import { checkInEmail, letterReadyEmail } from '@/lib/email/messages'
+import { logError } from '@/lib/observability'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
     tally: Tally,
     claim: (id: string) => Promise<{ count: number }>,
     release: (id: string) => Promise<unknown>,
+    failure: { message: string; key: string },
     build: (message: { title: string; catalog: string; revisitUrl: string }) => { subject: string; html: string; text: string }
   ) {
     for (const item of items) {
@@ -47,15 +49,17 @@ export async function GET(req: NextRequest) {
         const { error } = await resend.emails.send({ from, to: item.decision.user.email, ...email })
         if (error) throw new Error(error.message)
         tally.sent += 1
-      } catch {
+      } catch (error) {
         await release(item.id)
+        await logError(failure.message, error, { [failure.key]: item.id })
         tally.failed += 1
       }
     }
   }
 
   const letters = await prisma.letter.findMany({
-    where: { opensAt: { lte: now }, emailedAt: null, decision: { isDraft: false } },
+    // A letter its owner already opened in the app needs no announcement.
+    where: { opensAt: { lte: now }, emailedAt: null, openedAt: null, decision: { isDraft: false } },
     select: { id: true, decisionId: true, decision: DECISION },
     orderBy: { opensAt: 'asc' },
     take: BATCH,
@@ -63,8 +67,9 @@ export async function GET(req: NextRequest) {
   await deliver(
     letters,
     result.letters,
-    (id) => prisma.letter.updateMany({ where: { id, emailedAt: null }, data: { emailedAt: now } }),
+    (id) => prisma.letter.updateMany({ where: { id, emailedAt: null, openedAt: null }, data: { emailedAt: now } }),
     (id) => prisma.letter.updateMany({ where: { id }, data: { emailedAt: null } }),
+    { message: '[daily] Letter email failed', key: 'letterId' },
     letterReadyEmail
   )
 
@@ -79,6 +84,7 @@ export async function GET(req: NextRequest) {
     result.checkIns,
     (id) => prisma.checkInReminder.updateMany({ where: { id, sentAt: null }, data: { sentAt: now } }),
     (id) => prisma.checkInReminder.updateMany({ where: { id }, data: { sentAt: null } }),
+    { message: '[daily] Check-in email failed', key: 'checkInId' },
     checkInEmail
   )
 

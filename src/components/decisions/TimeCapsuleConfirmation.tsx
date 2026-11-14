@@ -137,12 +137,15 @@ export function TimeCapsuleConfirmation({
         <label htmlFor={`${id}-letter`} className="text-sm font-medium text-ink-2">
           A letter to future you (optional)
         </label>
-        <p className="text-sm text-muted">It stays sealed until the day you pick. Not even you can read it before then.</p>
+        <p id={`${id}-hint`} className="text-sm text-muted">
+          It stays sealed until the day you pick. Not even you can read it before then.
+        </p>
         <textarea
           id={`${id}-letter`}
           value={letter.body}
           maxLength={LETTER_MAX}
           rows={5}
+          aria-describedby={`${id}-hint`}
           onChange={(event) => onLetterChange({ ...letter, body: event.target.value })}
           onBlur={onLetterBlur}
           className={`${fieldClasses()} resize-y`}
@@ -159,11 +162,17 @@ export function TimeCapsuleConfirmation({
           value={letter.opensOn}
           min={isoDay(range.min)}
           max={isoDay(range.max)}
+          aria-describedby={letterError ? `${id}-error` : undefined}
+          aria-invalid={letterError ? true : undefined}
           onChange={(event) => onLetterChange({ ...letter, opensOn: event.target.value })}
           onBlur={onLetterBlur}
           className={`${fieldClasses()} max-w-[220px]`}
         />
-        {letterError && <p className="text-sm text-danger">{letterError}</p>}
+        {letterError && (
+          <p id={`${id}-error`} role="alert" className="text-sm text-danger">
+            {letterError}
+          </p>
+        )}
       </section>
 
       <Callout tone="warning" title="This cannot be undone">

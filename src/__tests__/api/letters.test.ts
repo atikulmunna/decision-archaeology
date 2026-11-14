@@ -100,10 +100,11 @@ describe('the letter in the decision routes', () => {
     expect((await res.json()).letter).toEqual({ body: 'Dear me', opensOn })
   })
 
-  it('removes the draft letter when the body is blank', async () => {
+  it('removes the draft letter when the body is blank, but only while the decision is still a draft', async () => {
     findFirst.mockResolvedValue(draftRecord)
     await patch({ letter: { body: '   ', opensOn: inDays(60) } })
-    expect(mocks.letterDeleteMany).toHaveBeenCalledWith({ where: { decisionId: 'd1' } })
+    // A stale autosave landing after finalize finds no draft, so it can never remove a sealed letter.
+    expect(mocks.letterDeleteMany).toHaveBeenCalledWith({ where: { decisionId: 'd1', decision: { isDraft: true } } })
     expect(update.mock.calls[0][0].data.letter).toBeUndefined()
   })
 
@@ -136,6 +137,21 @@ describe('the letter in the decision routes', () => {
     expect(data.letter).toBeUndefined()
     expect(mocks.letterDeleteMany).toHaveBeenCalledWith({ where: { decisionId: 'd1' } })
     expect(JSON.parse(buildSealPayload({ ...draftRecord, ...data })).seal).not.toBe('da-seal-v4')
+  })
+
+  it('removes a draft letter only after sealing without one succeeds', async () => {
+    findFirst.mockResolvedValue(draftRecord)
+    const order: string[] = []
+    update.mockImplementation(async ({ data }: { data: Data }) => (order.push('update'), { ...draftRecord, ...data }))
+    mocks.letterDeleteMany.mockImplementation(async () => (order.push('delete'), { count: 1 }))
+    await patch({ ...validCreateBody, finalize: true, letter: null })
+    expect(order).toEqual(['update', 'delete'])
+
+    order.length = 0
+    update.mockRejectedValueOnce(Object.assign(new Error('Record to update not found.'), { code: 'P2025' }))
+    const res = await patch({ ...validCreateBody, finalize: true, letter: null })
+    expect(res.status).toBe(409)
+    expect(order).toEqual([])
   })
 
   it('seals a letter on the create path', async () => {
