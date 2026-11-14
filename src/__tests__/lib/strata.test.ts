@@ -28,12 +28,37 @@ describe('layoutStrata', () => {
       { year: null, now: NOW }
     )
     expect(layout.bands.map((band) => band.label)).toEqual(['Q2 2025', 'Q3 2025', 'Q4 2025', 'Q1 2026', 'Q2 2026', 'Q3 2026', 'Q4 2026'])
-    expect(layout.bandHeight).toBe(40)
+    expect(layout.bands.every((band) => band.height === 40)).toBe(true)
     expect(layout.height).toBe(308)
     expect(layout.bands[0]).toMatchObject({ y: 268, tone: 'a' })
     expect(layout.bands[1].tone).toBe('b')
     expect(specimen(layout, 'd1')).toMatchObject({ x: 74, y: 288, lane: 'CAREER' })
     expect(specimen(layout, 'd2')).toMatchObject({ x: 126, y: 88, lane: 'FINANCE' })
+  })
+
+  it('sizes each band to its own densest lane, so one burst does not stretch the others', () => {
+    const burst = Array.from({ length: 9 }, (_, i) => rec(10 + i, 'CAREER', `2026-02-${String(10 + i).padStart(2, '0')}T12:00:00.000Z`))
+    const layout = layoutStrata([rec(1, 'FINANCE', '2025-05-16T12:00:00.000Z'), ...burst, rec(2, 'FINANCE', '2026-08-16T00:00:00.000Z')], {
+      year: null,
+      now: NOW,
+    })
+    const heights = Object.fromEntries(layout.bands.map((band) => [band.label, band.height]))
+    // Nine in one lane need three rows of three: 2 * 3 + 1 steps of 14.
+    expect(heights['Q1 2026']).toBe(98)
+    expect(layout.bands.filter((band) => band.label !== 'Q1 2026').every((band) => band.height === 40)).toBe(true)
+    expect(layout.height).toBe(STRATA_TOP + 6 * 40 + 98)
+    // Bands stack without gaps: newest at the top, oldest ending at the bottom of the column.
+    expect(layout.bands.at(-1)!.y).toBe(STRATA_TOP)
+    for (let i = 0; i < layout.bands.length - 1; i += 1) {
+      expect(layout.bands[i].y).toBe(layout.bands[i + 1].y + layout.bands[i + 1].height)
+    }
+    expect(layout.bands[0].y + layout.bands[0].height).toBe(layout.height)
+    const q1 = layout.bands.find((band) => band.label === 'Q1 2026')!
+    for (const record of burst) {
+      const placed = specimen(layout, record.id)
+      expect(placed.y).toBeGreaterThanOrEqual(q1.y)
+      expect(placed.y).toBeLessThanOrEqual(q1.y + q1.height)
+    }
   })
 
   it('places an outcome above its decision with its style and a core line', () => {
@@ -101,7 +126,7 @@ describe('layoutStrata', () => {
     ])
     const layout = layoutStrata(records, { year: null, now: NOW })
     expect(layout.bands).toHaveLength(1)
-    expect(layout.bandHeight).toBe(406)
+    expect(layout.bands[0].height).toBe(406)
     const all = layout.specimens
     expect(all).toHaveLength(80)
     for (let i = 0; i < all.length; i += 1) {

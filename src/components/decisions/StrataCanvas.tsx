@@ -108,11 +108,11 @@ export function StrataCanvas({
                 x={STRATA_GUTTER}
                 y={band.y}
                 width={columnRight - STRATA_GUTTER}
-                height={layout.bandHeight}
+                height={band.height}
                 className={`${band.tone === 'a' ? 'fill-band-a' : 'fill-band-b'} ${settle}`}
                 style={{ animationDelay: `${Math.round((index / Math.max(1, layout.bands.length)) * 150)}ms` }}
               />
-              <text x={4} y={band.y + layout.bandHeight / 2 + 3} fontSize={9} className="fill-muted font-mono">
+              <text x={4} y={band.y + band.height / 2 + 3} fontSize={9} className="fill-muted font-mono">
                 {band.label}
               </text>
             </g>

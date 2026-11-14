@@ -67,7 +67,7 @@ export function outcomeStyle(rating: OutcomeRating): OutcomeStyle {
   }
 }
 
-export type StrataBand = { key: string; label: string; start: Date; end: Date; y: number; tone: 'a' | 'b' }
+export type StrataBand = { key: string; label: string; start: Date; end: Date; y: number; height: number; tone: 'a' | 'b' }
 
 export type StrataSpecimen = {
   id: string
@@ -90,7 +90,6 @@ export type StrataLayout = {
   years: number[]
   width: number
   height: number
-  bandHeight: number
   bands: StrataBand[]
   specimens: StrataSpecimen[]
   outcomes: StrataOutcome[]
@@ -178,23 +177,35 @@ export function layoutStrata(records: StrataRecord[], options: { year: number | 
     return ms < ranges[0].start ? 0 : ranges.length - 1
   }
 
-  // The densest lane in any band decides how tall every band is, so placement always has room.
+  // Each band is as tall as its own densest lane needs, so one busy quarter never stretches the quiet ones.
   const perLaneBand = new Map<string, number>()
+  const densestByBand = ranges.map(() => 0)
   for (const record of drawn) {
-    const key = `${laneOf(record).key}:${bandIndex(time(record.createdAt))}`
-    perLaneBand.set(key, (perLaneBand.get(key) ?? 0) + 1)
+    const index = bandIndex(time(record.createdAt))
+    const key = `${laneOf(record).key}:${index}`
+    const count = (perLaneBand.get(key) ?? 0) + 1
+    perLaneBand.set(key, count)
+    densestByBand[index] = Math.max(densestByBand[index], count)
   }
-  const densest = Math.max(0, ...perLaneBand.values())
-  const bandHeight = densest <= 3 ? MIN_BAND_HEIGHT : SPECIMEN_STEP * (2 * Math.ceil(densest / 3) + 1)
   const n = ranges.length
-  const height = STRATA_TOP + n * bandHeight
-  const bandTop = (index: number) => STRATA_TOP + (n - 1 - index) * bandHeight
+  const bandHeights = densestByBand.map((densest) =>
+    densest <= 3 ? MIN_BAND_HEIGHT : SPECIMEN_STEP * (2 * Math.ceil(densest / 3) + 1)
+  )
+  // Newest at the top: a band starts below every newer band.
+  const tops: number[] = []
+  let running = STRATA_TOP
+  for (let index = n - 1; index >= 0; index -= 1) {
+    tops[index] = running
+    running += bandHeights[index]
+  }
+  const height = running
+  const bandTop = (index: number) => tops[index]
 
   const yFor = (ms: number) => {
     const index = bandIndex(ms)
     const range = ranges[index]
     const fraction = Math.min(1, Math.max(0, (ms - range.start) / (range.end - range.start)))
-    return bandTop(index) + bandHeight * (1 - fraction)
+    return bandTop(index) + bandHeights[index] * (1 - fraction)
   }
 
   const bands: StrataBand[] = ranges.map((range, index) => ({
@@ -203,6 +214,7 @@ export function layoutStrata(records: StrataRecord[], options: { year: number | 
     start: new Date(range.start),
     end: new Date(range.end),
     y: bandTop(index),
+    height: bandHeights[index],
     tone: index % 2 === 0 ? 'a' : 'b',
   }))
 
@@ -267,5 +279,5 @@ export function layoutStrata(records: StrataRecord[], options: { year: number | 
   const count = specimens.length
   const summary = `${count} decision${count === 1 ? '' : 's'} from ${ranges[0].summaryLabel} to ${ranges[n - 1].summaryLabel}`
 
-  return { year, years, width: STRATA_WIDTH, height, bandHeight, bands, specimens, outcomes, cores, summary }
+  return { year, years, width: STRATA_WIDTH, height, bands, specimens, outcomes, cores, summary }
 }
