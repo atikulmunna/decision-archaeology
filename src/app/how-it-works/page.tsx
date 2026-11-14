@@ -203,7 +203,7 @@ export default async function HowItWorks() {
                 Vitest and Testing Library cover the pure modules, the API routes and the components, including tests
                 that no function crosses from a server page to a client component. Guards scan the source for raw
                 colours, dashes and letter reads. Playwright smoke tests drive the production build in Chrome: the
-                tour, the seal check, and every demo page at phone and desktop widths.
+                tour, the seal check, and the main pages at phone and desktop widths.
               </p>
             </div>
           </div>
