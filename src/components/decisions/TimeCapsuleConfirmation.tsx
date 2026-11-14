@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import { ArrowLeft, Lock } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -10,6 +11,9 @@ import { formatCatalogNumber } from '@/lib/catalog'
 import { forecastSentence } from '@/lib/forecasting'
 import type { CreateDecisionInput } from '@/lib/validations/decision'
 import type { CaptureChallenge } from '@/lib/devils-advocate'
+import { fieldClasses } from '@/components/ui/Input'
+import { LETTER_MAX, letterDayRange } from '@/lib/letter-rules'
+import { isoDay } from '@/lib/utc-days'
 
 interface TimeCapsuleConfirmationProps {
   data: CreateDecisionInput
@@ -19,6 +23,11 @@ interface TimeCapsuleConfirmationProps {
   upcomingCatalogNumber: number
   /** What happened at the Devil's Advocate step; skipped is the person's "Seal without questions". */
   challenge: CaptureChallenge & { skipped: boolean }
+  /** A letter to future you: its text and opening day (YYYY-MM-DD). A blank text means no letter. */
+  letter: { body: string; opensOn: string }
+  onLetterChange: (next: { body: string; opensOn: string }) => void
+  onLetterBlur?: () => void
+  letterError?: string | null
 }
 
 const LOCKED_FIELDS: { key: keyof CreateDecisionInput; label: string }[] = [
@@ -36,7 +45,13 @@ export function TimeCapsuleConfirmation({
   loading,
   upcomingCatalogNumber,
   challenge,
+  letter,
+  onLetterChange,
+  onLetterBlur,
+  letterError,
 }: TimeCapsuleConfirmationProps) {
+  const id = useId()
+  const range = letterDayRange(new Date())
   const asked = challenge.outcome === 'ASKED' && challenge.questions.length > 0
   const challengeNote =
     challenge.outcome === 'UNAVAILABLE' ? 'The AI could not be reached' : challenge.skipped ? 'Sealing without questions' : null
@@ -117,6 +132,39 @@ export function TimeCapsuleConfirmation({
           )}
         </dl>
       </Card>
+
+      <section className="flex flex-col gap-2">
+        <label htmlFor={`${id}-letter`} className="text-sm font-medium text-ink-2">
+          A letter to future you (optional)
+        </label>
+        <p className="text-sm text-muted">It stays sealed until the day you pick. Not even you can read it before then.</p>
+        <textarea
+          id={`${id}-letter`}
+          value={letter.body}
+          maxLength={LETTER_MAX}
+          rows={5}
+          onChange={(event) => onLetterChange({ ...letter, body: event.target.value })}
+          onBlur={onLetterBlur}
+          className={`${fieldClasses()} resize-y`}
+        />
+        <p className="self-end font-mono text-[11px] text-muted">
+          {letter.body.length}/{LETTER_MAX}
+        </p>
+        <label htmlFor={`${id}-opens`} className="text-sm font-medium text-ink-2">
+          Opens on
+        </label>
+        <input
+          id={`${id}-opens`}
+          type="date"
+          value={letter.opensOn}
+          min={isoDay(range.min)}
+          max={isoDay(range.max)}
+          onChange={(event) => onLetterChange({ ...letter, opensOn: event.target.value })}
+          onBlur={onLetterBlur}
+          className={`${fieldClasses()} max-w-[220px]`}
+        />
+        {letterError && <p className="text-sm text-danger">{letterError}</p>}
+      </section>
 
       <Callout tone="warning" title="This cannot be undone">
         After the edit window closes these fields stay as written. Supplementary notes and outcomes can always be added.

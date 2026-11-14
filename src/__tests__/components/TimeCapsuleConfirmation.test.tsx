@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { TimeCapsuleConfirmation } from '@/components/decisions/TimeCapsuleConfirmation'
 import type { CreateDecisionInput } from '@/lib/validations/decision'
 
@@ -22,6 +22,8 @@ describe('TimeCapsuleConfirmation', () => {
         onBack={vi.fn()}
         loading={false}
         upcomingCatalogNumber={43}
+        letter={{ body: '', opensOn: '2027-05-15' }}
+        onLetterChange={vi.fn()}
         challenge={{ outcome: null, model: null, questions: [], answers: [], skipped: false }}
       />
     )
@@ -33,7 +35,7 @@ describe('TimeCapsuleConfirmation challenge', () => {
   const base = { outcome: null, model: null, questions: [], answers: [], skipped: false }
   const show = (challenge: Parameters<typeof TimeCapsuleConfirmation>[0]['challenge']) =>
     render(
-      <TimeCapsuleConfirmation data={validInput} onConfirm={vi.fn()} onBack={vi.fn()} loading={false} upcomingCatalogNumber={43} challenge={challenge} />
+      <TimeCapsuleConfirmation data={validInput} onConfirm={vi.fn()} onBack={vi.fn()} loading={false} upcomingCatalogNumber={43} challenge={challenge} letter={{ body: '', opensOn: '2027-05-15' }} onLetterChange={vi.fn()} />
     )
 
   it('lists the questions with their answers, and Left unanswered for a blank one', () => {
@@ -56,5 +58,25 @@ describe('TimeCapsuleConfirmation challenge', () => {
     unmount()
     show({ ...base, outcome: 'UNAVAILABLE', skipped: true })
     expect(screen.getByText('The AI could not be reached')).toBeInTheDocument()
+  })
+})
+
+describe('TimeCapsuleConfirmation letter', () => {
+  it('shows the letter box with a 5000 counter and the opening day it is given', async () => {
+    const onLetterChange = vi.fn()
+    render(
+      <TimeCapsuleConfirmation data={validInput} onConfirm={vi.fn()} onBack={vi.fn()} loading={false} upcomingCatalogNumber={43}
+        challenge={{ outcome: null, model: null, questions: [], answers: [], skipped: true }} letter={{ body: 'Hi', opensOn: '2027-05-15' }} onLetterChange={onLetterChange} letterError="Pick an opening day at least a month away." />
+    )
+    const box = screen.getByLabelText('A letter to future you (optional)')
+    expect(box).toHaveAttribute('maxLength', '5000')
+    expect(screen.getByText('2/5000')).toBeInTheDocument()
+    const day = screen.getByLabelText('Opens on')
+    expect(day).toHaveValue('2027-05-15')
+    const min = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()) + 30 * 86400000).toISOString().slice(0, 10)
+    expect(day).toHaveAttribute('min', min)
+    expect(screen.getByText('Pick an opening day at least a month away.')).toBeInTheDocument()
+    fireEvent.change(box, { target: { value: 'Hi there' } })
+    expect(onLetterChange).toHaveBeenLastCalledWith({ body: 'Hi there', opensOn: '2027-05-15' })
   })
 })

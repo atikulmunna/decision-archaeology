@@ -1,6 +1,6 @@
 'use client'
 
-import { startTransition, useState, useCallback, useEffect, useRef } from 'react'
+import { startTransition, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { ArrowLeft, ArrowRight, X } from 'lucide-react'
@@ -18,6 +18,9 @@ import { StarterDecisionWizard } from './StarterDecisionWizard'
 import { ForecastFields, completeForecasts, completeIndices, forecastErrors } from './ForecastFields'
 import { toForecastInputs } from '@/lib/forecast-input'
 import { EMPTY_CHALLENGE, type CaptureChallenge } from '@/lib/devils-advocate'
+import { defaultOpensOn } from '@/lib/letter-rules'
+
+const LETTER_ERRORS = ['Keep the letter under 5000 characters.', 'Pick an opening day at least a month away.', 'Pick an opening day within ten years.']
 import type { CreateDecisionInput, DraftDecisionInput } from '@/lib/validations/decision'
 
 const STEPS = ['Basics', 'Reasoning', 'Context', 'Challenge']
@@ -62,6 +65,12 @@ export function DecisionCaptureForm({
   const [challenge, setChallenge] = useState<CaptureChallenge>(EMPTY_CHALLENGE)
   const [challengeSkipped, setChallengeSkipped] = useState(false)
   const [challengeError, setChallengeError] = useState<string | null>(null)
+  // opensOn '' means the default day: the predicted date when far enough away, otherwise six months out.
+  const [letter, setLetter] = useState<{ body: string; opensOn: string }>({ body: '', opensOn: '' })
+  const [letterError, setLetterError] = useState<string | null>(null)
+  const letterDay = letter.opensOn || defaultOpensOn(form.predictedTimeframe, new Date())
+  // Memoized so the autosave timer is not restarted on every render.
+  const letterPayload = useMemo(() => (letter.body.trim() ? { body: letter.body, opensOn: letterDay } : null), [letter.body, letterDay])
   const autoSaveRef = useRef<NodeJS.Timeout | null>(null)
   const draftRef = useRef<string | null>(null)
   const hydratedRef = useRef(false)
@@ -109,7 +118,8 @@ export function DecisionCaptureForm({
     // A half-filled forecast stays in the form but is not saved until it is complete.
     forecasts: completeForecasts(form.forecasts ?? []),
     ...(challenge.outcome === 'ASKED' ? { challengeAnswers: challenge.answers } : {}),
-  }), [form, challenge])
+    letter: letterPayload,
+  }), [form, challenge, letterPayload])
 
   const ensureDraftDecision = useCallback(async (): Promise<string | null> => {
     if (draftRef.current) return draftRef.current
@@ -235,6 +245,7 @@ export function DecisionCaptureForm({
           questions: rows.map((row) => ({ position: row.position, question: row.question })),
           answers: rows.map((row) => row.answer ?? ''),
         })
+        setLetter(draft.letter ? { body: draft.letter.body, opensOn: draft.letter.opensOn } : { body: '', opensOn: '' })
         setDraftStatus('restored')
       } catch {
         window.localStorage.removeItem(DRAFT_STORAGE_KEY)
@@ -290,6 +301,7 @@ export function DecisionCaptureForm({
   const handleSubmit = useCallback(async () => {
     setSubmitting(true)
     setSubmitError(null)
+    setLetterError(null)
     try {
       const payload: CreateDecisionInput = {
         title: form.title!,
@@ -311,6 +323,7 @@ export function DecisionCaptureForm({
           : challengeSkipped
             ? { challengeSkipped: true as const }
             : {}),
+        ...{ letter: letterPayload },
       }
 
       const res = draftRef.current
@@ -342,6 +355,11 @@ export function DecisionCaptureForm({
           return
         }
         // An answer the server refused goes back to the challenge step with its message.
+        // A letter the server refused stays on the review screen with its message.
+        if (LETTER_ERRORS.includes(err.error)) {
+          setLetterError(err.error)
+          return
+        }
         const challengeIssue = ((err.issues ?? []) as Array<{ path?: Array<string | number>; message?: string }>).find((issue) => issue.path?.[0] === 'challengeAnswers')
         if (challengeIssue || err.error === 'Answer each question, or leave it blank.' || err.error === 'There are no questions to answer.') {
           setChallengeError(challengeIssue?.message ?? err.error)
@@ -371,7 +389,7 @@ export function DecisionCaptureForm({
     } finally {
       setSubmitting(false)
     }
-  }, [form, router, challenge, challengeSkipped])
+  }, [form, router, challenge, challengeSkipped, letterPayload])
 
   const addTag = () => {
     const tag = tagInput.trim()
@@ -445,6 +463,13 @@ export function DecisionCaptureForm({
           loading={submitting}
           upcomingCatalogNumber={upcomingCatalogNumber}
           challenge={{ ...challenge, skipped: challengeSkipped }}
+          letter={{ body: letter.body, opensOn: letterDay }}
+          onLetterChange={(next) => {
+            setLetter(next)
+            setLetterError(null)
+          }}
+          onLetterBlur={() => void saveDraft()}
+          letterError={letterError}
         />
       </div>
     )
