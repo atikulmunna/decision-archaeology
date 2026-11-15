@@ -29,7 +29,7 @@ for (const { path, status } of AUTH_PAGES) {
 
     expect(placeholder).not.toBeNull()
     expect(real).not.toBeNull()
-    expect(Math.abs(real!.height - placeholder!.height) / real!.height).toBeLessThanOrEqual(0.2)
+    expect(Math.abs(real!.height - placeholder!.height) / real!.height).toBeLessThanOrEqual(0.1)
     expect(Math.abs(real!.width - placeholder!.width)).toBeLessThanOrEqual(8)
   })
 

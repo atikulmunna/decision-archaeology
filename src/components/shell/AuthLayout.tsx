@@ -6,7 +6,8 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { SpecimenCard } from './SpecimenCard'
 
 export function AuthLayout({ heading, children }: { heading: string; children: ReactNode }) {
-  // Start the connection to Clerk while the page is still arriving, so its card code downloads sooner.
+  // Connection hints for Clerk's API and its images. Clerk's script already starts its own requests early,
+  // so these save little, at most a handshake on a cold connection; they cost nothing to send.
   const clerkOrigin = clerkFrontendApiOrigin(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   if (clerkOrigin) preconnect(clerkOrigin, { crossOrigin: 'anonymous' })
   preconnect('https://img.clerk.com')

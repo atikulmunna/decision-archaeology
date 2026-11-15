@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { isValidElement, type ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
+import { renderToStaticMarkup } from 'react-dom/server'
 
 const captured = vi.hoisted(() => ({} as Record<string, Record<string, unknown>>))
 
@@ -43,13 +44,34 @@ describe('the sign-in and sign-up pages', () => {
     expect(alert).toHaveAttribute('data-auth-failed')
     // The column is the group the placeholder watches, so the notice can hide it.
     expect(container.querySelector('.group')).toContainElement(alert)
-    expect(screen.getByText(/Sign-in could not load\./)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Reload the page' })).toHaveAttribute('href', '/sign-in')
   })
 
   it('shows the sign-up reload message on the sign-up page', () => {
     render(<SignUpPage />)
-    expect(screen.getByText(/Sign-up could not load\./)).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('Sign-up could not load.')
     expect(screen.getByRole('link', { name: 'Reload the page' })).toHaveAttribute('href', '/sign-up')
+  })
+
+  it('reloads with the page the visitor was heading to', () => {
+    window.history.replaceState({}, '', '/sign-in/factor-one?redirect_url=%2Fdecisions%2Fnew')
+    try {
+      render(<SignInPage />)
+      expect(screen.getByRole('link', { name: 'Reload the page' })).toHaveAttribute(
+        'href',
+        '/sign-in/factor-one?redirect_url=%2Fdecisions%2Fnew'
+      )
+    } finally {
+      window.history.replaceState({}, '', '/')
+    }
+  })
+})
+
+describe('the placeholder card without JavaScript', () => {
+  it('says sign-in needs JavaScript instead of loading forever', () => {
+    for (const mode of ['sign-in', 'sign-up'] as const) {
+      const markup = renderToStaticMarkup(<AuthCardPlaceholder mode={mode} />)
+      expect(markup).toMatch(/<noscript>[^]*needs JavaScript[^]*<\/noscript>/)
+    }
   })
 })

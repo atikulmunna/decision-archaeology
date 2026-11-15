@@ -18,8 +18,9 @@ export const AUTH_COPY = {
 } as const
 
 /** Clerk's card copy in the site's own voice instead of Clerk's defaults. */
-export const clerkLocalization: ComponentProps<typeof ClerkProvider>['localization'] = {
+// satisfies, not a type annotation: a misspelled key is an error, and the exact shape stays visible.
+export const clerkLocalization = {
   signIn: { start: { ...AUTH_COPY['sign-in'] } },
   signUp: { start: { ...AUTH_COPY['sign-up'] } },
   dividerText: 'or',
-}
+} satisfies NonNullable<ComponentProps<typeof ClerkProvider>['localization']>

@@ -16,6 +16,12 @@ export function AuthCardPlaceholder({ mode }: { mode: 'sign-in' | 'sign-up' }) {
       <p role="status" className="sr-only">
         {mode === 'sign-in' ? 'Loading sign-in' : 'Loading sign-up'}
       </p>
+      {/* Clerk's card needs JavaScript; without it, say so instead of showing a card that never loads. */}
+      <noscript>
+        <p className="px-10 pt-6 text-center text-sm text-ink-2">
+          {mode === 'sign-in' ? 'Signing in' : 'Signing up'} needs JavaScript. Turn it on and reload the page.
+        </p>
+      </noscript>
       <div aria-hidden="true">
         <div className="flex flex-col gap-7 px-10 pb-10 pt-8">
           <div className="text-center">
