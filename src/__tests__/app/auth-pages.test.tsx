@@ -37,7 +37,12 @@ describe('the sign-in and sign-up pages', () => {
   })
 
   it('shows a reload message when Clerk fails', () => {
-    render(<SignInPage />)
+    const { container } = render(<SignInPage />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Sign-in could not load.')
+    expect(alert).toHaveAttribute('data-auth-failed')
+    // The column is the group the placeholder watches, so the notice can hide it.
+    expect(container.querySelector('.group')).toContainElement(alert)
     expect(screen.getByText(/Sign-in could not load\./)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Reload the page' })).toHaveAttribute('href', '/sign-in')
   })

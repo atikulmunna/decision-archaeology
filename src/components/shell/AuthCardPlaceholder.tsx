@@ -12,7 +12,7 @@ const FIELDS = { 'sign-in': 1, 'sign-up': 2 } as const
 export function AuthCardPlaceholder({ mode }: { mode: 'sign-in' | 'sign-up' }) {
   const copy = AUTH_COPY[mode]
   return (
-    <div className="w-full max-w-[400px] overflow-hidden rounded-sm border border-rule bg-surface">
+    <div className="w-full overflow-hidden rounded-sm border border-rule bg-surface group-has-[[data-auth-failed]]:hidden">
       <p role="status" className="sr-only">
         {mode === 'sign-in' ? 'Loading sign-in' : 'Loading sign-up'}
       </p>

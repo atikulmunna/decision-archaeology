@@ -19,6 +19,11 @@ describe('AuthCardPlaceholder', () => {
     expect(signUp.container.querySelectorAll('[data-field]')).toHaveLength(2)
   })
 
+  it('hides itself once the failure notice appears beside it', () => {
+    const { container } = render(<AuthCardPlaceholder mode="sign-in" />)
+    expect(container.firstElementChild?.className).toContain('group-has-[[data-auth-failed]]:hidden')
+  })
+
   it('uses the sign-up copy on the sign-up page', () => {
     render(<AuthCardPlaceholder mode="sign-up" />)
     expect(screen.getByRole('status')).toHaveTextContent('Loading sign-up')

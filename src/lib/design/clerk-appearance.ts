@@ -9,7 +9,8 @@ export const clerkAppearance = {
     fontFamily: 'var(--font-sans)',
   },
   elements: {
-    cardBox: 'shadow-none! rounded-sm! border! border-rule!',
+    // text-ink keeps any element Clerk leaves unstyled readable in dark mode.
+    cardBox: 'shadow-none! rounded-sm! border! border-rule! text-ink!',
     card: 'bg-surface! shadow-none! rounded-none!',
     headerTitle: 'font-display! font-normal! text-[28px]! text-ink!',
     headerSubtitle: 'text-ink-2!',
@@ -30,6 +31,7 @@ export const clerkAppearance = {
     // Later steps: the email being verified, the code boxes and the other ways to sign in.
     identityPreview: 'border! border-rule! bg-sunken! rounded-sm! shadow-none!',
     identityPreviewText: 'text-ink!',
+    backLink: 'text-ink-2! hover:text-ink!',
     identityPreviewEditButton: 'text-signal-ink!',
     otpCodeFieldInput: 'border! border-rule! bg-surface! text-ink! rounded-sm! focus:border-ink!',
     formResendCodeLink: 'text-signal-ink!',

@@ -34,6 +34,12 @@ describe('clerkAppearance', () => {
     expect(clerkAppearance.elements.footer).not.toMatch(/bg-paper!/)
   })
 
+  it('keeps text and the Back link of later steps readable in dark mode', () => {
+    expect(clerkAppearance.elements.cardBox).toMatch(/text-ink!/)
+    expect(clerkAppearance.elements).toHaveProperty('backLink')
+    expect((clerkAppearance.elements as Record<string, string>).backLink).toMatch(/text-ink/)
+  })
+
   it('marks the focused field and styles the code and identity steps too', () => {
     expect(clerkAppearance.elements.formFieldInput).toMatch(/focus:border-ink!/)
     expect(clerkAppearance.elements).toHaveProperty('otpCodeFieldInput')

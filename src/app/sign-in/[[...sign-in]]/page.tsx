@@ -10,7 +10,9 @@ export const metadata = {
 export default function SignInPage() {
   return (
     <AuthLayout heading="Pick up where you left off.">
-      <div className="flex w-full max-w-[400px] flex-col gap-4">
+      {/* Clerk's own card width (25rem, never wider than the screen less 2.5rem), so the placeholder matches it.
+          The group lets the failure notice hide the placeholder. */}
+      <div className="group flex w-[25rem] max-w-[calc(100vw-2.5rem)] shrink-0 flex-col gap-4">
         <SignIn fallback={<AuthCardPlaceholder mode="sign-in" />} />
         <AuthFailedNotice mode="sign-in" />
       </div>
