@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/Button'
 import { getDecisionLockDeadline } from '@/lib/locks'
 import { buildSealPayload, computeSealHash, isRetroactiveSeal, sealFileName, type SealRecord } from '@/lib/seal'
@@ -21,6 +21,10 @@ function utcTime(date: Date) {
 function canHash() {
   return typeof globalThis.crypto?.subtle?.digest === 'function'
 }
+
+const noSubscription = () => () => {}
+// The server can always hash, so the first render assumes so; an insecure page learns otherwise after hydration.
+const assumeHashing = () => true
 
 /**
  * The seal under a decision's header: what it is, a Verify button that hashes the
@@ -43,8 +47,9 @@ export function SealPanel({
   const [result, setResult] = useState<{ payload: string; computed: string } | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [showPayload, setShowPayload] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const hashAvailable = canHash()
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [hashFailed, setHashFailed] = useState(false)
+  const hashAvailable = useSyncExternalStore(noSubscription, canHash, assumeHashing)
 
   if (!record.sealHash) {
     return (
@@ -71,16 +76,24 @@ export function SealPanel({
 
   async function verify() {
     setVerifying(true)
+    setHashFailed(false)
     try {
       setResult({ payload, computed: await computeSealHash(payload) })
+    } catch {
+      setHashFailed(true)
     } finally {
       setVerifying(false)
     }
   }
 
   async function copy() {
-    await navigator.clipboard?.writeText(payload)
-    setCopied(true)
+    try {
+      if (typeof navigator.clipboard?.writeText !== 'function') throw new Error('No clipboard')
+      await navigator.clipboard.writeText(payload)
+      setCopyState('copied')
+    } catch {
+      setCopyState('failed')
+    }
   }
 
   function download() {
@@ -101,7 +114,8 @@ export function SealPanel({
 
       {approvedCorrections > 0 && (
         <p className="text-sm text-ink-2">
-          {`${approvedCorrections} approved typo correction${approvedCorrections === 1 ? '' : 's'} since sealing. The seal covers the original text.`}
+          {/* A retroactive seal came after some corrections, so they are not dated against it. */}
+          {`${approvedCorrections} approved typo correction${approvedCorrections === 1 ? '' : 's'}${isRetroactiveSeal(record) ? '' : ' since sealing'}. The seal covers the original text.`}
         </p>
       )}
 
@@ -114,6 +128,11 @@ export function SealPanel({
         </Button>
       </div>
       {!hashAvailable && <p className="text-sm text-muted">This browser cannot compute SHA-256.</p>}
+      {hashFailed && (
+        <p role="alert" className="text-sm text-danger">
+          Could not compute the fingerprint in this browser.
+        </p>
+      )}
 
       {onTamperedChange && (
         <label className={`${label} inline-flex items-center gap-2 text-ink-2`}>
@@ -127,45 +146,52 @@ export function SealPanel({
         </label>
       )}
 
-      {current && (
-        <div
-          role="status"
-          className={`flex flex-col gap-1 border-l-[3px] pl-3 ${matches ? 'border-signal-ink' : 'border-danger'}`}
-        >
-          <p className={`${label} ${matches ? 'text-signal-ink' : 'text-danger'}`}>
-            {matches ? 'Seal verified' : 'Does not match'}
-          </p>
-          <p className="text-sm text-ink-2">
-            {matches
-              ? 'Your browser hashed this record and got the same fingerprint stored at sealing. Nothing that locked has changed.'
-              : tampered
-                ? 'One word changed in your browser, and the fingerprint is completely different. That is how a seal shows any edit after sealing.'
-                : "This record's fingerprint differs from the one stored at sealing, so something that locked has changed."}
-          </p>
-          <p className={`${label} mt-1 text-muted`}>Stored</p>
-          <p className={hashText}>{record.sealHash}</p>
-          <p className={`${label} mt-1 text-muted`}>Computed now</p>
-          <p className={`${hashText} ${matches ? '' : 'text-danger'}`}>{current.computed}</p>
-        </div>
-      )}
+      {/* Always on the page, so screen readers announce the result when it arrives; empty, it gives back the gap. */}
+      <div role="status" className="empty:-mt-3">
+        {current && (
+          <div className={`flex flex-col gap-1 border-l-[3px] pl-3 ${matches ? 'border-signal-ink' : 'border-danger'}`}>
+            <p className={`${label} ${matches ? 'text-signal-ink' : 'text-danger'}`}>
+              {matches ? 'Seal verified' : 'Does not match'}
+            </p>
+            <p className="text-sm text-ink-2">
+              {matches
+                ? 'Your browser hashed this record and got the same fingerprint stored at sealing. Nothing that locked has changed.'
+                : tampered
+                  ? 'One word changed in your browser, and the fingerprint is completely different. That is how a seal shows any edit after sealing.'
+                  : "This record's fingerprint differs from the one stored at sealing, so something that locked has changed."}
+            </p>
+            <p className={`${label} mt-1 text-muted`}>Stored</p>
+            <p className={hashText}>{record.sealHash}</p>
+            <p className={`${label} mt-1 text-muted`}>Computed now</p>
+            <p className={`${hashText} ${matches ? '' : 'text-danger'}`}>{current.computed}</p>
+          </div>
+        )}
+      </div>
 
       {showPayload && (
         <div className="flex flex-col gap-2">
           <p className="text-sm text-ink-2">
-            The exact text that was hashed. Copy it or download it and check it yourself without trusting this page.
+            {tampered
+              ? 'One word is changed in your browser, so this is not the text that was sealed. Turn the change off to see it.'
+              : 'The exact text that was hashed. Copy it or download it and check it yourself without trusting this page.'}
           </p>
           <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-sm bg-sunken p-3 font-mono text-[11px] text-ink">
             {payload}
           </pre>
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="secondary" onClick={copy}>
-              {copied ? 'Copied' : 'Copy'}
+              {copyState === 'copied' ? 'Copied' : 'Copy'}
             </Button>
             <Button size="sm" variant="secondary" onClick={download}>
               Download
             </Button>
             <span className={`${label} text-muted`}>Hash the file exactly as downloaded: sha256sum {fileName}</span>
           </div>
+          {copyState === 'failed' && (
+            <p role="alert" className="text-sm text-danger">
+              Could not copy. Select the text above instead.
+            </p>
+          )}
         </div>
       )}
     </section>

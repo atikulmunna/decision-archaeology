@@ -118,6 +118,17 @@ describe('DecisionDetail seal', () => {
     expect(screen.getByText(/^Seal final at \d{2}:\d{2} UTC$/)).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: /^Sealed/ })).toBeNull()
     expect(screen.getByText('Edit window open')).toBeInTheDocument()
+    // A provisional seal already exists, so the time lock is called a lock.
+    expect(screen.getByText('The core fields are not locked yet, so editing is still possible.')).toBeInTheDocument()
+  })
+
+  it('calls the time lock a lock beside a record that has no seal', () => {
+    render(
+      <DecisionDetail decision={{ ...demo('northwind-offer'), sealHash: null, sealedAt: null }} readOnly timeZone="UTC" now={DEMO_NOW} initialView="then" />
+    )
+    expect(screen.getByText('Not sealed. This decision was recorded before seals existed.')).toBeInTheDocument()
+    expect(screen.getByText('Core fields are locked')).toBeInTheDocument()
+    expect(screen.queryByText('Core fields are sealed')).toBeNull()
   })
 })
 

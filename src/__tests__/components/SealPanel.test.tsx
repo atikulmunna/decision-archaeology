@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, useState } from 'react'
+import { hydrateRoot } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SealPanel } from '@/components/seal/SealPanel'
 import { demoDecisionIdForKey } from '@/lib/demo/archive'
@@ -14,6 +16,16 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
+
+/** Sets navigator.clipboard for one test and returns a function that puts the original back. */
+function setClipboard(value: unknown) {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+  Object.defineProperty(navigator, 'clipboard', { value, configurable: true })
+  return () => {
+    if (original) Object.defineProperty(navigator, 'clipboard', original)
+    else delete (navigator as unknown as Record<string, unknown>).clipboard
+  }
+}
 
 function TamperHarness() {
   const [tampered, setTampered] = useState(false)
@@ -137,5 +149,87 @@ describe('SealPanel', () => {
     render(<SealPanel record={specimen} />)
     expect(screen.getByRole('button', { name: 'Verify seal' })).toBeDisabled()
     expect(screen.getByText('This browser cannot compute SHA-256.')).toBeInTheDocument()
+  })
+
+  it('hydrates the server markup without a mismatch in a browser without Web Crypto', async () => {
+    const element = <SealPanel record={specimen} />
+    const html = renderToString(element)
+    vi.stubGlobal('crypto', {})
+    const container = document.createElement('div')
+    container.innerHTML = html
+    document.body.appendChild(container)
+    const recoverable = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let root: ReturnType<typeof hydrateRoot> | undefined
+    await act(async () => {
+      root = hydrateRoot(container, element, { onRecoverableError: recoverable })
+    })
+    try {
+      expect(recoverable).not.toHaveBeenCalled()
+      expect(consoleError).not.toHaveBeenCalled()
+      expect(within(container).getByRole('button', { name: 'Verify seal' })).toBeDisabled()
+      expect(within(container).getByText('This browser cannot compute SHA-256.')).toBeInTheDocument()
+    } finally {
+      act(() => root?.unmount())
+      container.remove()
+    }
+  })
+
+  it('says so when the browser has no clipboard, instead of claiming it copied', async () => {
+    const restore = setClipboard(undefined)
+    try {
+      render(<SealPanel record={specimen} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Show what is sealed' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not copy. Select the text above instead.')
+      expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('says so when the clipboard refuses', async () => {
+    const restore = setClipboard({ writeText: () => Promise.reject(new Error('denied')) })
+    try {
+      render(<SealPanel record={specimen} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Show what is sealed' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('Could not copy. Select the text above instead.')
+      expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('reports a hash that fails and lets the reader try again', async () => {
+    vi.spyOn(globalThis.crypto.subtle, 'digest').mockRejectedValueOnce(new Error('no digest'))
+    render(<SealPanel record={specimen} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Verify seal' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not compute the fingerprint in this browser.')
+    expect(screen.getByRole('button', { name: 'Verify seal' })).toBeEnabled()
+  })
+
+  it('keeps the result region on the page before anything is verified', async () => {
+    render(<SealPanel record={specimen} />)
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+    fireEvent.click(screen.getByRole('button', { name: 'Verify seal' }))
+    await screen.findByText('Seal verified')
+    expect(screen.getByRole('status')).toBe(region)
+  })
+
+  it('says the shown text is not what was sealed while a word is changed', async () => {
+    render(<TamperHarness />)
+    await userEvent.click(screen.getByRole('checkbox', { name: /Try changing a word/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Show what is sealed' }))
+    expect(screen.queryByText(/The exact text that was hashed/)).toBeNull()
+    expect(
+      screen.getByText('One word is changed in your browser, so this is not the text that was sealed. Turn the change off to see it.')
+    ).toBeInTheDocument()
+  })
+
+  it('does not date corrections against a retroactive seal', () => {
+    render(<SealPanel record={{ ...specimen, sealedAt: new Date('2026-11-11T09:00:00.000Z') }} approvedCorrections={2} />)
+    expect(screen.getByText('2 approved typo corrections. The seal covers the original text.')).toBeInTheDocument()
   })
 })

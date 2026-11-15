@@ -5,7 +5,7 @@ import {
   normalizeCsvImport,
   parseCsv,
 } from '@/lib/portability'
-import { importPortableDecisions, parseImportPayload, toPortableDecision } from '@/lib/portability'
+import { getDecisionFilename, importPortableDecisions, parseImportPayload, toPortableDecision } from '@/lib/portability'
 import type { DecisionRecord, OutcomeUpdate, User } from '@prisma/client'
 import { demoDecisionIdForKey } from '@/lib/demo/archive'
 import { getDemoAssumptionReviews, getDemoDecision } from '@/lib/demo/queries'
@@ -122,7 +122,11 @@ describe('seals in exports and imports', () => {
     expect(markdown).toContain('## Seal')
     expect(markdown).toContain(`- Fingerprint (SHA-256): \`${sealed.sealHash}\``)
     expect(markdown).toContain(`- Sealed: ${sealed.sealedAt!.toISOString()}`)
-    expect(markdown).toContain('- Verify: hash the payload in the JSON export, for example with sha256sum.')
+    // An exact command: jq -j prints the payload string without a trailing newline, as it was hashed.
+    const file = getDecisionFilename(sealed.title, 'json')
+    expect(markdown).toContain(
+      `- Verify: download this decision's JSON export and run \`jq -j '.seal.payload' ${file} | sha256sum\`. The hash it prints should equal the fingerprint.`
+    )
     expect(buildDecisionMarkdown(unsealed)).not.toContain('## Seal')
   })
 

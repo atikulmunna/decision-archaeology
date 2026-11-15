@@ -39,4 +39,27 @@ describe('shared decision page', () => {
     expect(markup).not.toContain('Try changing a word')
   })
 
+  it('shows every sealed field openly, so nothing is reachable only through the seal data', async () => {
+    const decision = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+    mocks.userFindUnique.mockResolvedValue({ id: 'db_collab' })
+    mocks.shareFindFirst.mockResolvedValue({
+      id: 'share_1',
+      decision: {
+        ...decision,
+        values: 'Growth over comfort, and keeping options open.',
+        customTags: ['northwind', 'growth'],
+        predictedTimeframe: new Date('2026-08-15T12:00:00.000Z'),
+      },
+      owner: { displayName: 'Rowan' },
+      comments: [],
+    })
+    const markup = renderToStaticMarkup(await SharedDecisionPage({ params: Promise.resolve({ shareId: 'share_1' }) }))
+    expect(markup).toContain('Growth over comfort, and keeping options open.')
+    expect(markup).toContain('northwind, growth')
+    expect(markup).toContain('By Aug 15, 2026')
+    // The time lock is a lock; "sealed" belongs to the fingerprint, which a record may not have.
+    expect(markup).toContain('Locked record')
+    expect(markup).not.toContain('Sealed record')
+  })
+
 })

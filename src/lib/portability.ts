@@ -305,7 +305,8 @@ export function buildDecisionMarkdown(record: DecisionWithOutcomes) {
       '',
       `- Fingerprint (SHA-256): \`${seal.hash}\``,
       `- Sealed: ${seal.sealedAt}${seal.retroactive ? ' (retroactive)' : ''}`,
-      '- Verify: hash the payload in the JSON export, for example with sha256sum.'
+      // jq -j prints the payload string without a trailing newline, exactly as it was hashed.
+      `- Verify: download this decision's JSON export and run \`jq -j '.seal.payload' ${getDecisionFilename(record.title, 'json')} | sha256sum\`. The hash it prints should equal the fingerprint.`
     )
   }
   if (record.outcomes.length > 0) {

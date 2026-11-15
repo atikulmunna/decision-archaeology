@@ -27,18 +27,24 @@ export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false, 
   const [flagging, setFlagging] = useState(false)
   const [showFlagForm, setShowFlagForm] = useState(false)
   const [reason, setReason] = useState('')
+  const [flagError, setFlagError] = useState(false)
   const severity = SEVERITY[bias.severity]
 
   async function submitFlag() {
     setFlagging(true)
+    setFlagError(false)
     try {
-      await fetch(`/api/ai/reports/${reportId}/feedback`, {
+      const res = await fetch(`/api/ai/reports/${reportId}/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ biasName: bias.name, reason: reason || undefined }),
       })
+      if (!res.ok) throw new Error(`Flag failed with ${res.status}`)
       setFlagged(true)
       setShowFlagForm(false)
+    } catch {
+      // The form stays open with the reason kept, so the reader can try again.
+      setFlagError(true)
     } finally {
       setFlagging(false)
     }
@@ -94,6 +100,11 @@ export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false, 
               rows={2}
               className="min-h-[64px]"
             />
+            {flagError && (
+              <p role="alert" className="text-sm text-danger">
+                Could not flag this finding. Try again.
+              </p>
+            )}
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" onClick={submitFlag} loading={flagging}>
                 Submit flag

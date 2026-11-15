@@ -65,8 +65,17 @@ export default async function SharedDecisionPage({ params }: Params) {
     { label: 'Alternatives considered', value: d.alternatives },
     { label: 'Chosen option', value: d.chosenOption },
     { label: 'Reasoning', value: d.reasoning },
+    // Every sealed field is shown, so nothing a collaborator can read is reachable only through the seal data.
+    d.values ? { label: 'Values', value: d.values } : null,
     d.predictedOutcome ? { label: 'Predicted outcome', value: d.predictedOutcome } : null,
+    d.predictedTimeframe
+      ? {
+          label: 'Predicted timeframe',
+          value: `By ${new Date(d.predictedTimeframe).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}`,
+        }
+      : null,
     d.uncertainties ? { label: 'Uncertainties', value: d.uncertainties } : null,
+    d.customTags.length > 0 ? { label: 'Tags', value: d.customTags.join(', ') } : null,
   ].filter((field): field is { label: string; value: string } => Boolean(field))
 
   return (
@@ -95,9 +104,10 @@ export default async function SharedDecisionPage({ params }: Params) {
       {latestOutcome && <LatestOutcomeNotice outcome={latestOutcome} />}
 
       <Card as="section" className="flex flex-col gap-5 p-6">
+        {/* The time lock is a lock; "sealed" belongs to the fingerprint, which an older record may not have. */}
         <div className="flex items-center gap-2 text-muted">
-          <Lock aria-hidden="true" size={14} strokeWidth={1.5} />
-          <Eyebrow>Sealed record</Eyebrow>
+          {d.isLocked && <Lock aria-hidden="true" size={14} strokeWidth={1.5} />}
+          <Eyebrow>{d.isLocked ? 'Locked record' : 'Record'}</Eyebrow>
         </div>
         {fields.map((field) => (
           <div key={field.label}>

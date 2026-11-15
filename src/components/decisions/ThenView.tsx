@@ -164,10 +164,10 @@ export function ThenView({
 
       {decision.isLocked ? (
         decision.sealHash ? null : (
-          <Callout title="Core fields are sealed">Supplementary notes, outcomes and typo corrections can still be added.</Callout>
+          <Callout title="Core fields are locked">Supplementary notes, outcomes and typo corrections can still be added.</Callout>
         )
       ) : (
-        <Callout tone="warning" title="Edit window open">The core fields are not sealed yet, so editing is still possible.</Callout>
+        <Callout tone="warning" title="Edit window open">The core fields are not locked yet, so editing is still possible.</Callout>
       )}
 
       <section>
