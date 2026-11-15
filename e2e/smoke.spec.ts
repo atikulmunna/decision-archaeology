@@ -11,6 +11,8 @@ const PAGES = [
   '/demo/calibration',
   '/demo/reports',
   '/how-it-works',
+  '/sign-in',
+  '/sign-up',
 ]
 
 for (const viewport of VIEWPORTS) {

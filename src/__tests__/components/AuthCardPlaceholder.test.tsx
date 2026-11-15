@@ -11,6 +11,14 @@ describe('AuthCardPlaceholder', () => {
     expect(container.querySelector('[aria-hidden="true"]')).toContainElement(screen.getByText('Sign in'))
   })
 
+  it('draws as many fields as each card has, so the real card does not jump', () => {
+    const signIn = render(<AuthCardPlaceholder mode="sign-in" />)
+    expect(signIn.container.querySelectorAll('[data-field]')).toHaveLength(1)
+    signIn.unmount()
+    const signUp = render(<AuthCardPlaceholder mode="sign-up" />)
+    expect(signUp.container.querySelectorAll('[data-field]')).toHaveLength(2)
+  })
+
   it('uses the sign-up copy on the sign-up page', () => {
     render(<AuthCardPlaceholder mode="sign-up" />)
     expect(screen.getByRole('status')).toHaveTextContent('Loading sign-up')
