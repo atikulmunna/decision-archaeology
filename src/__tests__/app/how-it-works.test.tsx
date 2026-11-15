@@ -50,6 +50,13 @@ describe('the How it works case study', () => {
     expect(hood).toHaveTextContent(brier.toFixed(2))
   })
 
+  it('says exactly what the seal covers and when it is taken', async () => {
+    render(await HowItWorks())
+    const hood = section('Under the hood')
+    expect(hood).toHaveTextContent('the questions and your answers')
+    expect(hood).toHaveTextContent('Every save inside the five-minute edit window')
+  })
+
   it('counts the tests from the build, plus phases and seal versions', async () => {
     render(await HowItWorks())
     const numbers = within(section('By the numbers'))

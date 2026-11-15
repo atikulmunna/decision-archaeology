@@ -1,6 +1,6 @@
 # The seal
 
-Every decision is sealed when its five-minute edit window closes. The seal is a SHA-256 fingerprint of everything that locked, and anyone can recompute it in the browser. Try it in the [case study](https://decision-archaeology.vercel.app/how-it-works) or on [DA-0007 in the demo](https://decision-archaeology.vercel.app/demo/decisions/demo-0007?view=then).
+Every save rebuilds a decision's seal, and the seal becomes final when the five-minute edit window closes. The seal is a SHA-256 fingerprint of everything that locked, and anyone can recompute it in the browser. Try it in the [case study](https://decision-archaeology.vercel.app/how-it-works) or on [DA-0007 in the demo](https://decision-archaeology.vercel.app/demo/decisions/demo-0007?view=then).
 
 Back to the [README](../README.md).
 
@@ -20,7 +20,7 @@ The hash is the SHA-256 of that string's UTF-8 bytes, computed with Web Crypto a
 | --- | --- | --- |
 | `da-seal-v1` | Always the base | Every locked field |
 | `da-seal-v2` | The record has forecasts | The forecasts: statement, probability, resolve-by date |
-| `da-seal-v3` | The Devil's Advocate step was taken | Its outcome and model, and the questions when they were asked |
+| `da-seal-v3` | The Devil's Advocate step was taken | Its outcome and model, and the questions and your answers when they were asked |
 | `da-seal-v4` | The record has a letter | The letter's opening day and the SHA-256 of its text, never the text |
 
 A record uses the newest version whose field it has. A record without the newer fields keeps producing the older payload byte for byte, so no existing seal ever stops verifying. Fixed hashes for each version are pinned in the test suite.

@@ -23,6 +23,12 @@ describe('README and docs', () => {
     expect(readme.trimEnd().split('\n').length).toBeLessThanOrEqual(110)
   })
 
+  it('says the Devil\'s Advocate answers are sealed, and when a seal becomes final', () => {
+    expect(text('docs/the-seal.md')).toContain('the questions and your answers')
+    expect(text('docs/the-seal.md')).toContain('becomes final when')
+    expect(text('docs/ai.md')).toContain('the questions and your answers are sealed')
+  })
+
   it('is MIT licensed by atikulmunna', () => {
     const licence = text('LICENSE')
     expect(licence.startsWith('MIT License')).toBe(true)

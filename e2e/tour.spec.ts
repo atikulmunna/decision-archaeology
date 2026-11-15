@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { TOUR_STOPS } from '../src/lib/tour'
-import { watchConsole } from './helpers'
+import { expectNoOverflow, watchConsole } from './helpers'
 
 test('walks all five stops and finishes on the case study', async ({ page }) => {
   const errors = watchConsole(page)
@@ -27,7 +27,18 @@ test('End tour removes the bar and the parameter', async ({ page }) => {
 })
 
 test.describe('on a phone', () => {
-  test.use({ viewport: { width: 390, height: 844 } })
+  test.use({ viewport: { width: 390, height: 844 }, colorScheme: 'dark' })
+
+  test('every stop loads cleanly without scrolling sideways', async ({ page }) => {
+    const errors = watchConsole(page)
+    for (const stop of TOUR_STOPS) {
+      await page.goto(stop.href)
+      await expect(page.getByRole('region', { name: 'Guided tour' })).toBeVisible()
+      await page.waitForLoadState('networkidle')
+      await expectNoOverflow(page)
+    }
+    expect(errors()).toEqual([])
+  })
 
   test('tour bar never covers the end of the page', async ({ page }) => {
     for (const stop of TOUR_STOPS) {

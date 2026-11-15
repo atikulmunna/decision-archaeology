@@ -26,7 +26,7 @@ const PHASES = 12
 const SEAL_VERSIONS = [
   { version: 'da-seal-v1', covers: 'the base record: every field that locks.' },
   { version: 'da-seal-v2', covers: 'adds the forecasts, used only when a record has them.' },
-  { version: 'da-seal-v3', covers: "adds the Devil's Advocate step: its outcome, the model, and the questions when they were asked." },
+  { version: 'da-seal-v3', covers: "adds the Devil's Advocate step: its outcome, the model, and the questions and your answers when they were asked." },
   { version: 'da-seal-v4', covers: "adds a letter's opening day and the SHA-256 of its text, never the text itself." },
 ]
 
@@ -140,9 +140,9 @@ export default async function HowItWorks() {
             <div>
               <h3 className={subTitle}>The seal</h3>
               <p className={`mt-3 ${prose}`}>
-                When the five-minute edit window closes, the server builds a canonical payload: every field that locks,
+                Every save inside the five-minute edit window rebuilds a canonical payload: every field that locks,
                 in a fixed key order, with text normalised to Unicode NFC and line endings unified. It takes the
-                SHA-256 of that text with Web Crypto. The browser runs the same code, so Verify needs no server at all.
+                SHA-256 of that text with Web Crypto, and the last one becomes final when the window closes. The browser runs the same code, so Verify needs no server at all.
                 This is the payload of DA-0007, exactly as it is hashed:
               </p>
               <pre className="mt-4 max-h-80 overflow-auto rounded-sm border border-rule bg-surface p-4 font-mono text-[12px] leading-relaxed text-ink">

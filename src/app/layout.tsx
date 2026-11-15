@@ -23,9 +23,10 @@ export const metadata: Metadata = {
   metadataBase: siteUrl(),
   title: 'Decision Archaeology',
   description: DESCRIPTION,
-  // The preview images come from the opengraph-image files beside the pages.
-  openGraph: { siteName: 'Decision Archaeology', type: 'website', title: 'Decision Archaeology', description: DESCRIPTION },
-  twitter: { card: 'summary_large_image', title: 'Decision Archaeology', description: DESCRIPTION },
+  // The preview images come from the opengraph-image files beside the pages. No title or description here:
+  // Next fills those from each page's own metadata, and a root value would win over every page.
+  openGraph: { siteName: 'Decision Archaeology', type: 'website' },
+  twitter: { card: 'summary_large_image' },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

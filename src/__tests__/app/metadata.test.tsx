@@ -30,6 +30,14 @@ describe('site metadata', () => {
     expect(metadata.twitter).toMatchObject({ card: 'summary_large_image' })
     expect(String(metadata.description)).not.toMatch(/bias detection/)
   })
+
+  it("lets each page's own title and description reach its link preview", () => {
+    // A root og or twitter title would win over every page's title (Next fills them only when empty).
+    for (const card of [metadata.openGraph, metadata.twitter]) {
+      expect(card).not.toHaveProperty('title')
+      expect(card).not.toHaveProperty('description')
+    }
+  })
 })
 
 describe('link preview images', () => {

@@ -26,7 +26,7 @@ Before a decision is sealed, the app can ask a few pointed questions about it.
 - It is ask-first: you choose to take the step, skip it, or it reports that it is unavailable.
 - `POST /api/decisions/[id]/challenge` is the only writer of questions, once per draft, with a 20 second deadline and a limit of 20 calls per user per rolling day.
 - It claims the draft with a conditional write, so nothing is ever written onto a decision that sealed in the meantime.
-- The outcome, the model and the questions are sealed in `da-seal-v3`; your answers autosave with the draft.
+- The outcome, the model, the questions and your answers are sealed in `da-seal-v3`; until then the answers autosave with the draft.
 
 ## When it fails
 
