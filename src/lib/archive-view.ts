@@ -59,7 +59,7 @@ export type ArchiveSearchParams = Partial<
   Record<'q' | 'domain' | 'outcome' | 'dateFrom' | 'dateTo' | 'minConfidence' | 'tag' | 'page' | 'view' | 'year', string | string[]>
 >
 
-const PAGE_SIZE = 20
+export const ARCHIVE_PAGE_SIZE = 20
 
 function isDomainTag(value: string): value is DomainTag {
   return (Object.values(DomainTag) as string[]).includes(value)
@@ -108,7 +108,7 @@ export function parseArchiveSearchParams(raw: ArchiveSearchParams): {
   const pageParams = new URLSearchParams(Object.entries(kept).map(([key, value]) => [key, String(value)])).toString()
   const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage
 
-  return { filters: { ...kept, page, limit: PAGE_SIZE }, pageParams, hasFilters: pageParams !== '' }
+  return { filters: { ...kept, page, limit: ARCHIVE_PAGE_SIZE }, pageParams, hasFilters: pageParams !== '' }
 }
 
 export type ArchiveViewMode = 'list' | 'strata'

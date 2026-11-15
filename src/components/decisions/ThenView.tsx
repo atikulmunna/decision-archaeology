@@ -164,7 +164,11 @@ export function ThenView({
 
       {decision.isLocked ? (
         decision.sealHash ? null : (
-          <Callout title="Core fields are locked">Supplementary notes, outcomes and typo corrections can still be added.</Callout>
+          <Callout title="Core fields are locked">
+            {readOnly
+              ? 'Its owner can still add notes, outcomes and typo corrections.'
+              : 'Supplementary notes, outcomes and typo corrections can still be added.'}
+          </Callout>
         )
       ) : (
         <Callout tone="warning" title="Edit window open">The core fields are not locked yet, so editing is still possible.</Callout>
@@ -229,7 +233,9 @@ export function ThenView({
               Correction Requests
             </h2>
             <p className="mt-1 text-sm text-muted">
-              Locked fields keep the original wording forever. If you spot a typo, submit a small spelling or punctuation correction and preserve the change in the audit trail.
+              {readOnly
+                ? 'Locked fields keep the original wording forever. Typo corrections the owner made are listed below.'
+                : 'Locked fields keep the original wording forever. If you spot a typo, submit a small spelling or punctuation correction and preserve the change in the audit trail.'}
             </p>
           </div>
 

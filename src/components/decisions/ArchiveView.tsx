@@ -11,7 +11,7 @@ import { Callout } from '@/components/ui/Callout'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { archiveEmptyState, archiveViewHref, type ArchiveViewMode } from '@/lib/archive-view'
+import { ARCHIVE_PAGE_SIZE, archiveEmptyState, archiveViewHref, type ArchiveViewMode } from '@/lib/archive-view'
 import { StrataColumn } from '@/components/decisions/StrataColumn'
 import type { StrataLayout } from '@/lib/strata'
 import { BIAS_REPORT_THRESHOLD, getMilestoneMessage } from '@/lib/onboarding'
@@ -37,8 +37,6 @@ export type ArchiveViewProps = {
   dueForRevisit?: Array<{ id: string; label: string; title: string; href: string }>
 }
 
-const PAGE_SIZE = 20
-
 /** The archive page body, shared by the signed-in archive and the public demo. */
 export function ArchiveView({
   mode,
@@ -59,7 +57,7 @@ export function ArchiveView({
   dueForRevisit = [],
 }: ArchiveViewProps) {
   const isOwner = mode === 'owner'
-  const totalPages = Math.ceil(total / PAGE_SIZE)
+  const totalPages = Math.ceil(total / ARCHIVE_PAGE_SIZE)
   const hrefForPage = (nextPage: number) => `?${pageParams ? `${pageParams}&` : ''}page=${nextPage}`
 
   const progressPct = Math.min(100, Math.round((allCount / BIAS_REPORT_THRESHOLD) * 100))
@@ -71,7 +69,8 @@ export function ArchiveView({
       <PageHeader
         eyebrow={isOwner ? 'Your record' : 'Demo archive'}
         title="Archive"
-        meta={`${allCount} sealed${visibleDrafts.length > 0 ? ` · ${visibleDrafts.length} draft${visibleDrafts.length === 1 ? '' : 's'}` : ''}`}
+        // With filters on, the count says how many matched out of the whole archive.
+        meta={`${hasFilters ? `${total} of ${allCount}` : allCount} sealed${visibleDrafts.length > 0 ? ` · ${visibleDrafts.length} draft${visibleDrafts.length === 1 ? '' : 's'}` : ''}`}
         actions={isOwner ? <Button href="/decisions/new">Log decision</Button> : undefined}
       />
 

@@ -24,9 +24,17 @@ describe('route sets', () => {
     expect(isPublic('/decisions')).toBe(false)
   })
 
+  it('opens the demo and the case study and nothing that merely starts with their names', () => {
+    const isPublic = (path: string) => PUBLIC_ROUTES.some((pattern) => new RegExp(`^${pattern}$`).test(path))
+    expect(isPublic('/demo')).toBe(true)
+    expect(isPublic('/demo/decisions/demo-0007')).toBe(true)
+    expect(isPublic('/demoanything')).toBe(false)
+    expect(isPublic('/how-it-worksx')).toBe(false)
+  })
+
   it('makes the demo public without dropping existing public routes', () => {
     expect(PUBLIC_ROUTES).toEqual(
-      expect.arrayContaining(['/', '/sign-in(.*)', '/sign-up(.*)', '/demo(.*)', '/api/webhooks/(.*)'])
+      expect.arrayContaining(['/', '/sign-in(.*)', '/sign-up(.*)', '/demo', '/demo/(.*)', '/api/webhooks/(.*)'])
     )
   })
 })

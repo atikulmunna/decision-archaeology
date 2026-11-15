@@ -90,14 +90,14 @@ export function AddOutcomeForm({ decisionId, onAdded }: Props) {
               type="button"
               aria-pressed={rating === value}
               onClick={() => setRating(value)}
-              className={`flex items-center gap-2 rounded-sm border px-3 py-2 text-sm transition-colors duration-150 ${
+              className={`flex items-center gap-2 rounded-sm border px-3 py-2 text-left text-sm leading-snug transition-colors duration-150 ${
                 rating === value
                   ? 'border-ink bg-ink text-paper'
                   : 'border-rule text-ink-2 hover:border-ink hover:bg-sunken'
               }`}
             >
               <Icon aria-hidden="true" size={14} strokeWidth={1.5} className="shrink-0" />
-              <span className="truncate">{OUTCOME_LABELS[value]}</span>
+              <span className="min-w-0 break-words">{OUTCOME_LABELS[value]}</span>
             </button>
           ))}
         </div>

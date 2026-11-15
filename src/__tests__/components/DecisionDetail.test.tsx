@@ -98,6 +98,22 @@ describe('DecisionDetail seal', () => {
     expect(screen.getByText('1 approved typo correction since sealing. The seal covers the original text.')).toBeInTheDocument()
   })
 
+  it('does not invite a reader of someone else’s record to submit corrections', () => {
+    render(<DecisionDetail decision={demo('on-call-redesign')} readOnly timeZone="UTC" now={DEMO_NOW} initialView="then" />)
+    expect(screen.queryByText(/If you spot a typo/)).toBeNull()
+    expect(
+      screen.getByText('Locked fields keep the original wording forever. Typo corrections the owner made are listed below.')
+    ).toBeInTheDocument()
+  })
+
+  it('tells a reader that the owner, not they, can still add to a locked record', () => {
+    render(
+      <DecisionDetail decision={{ ...demo('northwind-offer'), sealHash: null, sealedAt: null }} readOnly timeZone="UTC" now={DEMO_NOW} initialView="then" />
+    )
+    expect(screen.queryByText(/can still be added/)).toBeNull()
+    expect(screen.getByText('Its owner can still add notes, outcomes and typo corrections.')).toBeInTheDocument()
+  })
+
   it('highlights the changed word when the demo tamper test is on', async () => {
     render(<DecisionDetail decision={demo('northwind-offer')} readOnly timeZone="UTC" tamperTest now={DEMO_NOW} initialView="then" />)
     await userEvent.click(screen.getByRole('checkbox', { name: /Try changing a word/ }))

@@ -56,6 +56,14 @@ describe('demo archive page', () => {
     expect(markup).not.toContain('Accept the senior role at Northwind?')
   })
 
+  it('counts what the filters left, out of the whole archive', async () => {
+    const filtered = await html(DemoArchivePage({ searchParams: Promise.resolve({ domain: 'HEALTH' }) }))
+    expect(filtered).toMatch(/\b\d+ of 24 sealed\b/)
+    const all = await html(DemoArchivePage({ searchParams: Promise.resolve({}) }))
+    expect(all).toContain('24 sealed')
+    expect(all).not.toMatch(/of 24 sealed/)
+  })
+
   it('survives hostile search params', async () => {
     const markup = await html(
       DemoArchivePage({
@@ -63,6 +71,15 @@ describe('demo archive page', () => {
       })
     )
     expect(markup).toContain('Archive')
+  })
+
+  it('ignores invalid filter values and shows the unfiltered first page', async () => {
+    const markup = await html(
+      DemoArchivePage({ searchParams: Promise.resolve({ page: 'abc', minConfidence: 'x', domain: 'NOPE', outcome: 'bogus' }) })
+    )
+    expect(markup).toContain('href="/demo/decisions/demo-0024"')
+    expect(markup).toContain('href="/demo/decisions/demo-0005"')
+    expect(markup).not.toMatch(/of 24 sealed/)
   })
 })
 
