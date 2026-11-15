@@ -116,7 +116,7 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
         daysAgo: 330,
         outcomeRating: 'AS_EXPECTED',
         whatHappened:
-          'The buffer reached six months right on schedule, and it is the reason the Northwind offer felt like a real option instead of a gamble.',
+          'The buffer reached six months right on schedule. Watching it fill is part of why the Northwind offer felt like a real option instead of a gamble.',
       },
     ],
   },
@@ -222,7 +222,7 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
     alternatives: 'Take the offer as written. Push for more salary. Trade salary for options.',
     chosenOption: 'Trade about ten percent of the base salary for a larger option grant.',
     reasoning:
-      'My emergency fund covers the lower salary comfortably. If Northwind works, the options matter far more than the salary difference, and asking for them signals that I believe in the company.',
+      'The pay cut is small, and my savings cover it comfortably. If Northwind works, the options matter far more than the salary difference, and asking for them signals that I believe in the company.',
     values: 'Ownership. Betting on what I can influence.',
     uncertainties: 'Startup options are often worth nothing. The strike price and the next round both matter.',
     predictedOutcome: 'The extra options will be worth more than the salary I gave up by the time I could sell any.',
@@ -274,7 +274,7 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
         daysAgo: 200,
         outcomeRating: 'AS_EXPECTED',
         whatHappened:
-          'After a year I own the scheduling engine and have grown a lot. The hours were long in two stretches but never unsustainable.',
+          'Eight months in, I own the scheduling engine and have grown a lot. The hours were long in two stretches but never unsustainable.',
         lessonsLearned: 'The team was the whole bet, and it was the right one.',
       },
     ],
@@ -507,8 +507,8 @@ export const DEMO_SEEDS: readonly DemoDecisionSeed[] = [
     daysAgo: 280,
     title: 'Stop working after 10pm?',
     summary: 'Set a hard rule: no work messages or code after 10pm.',
-    context: 'I keep answering Slack in bed. My therapist pointed out that my worst days follow my latest nights.',
-    alternatives: 'Keep working when inspired. Set a 10pm cutoff. Remove Slack from my phone entirely.',
+    context: 'I keep answering the team chat in bed. My therapist pointed out that my worst days follow my latest nights.',
+    alternatives: 'Keep working when inspired. Set a 10pm cutoff. Remove the chat app from my phone entirely.',
     chosenOption: 'A 10pm cutoff, with notifications muted automatically.',
     reasoning: 'A rule is easier to keep than a feeling. Automating the mute means I do not have to win the argument with myself every night.',
     values: 'Health. Boundaries.',

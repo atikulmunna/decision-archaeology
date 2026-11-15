@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { shareInviteEmail } from '@/lib/email/messages'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -100,22 +101,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL ?? 'Decision Archaeology <no-reply@resend.dev>',
         to: collaborator.email,
-        subject: `${dbUser.displayName ?? 'Someone'} shared a decision with you`,
-        html: `
-          <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#4f46e5">📋 You've been invited to review a decision</h2>
-            <p><strong>${dbUser.displayName ?? 'A Decision Archaeology user'}</strong> has shared their decision record with you:</p>
-            <blockquote style="border-left:3px solid #4f46e5;padding-left:16px;color:#374151">
-              <strong>${decision.title}</strong>
-            </blockquote>
-            <p>You can view the decision, leave comments, and track outcomes.</p>
-            <a href="${appUrl}/shared/${share.id}"
-               style="display:inline-block;background:#4f46e5;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:8px">
-              View decision →
-            </a>
-            <p style="color:#9ca3af;font-size:12px;margin-top:32px">Decision Archaeology</p>
-          </div>
-        `,
+        ...shareInviteEmail({
+          ownerName: dbUser.displayName ?? 'Someone',
+          title: decision.title,
+          url: `${appUrl}/shared/${share.id}`,
+        }),
       })
     } catch (err) {
       console.error('[Resend] Invite email failed:', err)

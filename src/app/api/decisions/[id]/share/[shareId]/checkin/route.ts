@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
+import { checkInRequestEmail } from '@/lib/email/messages'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,22 +31,11 @@ export async function POST(_req: NextRequest, { params }: Params) {
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL ?? 'Decision Archaeology <no-reply@resend.dev>',
         to: share.owner.email,
-        subject: `${dbUser.displayName ?? 'A collaborator'} is asking for an update`,
-        html: `
-          <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#4f46e5">🔔 Outcome update requested</h2>
-            <p><strong>${dbUser.displayName ?? 'One of your collaborators'}</strong> is curious about what happened with:</p>
-            <blockquote style="border-left:3px solid #4f46e5;padding-left:16px;color:#374151">
-              <strong>${share.decision.title}</strong>
-            </blockquote>
-            <p>Log an outcome update to keep them in the loop.</p>
-            <a href="${appUrl}/decisions/${id}"
-               style="display:inline-block;background:#4f46e5;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:8px">
-              Log outcome →
-            </a>
-            <p style="color:#9ca3af;font-size:12px;margin-top:32px">Decision Archaeology</p>
-          </div>
-        `,
+        ...checkInRequestEmail({
+          collaboratorName: dbUser.displayName ?? 'A collaborator',
+          title: share.decision.title,
+          url: `${appUrl}/decisions/${id}`,
+        }),
       })
     } catch (err) {
       console.error('[Resend] Check-in request email failed:', err)

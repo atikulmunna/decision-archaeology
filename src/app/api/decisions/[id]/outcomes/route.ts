@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/lib/prisma'
 import { OUTCOME_LABELS } from '@/lib/outcomes'
+import { outcomeLoggedEmail } from '@/lib/email/messages'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -105,27 +106,13 @@ async function notifyCollaborators(
       resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL ?? 'Decision Archaeology <no-reply@resend.dev>',
         to: s.collaborator.email,
-        subject: `${ownerName} added an outcome update`,
-        html: `
-          <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#4f46e5">📊 New outcome logged</h2>
-            <p><strong>${ownerName}</strong> just added an outcome update to a decision you're following:</p>
-            <blockquote style="border-left:3px solid #4f46e5;padding-left:16px;color:#374151">
-              <strong>${decisionTitle}</strong>
-            </blockquote>
-            <p style="margin:16px 0 8px 0">
-              <strong>Outcome rating:</strong> ${OUTCOME_LABELS[outcomeRating]}
-            </p>
-            <p style="margin:0 0 16px 0;color:#374151">
-              ${summary}
-            </p>
-            <a href="${appUrl}/shared/${s.id}"
-               style="display:inline-block;background:#4f46e5;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;margin-top:8px">
-              View outcome history →
-            </a>
-            <p style="color:#9ca3af;font-size:12px;margin-top:32px">Decision Archaeology</p>
-          </div>
-        `,
+        ...outcomeLoggedEmail({
+          ownerName,
+          title: decisionTitle,
+          rating: OUTCOME_LABELS[outcomeRating],
+          summary,
+          url: `${appUrl}/shared/${s.id}`,
+        }),
       })
     )
   )
