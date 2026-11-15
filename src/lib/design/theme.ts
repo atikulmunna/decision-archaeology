@@ -20,9 +20,21 @@ export function nextThemePreference(preference: ThemePreference): ThemePreferenc
   return CYCLE[preference]
 }
 
+/** The preference saved in the cookie, read in the browser; anything unreadable means "system". */
+export function readThemeCookie(cookie: string): ThemePreference {
+  const match = cookie.match(new RegExp(`(?:^|; )${THEME_COOKIE}=([^;]*)`))
+  if (!match) return 'system'
+  try {
+    return parseThemePreference(decodeURIComponent(match[1]))
+  } catch {
+    return 'system'
+  }
+}
+
 /**
- * Runs in <head> before first paint. Explicit cookie choices win; otherwise the
- * OS preference is applied and followed while the preference stays "system".
+ * Runs in <head> before first paint. Explicit cookie choices win; otherwise the OS preference
+ * is applied. The OS is always listened to, and followed whenever the cookie says "system",
+ * so switching back to System in the same page load follows it again.
  */
 export const THEME_INIT_SCRIPT = `(function () {
   function readPreference() {
@@ -33,9 +45,8 @@ export const THEME_INIT_SCRIPT = `(function () {
   try {
     var pref = readPreference();
     var root = document.documentElement;
-    if (pref === 'light' || pref === 'dark') { root.dataset.theme = pref; return; }
     var media = window.matchMedia('(prefers-color-scheme: dark)');
-    root.dataset.theme = media.matches ? 'dark' : 'light';
+    root.dataset.theme = pref === 'light' || pref === 'dark' ? pref : media.matches ? 'dark' : 'light';
     media.addEventListener('change', function (event) {
       var value = readPreference();
       if (value !== 'light' && value !== 'dark') root.dataset.theme = event.matches ? 'dark' : 'light';

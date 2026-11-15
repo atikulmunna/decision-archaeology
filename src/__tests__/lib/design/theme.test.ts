@@ -59,6 +59,26 @@ describe('THEME_INIT_SCRIPT', () => {
     expect(document.documentElement.dataset.theme).toBe('light')
   })
 
+  it('follows the OS again once the reader switches back to System in the same page load', () => {
+    document.cookie = 'da-theme=dark; path=/'
+    let onChange: ((event: { matches: boolean }) => void) | undefined
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: (_type: string, listener: (event: { matches: boolean }) => void) => {
+          onChange = listener
+        },
+      })
+    )
+    new Function(THEME_INIT_SCRIPT)()
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    // The toggle writes the cookie; the OS then turns light.
+    document.cookie = 'da-theme=system; path=/'
+    onChange?.({ matches: false })
+    expect(document.documentElement.dataset.theme).toBe('light')
+  })
+
   it('follows the OS when the cookie is not valid percent-encoding', () => {
     document.cookie = 'da-theme=%E0%A4%A; path=/'
     stubMatchMedia(true)

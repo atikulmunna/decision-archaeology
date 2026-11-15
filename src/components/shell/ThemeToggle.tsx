@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import {
   nextThemePreference,
+  readThemeCookie,
   resolveTheme,
   THEME_COOKIE,
   type ThemePreference,
@@ -12,8 +13,19 @@ import {
 const LABELS: Record<ThemePreference, string> = { system: 'System', light: 'Light', dark: 'Dark' }
 const ICONS = { system: Monitor, light: Sun, dark: Moon } as const
 
+// Every toggle on the page reads the cookie itself, so a page rendered (or prefetched) with an older
+// choice still shows the saved one, and a click updates every toggle at once.
+const listeners = new Set<() => void>()
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  return () => {
+    listeners.delete(listener)
+  }
+}
+const readPreference = () => readThemeCookie(document.cookie)
+
 export function ThemeToggle({ initialPreference }: { initialPreference: ThemePreference }) {
-  const [preference, setPreference] = useState<ThemePreference>(initialPreference)
+  const preference = useSyncExternalStore(subscribe, readPreference, () => initialPreference)
   const Icon = ICONS[preference]
 
   function cycle() {
@@ -21,7 +33,7 @@ export function ThemeToggle({ initialPreference }: { initialPreference: ThemePre
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     document.documentElement.dataset.theme = resolveTheme(next, prefersDark)
     document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`
-    setPreference(next)
+    listeners.forEach((listener) => listener())
   }
 
   return (

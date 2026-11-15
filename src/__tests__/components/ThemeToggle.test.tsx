@@ -9,6 +9,31 @@ afterEach(() => {
 })
 
 describe('ThemeToggle', () => {
+  it('shows the saved choice even when the page was rendered with an older one', () => {
+    // A page prefetched before the reader toggled carries the old preference from the server.
+    document.cookie = 'da-theme=dark; path=/'
+    render(<ThemeToggle initialPreference="system" />)
+    expect(screen.getByRole('button', { name: 'Theme: Dark' })).toBeInTheDocument()
+    document.cookie = 'da-theme=system; path=/'
+  })
+
+  it('keeps every toggle on the page in step', async () => {
+    document.cookie = 'da-theme=system; path=/'
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    )
+    render(
+      <>
+        <ThemeToggle initialPreference="system" />
+        <ThemeToggle initialPreference="system" />
+      </>
+    )
+    await userEvent.click(screen.getAllByRole('button', { name: 'Theme: System' })[0])
+    expect(screen.getAllByRole('button', { name: 'Theme: Light' })).toHaveLength(2)
+    document.cookie = 'da-theme=system; path=/'
+  })
+
   it('cycles the theme, updating the label, data-theme and cookie', async () => {
     vi.stubGlobal(
       'matchMedia',
