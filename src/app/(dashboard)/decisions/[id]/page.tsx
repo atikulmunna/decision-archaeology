@@ -82,6 +82,8 @@ export default async function DecisionDetailPage({ params, searchParams }: PageP
           decision={record}
           revisit={revisit}
           now={new Date()}
+          // Times print in UTC with a label, so the server render and the browser agree.
+          timeZone="UTC"
           reviews={record.assumptionReviews}
           initialView={initialView}
           collaboration={{

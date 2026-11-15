@@ -29,4 +29,24 @@ describe('CommentThread', () => {
     expect(mine.className).not.toMatch(/text-signal-ink/)
     expect(screen.getByText(/^Rafi ·/).className).toMatch(/text-muted/)
   })
+
+  it('dates each comment in UTC, so the server and every browser print the same thing', () => {
+    const originalTz = process.env.TZ
+    // Noon UTC is already midnight of the next day in New Zealand.
+    process.env.TZ = 'Pacific/Auckland'
+    try {
+      render(
+        <CommentThread
+          decisionId="d1"
+          shareId="s1"
+          currentUserId="me"
+          isCollaborator={false}
+          initialComments={[comment('c2', 'them', 'Rafi')]}
+        />
+      )
+      expect(screen.getByText('Rafi · Nov 9, 12:00 PM UTC')).toBeInTheDocument()
+    } finally {
+      process.env.TZ = originalTz
+    }
+  })
 })

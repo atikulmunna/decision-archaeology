@@ -91,7 +91,7 @@ export default async function SharedDecisionPage({ params }: Params) {
         meta={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <CatalogNumber value={d.catalogNumber} />
-            <span>{new Date(d.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+            <span>{new Date(d.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span>
             {d.domainTag && <span>{d.domainTag}</span>}
             {d.confidenceLevel && <span>Confidence {d.confidenceLevel}/10</span>}
           </span>

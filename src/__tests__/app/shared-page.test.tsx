@@ -77,4 +77,19 @@ describe('shared decision page', () => {
     expect(markup).toContain('Provisional')
   })
 
+  it('dates the record in UTC, whatever zone the server runs in', async () => {
+    const originalTz = process.env.TZ
+    // Noon UTC is already midnight of the next day in New Zealand.
+    process.env.TZ = 'Pacific/Auckland'
+    try {
+      const decision = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+      mocks.userFindUnique.mockResolvedValue({ id: 'db_collab' })
+      mocks.shareFindFirst.mockResolvedValue({ id: 'share_1', decision, owner: { displayName: 'Rowan' }, comments: [] })
+      const markup = renderToStaticMarkup(await SharedDecisionPage({ params: Promise.resolve({ shareId: 'share_1' }) }))
+      expect(markup).toContain('August 15, 2025')
+      expect(markup).not.toContain('August 16, 2025')
+    } finally {
+      process.env.TZ = originalTz
+    }
+  })
 })

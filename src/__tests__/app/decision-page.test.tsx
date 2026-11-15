@@ -91,4 +91,19 @@ describe('owner decision page', () => {
     )
     expect(selectedTab(markup)).toBe('now')
   })
+
+  it('prints times in UTC, so the server render and the browser agree', async () => {
+    const originalTz = process.env.TZ
+    // Noon UTC is already midnight of the next day in New Zealand.
+    process.env.TZ = 'Pacific/Auckland'
+    try {
+      mocks.getDecision.mockResolvedValue(ownerRecord())
+      const markup = renderToStaticMarkup(
+        await DecisionDetailPage({ params: Promise.resolve({ id: 'd1' }), searchParams: Promise.resolve({ view: 'then' }) })
+      )
+      expect(markup).toContain('Recorded August 15, 2025 at 12:00 PM UTC')
+    } finally {
+      process.env.TZ = originalTz
+    }
+  })
 })

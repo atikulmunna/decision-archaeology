@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bell, MessagesSquare } from 'lucide-react'
 
+/** In UTC with a label, so the server render and every browser print the same thing. */
+function formatCommentTime(value: string | Date): string {
+  const when = new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })
+  return `${when} UTC`
+}
+
 interface Comment {
   id: string
   content: string
@@ -97,7 +103,7 @@ export function CommentThread({ decisionId, shareId, initialComments, currentUse
               <div className={`max-w-[80%] rounded-sm px-3 py-2 text-sm ${isMe ? 'bg-primary text-on-primary' : 'bg-sunken text-ink'}`}>
                 <p className="whitespace-pre-wrap break-words">{c.content}</p>
                 <p className={`mt-1 font-mono text-[11px] ${isMe ? 'text-on-primary' : 'text-muted'}`}>
-                  {c.author?.displayName ?? 'Unknown'} · {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {c.author?.displayName ?? 'Unknown'} · {formatCommentTime(c.createdAt)}
                 </p>
               </div>
             </div>
