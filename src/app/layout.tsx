@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, Instrument_Serif, Inter_Tight } from 'next/font/google'
 import { cookies } from 'next/headers'
 import { ClerkProvider } from '@clerk/nextjs'
 import { clerkAppearance } from '@/lib/design/clerk-appearance'
+import { clerkLocalization } from '@/lib/design/clerk-localization'
 import { parseThemePreference, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/design/theme'
 import { siteUrl } from '@/lib/site'
 import './globals.css'
@@ -33,7 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const preference = parseThemePreference((await cookies()).get(THEME_COOKIE)?.value)
 
   return (
-    <ClerkProvider appearance={clerkAppearance}>
+    <ClerkProvider appearance={clerkAppearance} localization={clerkLocalization}>
       {/* Font variables live on <html> so the :root-level tokens (--font-sans etc.) can resolve them. */}
       <html
         lang="en"
