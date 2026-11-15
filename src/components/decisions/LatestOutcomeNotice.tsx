@@ -12,7 +12,7 @@ export function latestOutcomeTone(rating: OutcomeRating): CalloutTone {
   return 'success'
 }
 
-export function LatestOutcomeNotice({ outcome }: { outcome: OutcomeUpdate }) {
+export function LatestOutcomeNotice({ outcome, timeZone }: { outcome: OutcomeUpdate; timeZone?: string }) {
   return (
     <Callout tone={latestOutcomeTone(outcome.outcomeRating)} title="Latest update from the owner">
       <div className="flex flex-col gap-2">
@@ -23,6 +23,7 @@ export function LatestOutcomeNotice({ outcome }: { outcome: OutcomeUpdate }) {
               month: 'short',
               day: 'numeric',
               year: 'numeric',
+              timeZone,
             })}
           </span>
         </div>

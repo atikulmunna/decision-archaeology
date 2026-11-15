@@ -102,7 +102,7 @@ describe('DecisionDetail seal', () => {
     render(<DecisionDetail decision={demo('on-call-redesign')} readOnly timeZone="UTC" now={DEMO_NOW} initialView="then" />)
     expect(screen.queryByText(/If you spot a typo/)).toBeNull()
     expect(
-      screen.getByText('Locked fields keep the original wording forever. Typo corrections the owner made are listed below.')
+      screen.getByText('Locked fields keep the original wording forever. Correction requests the owner filed are listed below, with what happened to each.')
     ).toBeInTheDocument()
   })
 

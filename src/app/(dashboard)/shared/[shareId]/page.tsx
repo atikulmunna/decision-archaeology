@@ -101,7 +101,8 @@ export default async function SharedDecisionPage({ params }: Params) {
       {/* A client component: pass only the sealed fields, never attachments or other owner data. */}
       <SealPanel record={toSealRecord(d)} />
 
-      {latestOutcome && <LatestOutcomeNotice outcome={latestOutcome} />}
+      {/* Outcome dates in UTC like the header, so they match the owner's page whatever zone the server runs in. */}
+      {latestOutcome && <LatestOutcomeNotice outcome={latestOutcome} timeZone="UTC" />}
 
       <Card as="section" className="flex flex-col gap-5 p-6">
         {/* The time lock is a lock; "sealed" belongs to the fingerprint, which an older record may not have. */}
@@ -141,6 +142,7 @@ export default async function SharedDecisionPage({ params }: Params) {
 
       <OutcomeHistory
         outcomes={d.outcomes}
+        timeZone="UTC"
         title="Outcome History"
         description="Every owner update stays visible here in chronological order so you can follow how the decision evolved."
         emptyMessage="No outcome updates yet. You can request one if the expected timeframe has already passed."

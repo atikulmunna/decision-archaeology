@@ -42,7 +42,9 @@ function matchesFilters(record: DemoDecision, filters: DecisionFilters): boolean
   if (dateTo && record.createdAt > new Date(dateTo)) return false
   if (typeof minConfidence === 'number' && (confidence === null || confidence < minConfidence)) return false
   if (typeof maxConfidence === 'number' && (confidence === null || confidence > maxConfidence)) return false
-  if (tag?.trim() && !record.customTags.includes(tag.trim())) return false
+  // Case-insensitive, like the app's archive query: tags show in capitals, so a visitor may type them that way.
+  const wanted = tag?.trim().toLowerCase()
+  if (wanted && !record.customTags.some((customTag) => customTag.toLowerCase() === wanted)) return false
   return matchesOutcomeFilter(record.outcomes.at(-1)?.outcomeRating, outcome) && matchesSearch(record, filters.q)
 }
 

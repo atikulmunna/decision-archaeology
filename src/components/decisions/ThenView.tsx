@@ -234,7 +234,7 @@ export function ThenView({
             </h2>
             <p className="mt-1 text-sm text-muted">
               {readOnly
-                ? 'Locked fields keep the original wording forever. Typo corrections the owner made are listed below.'
+                ? 'Locked fields keep the original wording forever. Correction requests the owner filed are listed below, with what happened to each.'
                 : 'Locked fields keep the original wording forever. If you spot a typo, submit a small spelling or punctuation correction and preserve the change in the audit trail.'}
             </p>
           </div>

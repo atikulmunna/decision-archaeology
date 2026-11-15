@@ -41,6 +41,9 @@ describe('listDemoDecisions', () => {
     expect(confident.length).toBeGreaterThan(0)
     expect(confident.every((record) => record.confidenceLevel! >= 7)).toBe(true)
     expect(listDemoDecisions({ tag: 'equity' }).total).toBe(3)
+    // Tags show in capitals on the page, so a visitor may type them that way; the app ignores case too.
+    expect(listDemoDecisions({ tag: 'Equity' }).total).toBe(3)
+    expect(listDemoDecisions({ tag: ' EQUITY ' }).total).toBe(3)
     expect(listDemoDecisions({ dateFrom: daysBefore(DEMO_NOW, 200).toISOString().slice(0, 10) }).total).toBe(7)
     expect(listDemoDecisions({ dateTo: daysBefore(DEMO_NOW, 500).toISOString().slice(0, 10) }).total).toBe(3)
   })

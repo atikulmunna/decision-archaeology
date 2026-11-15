@@ -14,10 +14,17 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
+/** A paragraph of escaped HTML, or one that keeps the line breaks a person typed. */
+type Paragraph = string | { text: string; keepLines: true }
+
 /** `body` is one paragraph or several, already escaped; the last one leaves room above the button. */
-function frame(eyebrow: string, heading: string, body: string | string[], cta: string, url: string): string {
+function frame(eyebrow: string, heading: string, body: Paragraph | Paragraph[], cta: string, url: string): string {
   const paragraphs = (Array.isArray(body) ? body : [body])
-    .map((text, index, all) => `<p style="margin:0 0 ${index === all.length - 1 ? 24 : 12}px;font-size:15px;line-height:1.6;color:${c['ink-2']}">${text}</p>`)
+    .map((paragraph, index, all) => {
+      const text = typeof paragraph === 'string' ? paragraph : paragraph.text
+      const lines = typeof paragraph === 'string' ? '' : ';white-space:pre-wrap'
+      return `<p style="margin:0 0 ${index === all.length - 1 ? 24 : 12}px;font-size:15px;line-height:1.6;color:${c['ink-2']}${lines}">${text}</p>`
+    })
     .join('\n    ')
   return `<div style="background:${c.paper};padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:${c.ink}">
   <div style="max-width:560px;margin:0 auto;background:${c.surface};border:1px solid ${c.rule};padding:28px">
@@ -61,13 +68,15 @@ export function checkInEmail({ title, catalog, revisitUrl }: Message): Email {
 /** To each collaborator when the owner logs an outcome on a shared decision. */
 export function outcomeLoggedEmail({ ownerName, title, rating, summary, url }: { ownerName: string; title: string; rating: string; summary: string; url: string }): Email {
   const subject = `${ownerName} added an outcome update`
-  const text = `${ownerName} added an outcome update to ${title}: ${rating}. ${summary} See the outcome history: ${url}`
+  // Titles are often questions, so the rating gets its own line instead of following the title.
+  const text = `${ownerName} added an outcome update to "${title}".\nRating: ${rating}\n\n${summary}\n\nSee the outcome history: ${url}`
   const html = frame(
     'Outcome update',
     'A shared decision has news',
     [
-      `<strong>${escapeHtml(ownerName)}</strong> added an outcome update to <strong>${escapeHtml(title)}</strong>: ${escapeHtml(rating)}.`,
-      escapeHtml(summary),
+      `<strong>${escapeHtml(ownerName)}</strong> added an outcome update to <strong>${escapeHtml(title)}</strong>.`,
+      `Rating: ${escapeHtml(rating)}`,
+      { text: escapeHtml(summary), keepLines: true },
     ],
     'See the outcome history',
     url
@@ -78,7 +87,7 @@ export function outcomeLoggedEmail({ ownerName, title, rating, summary, url }: {
 /** To the collaborator a decision was just shared with. */
 export function shareInviteEmail({ ownerName, title, url }: { ownerName: string; title: string; url: string }): Email {
   const subject = `${ownerName} shared a decision with you`
-  const text = `${ownerName} shared their decision record ${title} with you. You can read it, leave comments and follow its outcomes: ${url}`
+  const text = `${ownerName} shared their decision record "${title}" with you. You can read it, leave comments and follow its outcomes: ${url}`
   const html = frame(
     'Shared with you',
     'A decision record to read',
@@ -92,7 +101,7 @@ export function shareInviteEmail({ ownerName, title, url }: { ownerName: string;
 /** To the owner when a collaborator asks what happened. */
 export function checkInRequestEmail({ collaboratorName, title, url }: { collaboratorName: string; title: string; url: string }): Email {
   const subject = `${collaboratorName} is asking for an update`
-  const text = `${collaboratorName} is curious what happened with ${title}. Log an outcome update to keep them in the loop: ${url}`
+  const text = `${collaboratorName} is curious what happened with "${title}". Log an outcome update to keep them in the loop: ${url}`
   const html = frame(
     'Update requested',
     'Someone is asking what happened',

@@ -88,6 +88,9 @@ describe('shared decision page', () => {
       const markup = renderToStaticMarkup(await SharedDecisionPage({ params: Promise.resolve({ shareId: 'share_1' }) }))
       expect(markup).toContain('August 15, 2025')
       expect(markup).not.toContain('August 16, 2025')
+      // Outcomes too: the latest notice and the history, logged at noon UTC on April 24.
+      expect(markup).toContain('Apr 24, 2026')
+      expect(markup).not.toContain('Apr 25, 2026')
     } finally {
       process.env.TZ = originalTz
     }
