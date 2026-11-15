@@ -15,7 +15,7 @@ export function StepIndicator({ steps, currentStep }: StepIndicatorProps) {
             key={label}
             aria-current={active ? 'step' : undefined}
             className={`flex items-center gap-2 border-b-[1.5px] pb-1 ${
-              active ? 'border-signal text-ink' : done ? 'border-transparent text-ink-2' : 'border-transparent text-muted'
+              active ? 'border-signal-ink text-ink' : done ? 'border-transparent text-ink-2' : 'border-transparent text-muted'
             }`}
           >
             <span>{String(step).padStart(2, '0')}</span>

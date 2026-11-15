@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { createRef } from 'react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { StepIndicator } from '@/components/ui/StepIndicator'
@@ -8,6 +9,23 @@ describe('Button', () => {
   it('renders a link when given href', () => {
     render(<Button href="/decisions/new">Log decision</Button>)
     expect(screen.getByRole('link', { name: 'Log decision' })).toHaveAttribute('href', '/decisions/new')
+  })
+
+  it('gives a link button the aria props, handler, target and ref it was passed', () => {
+    const onClick = vi.fn((event: { preventDefault: () => void }) => event.preventDefault())
+    const ref = createRef<HTMLAnchorElement>()
+    render(
+      <Button href="/demo" aria-describedby="hint" onClick={onClick} target="_blank" ref={ref}>
+        Open the demo
+      </Button>
+    )
+    const link = screen.getByRole('link', { name: 'Open the demo' })
+    expect(link).toHaveAttribute('aria-describedby', 'hint')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(ref.current).toBe(link)
+    fireEvent.click(link)
+    expect(onClick).toHaveBeenCalledOnce()
   })
 
   it('disables the button while loading', () => {
@@ -39,5 +57,6 @@ describe('StepIndicator', () => {
     expect(screen.getByText('01')).toBeInTheDocument()
     const current = screen.getByText('Reasoning').closest('li')
     expect(current).toHaveAttribute('aria-current', 'step')
+    expect(current!.className).toMatch(/\bborder-signal-ink\b/)
   })
 })

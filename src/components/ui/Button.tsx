@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, forwardRef } from 'react'
+import { type AnchorHTMLAttributes, type ButtonHTMLAttributes, type Ref, forwardRef } from 'react'
 import Link from 'next/link'
 import { LoaderCircle } from 'lucide-react'
 
@@ -11,6 +11,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
   /** Renders a Next.js link styled as a button. */
   href?: string
+  /** Link buttons only. A new tab gets rel="noopener noreferrer" unless rel is given. */
+  target?: AnchorHTMLAttributes<HTMLAnchorElement>['target']
+  rel?: string
 }
 
 const variants: Record<Variant, string> = {
@@ -30,20 +33,29 @@ export function buttonClasses({ variant = 'primary', size = 'md', className = ''
   return `inline-flex items-center justify-center gap-2 rounded-sm font-mono text-xs font-medium uppercase tracking-[0.09em] transition-[opacity,background-color,color] duration-150 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]} ${className}`
 }
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', loading, href, children, className = '', disabled, ...props }, ref) => {
+export const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
+  ({ variant = 'primary', size = 'md', loading, href, children, className = '', disabled, target, rel, ...props }, ref) => {
     const classes = buttonClasses({ variant, size, className })
 
     if (href) {
+      // A link keeps the aria props, handlers and ref it was given; button-only attributes stay behind.
+      const { type: _type, form: _form, formAction: _formAction, name: _name, value: _value, ...linkProps } = props
       return (
-        <Link href={href} className={classes}>
+        <Link
+          {...(linkProps as AnchorHTMLAttributes<HTMLAnchorElement>)}
+          ref={ref as Ref<HTMLAnchorElement>}
+          href={href}
+          target={target}
+          rel={rel ?? (target === '_blank' ? 'noopener noreferrer' : undefined)}
+          className={classes}
+        >
           {children}
         </Link>
       )
     }
 
     return (
-      <button ref={ref} disabled={disabled || loading} className={classes} {...props}>
+      <button ref={ref as Ref<HTMLButtonElement>} disabled={disabled || loading} className={classes} {...props}>
         {loading && <LoaderCircle aria-hidden="true" size={14} strokeWidth={1.5} className="motion-safe:animate-spin" />}
         {children}
       </button>

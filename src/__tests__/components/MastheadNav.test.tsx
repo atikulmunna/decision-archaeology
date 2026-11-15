@@ -18,6 +18,14 @@ describe('MastheadNav', () => {
     expect(screen.getAllByRole('link', { name: 'Archive' })[0]).not.toHaveAttribute('aria-current')
   })
 
+  it('underlines the active link in a color that shows on paper', () => {
+    render(<MastheadNav />)
+    // signal is lime (1.10:1 on paper in light mode); signal-ink is dark green in light and lime in dark.
+    const active = screen.getAllByRole('link', { name: 'Calibration' })[0]
+    expect(active.className).toMatch(/\bborder-signal-ink\b/)
+    expect(active.className).not.toMatch(/\bborder-signal\b(?!-)/)
+  })
+
   it('opens and closes the mobile menu accessibly', async () => {
     render(<MastheadNav />)
     const { toggle, panel } = openMenu()

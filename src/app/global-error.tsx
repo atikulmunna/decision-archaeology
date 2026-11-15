@@ -3,9 +3,10 @@
 import './globals.css'
 import { Button } from '@/components/ui/Button'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { fontVariables } from '@/lib/design/fonts'
 import { THEME_INIT_SCRIPT } from '@/lib/design/theme'
 
-/** Renders outside the root layout, so it loads the tokens and theme script itself. */
+/** Renders outside the root layout, so it loads the tokens, brand fonts and theme script itself. */
 export default function GlobalError({
   error,
   reset,
@@ -14,11 +15,11 @@ export default function GlobalError({
   reset: () => void
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={fontVariables} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-screen bg-paper text-ink">
+      <body className="min-h-screen bg-paper font-sans text-ink antialiased">
         <main className="mx-auto flex min-h-screen max-w-2xl items-center px-4 py-16">
           <div role="alert" className="flex w-full flex-col gap-4 rounded-sm border border-danger bg-surface p-8">
             <Eyebrow className="text-danger">Application error</Eyebrow>

@@ -21,7 +21,11 @@ function DecisionRowSkeleton() {
 
 export default function DecisionsLoading() {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading archive">
+    <div className="flex flex-col gap-6" aria-busy="true">
+      {/* A label on a plain div is never read out; a status message is. */}
+      <p role="status" className="sr-only">
+        Loading the archive
+      </p>
       <div className="border-b-[1.5px] border-ink pb-4">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="mt-3 h-10 w-44" />

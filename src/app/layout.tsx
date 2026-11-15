@@ -1,21 +1,12 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Mono, Instrument_Serif, Inter_Tight } from 'next/font/google'
 import { cookies } from 'next/headers'
 import { ClerkProvider } from '@clerk/nextjs'
 import { clerkAppearance } from '@/lib/design/clerk-appearance'
 import { clerkLocalization } from '@/lib/design/clerk-localization'
+import { fontVariables } from '@/lib/design/fonts'
 import { parseThemePreference, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/design/theme'
 import { siteUrl } from '@/lib/site'
 import './globals.css'
-
-const display = Instrument_Serif({
-  weight: '400',
-  style: ['normal', 'italic'],
-  subsets: ['latin'],
-  variable: '--font-instrument-serif',
-})
-const sans = Inter_Tight({ subsets: ['latin'], variable: '--font-inter-tight' })
-const mono = IBM_Plex_Mono({ weight: ['400', '500'], subsets: ['latin'], variable: '--font-plex-mono' })
 
 const DESCRIPTION =
   'Decision Archaeology records why you chose, before hindsight rewrites it. Each decision is sealed, then measured against what actually happened.'
@@ -39,7 +30,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <html
         lang="en"
         data-theme={preference === 'system' ? undefined : preference}
-        className={`${display.variable} ${sans.variable} ${mono.variable}`}
+        className={fontVariables}
         suppressHydrationWarning
       >
         <head>

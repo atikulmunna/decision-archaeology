@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AttachmentSummary } from '@/lib/attachments'
 import { ATTACHMENT_LIMITS } from '@/lib/attachments'
-import { buttonClasses } from '@/components/ui/Button'
+import { Button } from '@/components/ui/Button'
 
 type Props = {
   decisionId?: string
@@ -18,7 +18,7 @@ export function AttachmentManager({
   onRequireDecisionId,
   readOnly = false,
 }: Props) {
-  const inputId = useId()
+  const inputRef = useRef<HTMLInputElement>(null)
   const [attachments, setAttachments] = useState<AttachmentSummary[]>(initialAttachments)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -125,19 +125,25 @@ export function AttachmentManager({
           </p>
         </div>
         {!readOnly && (
-          <label
-            htmlFor={inputId}
-            className={`cursor-pointer ${buttonClasses({ variant: 'secondary', size: 'sm' })} ${loading || remainingSlots === 0 ? 'pointer-events-none opacity-50' : ''}`}
+          // A real button, so the file picker opens from the keyboard too (a label is not focusable).
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={loading || remainingSlots === 0}
+            onClick={() => inputRef.current?.click()}
           >
             {loading ? 'Uploading...' : 'Add files'}
-          </label>
+          </Button>
         )}
       </div>
 
       {!readOnly && (
         <input
-          id={inputId}
+          ref={inputRef}
           type="file"
+          tabIndex={-1}
+          aria-hidden="true"
           accept="application/pdf,image/jpeg,image/png,image/webp,image/gif"
           multiple
           className="hidden"

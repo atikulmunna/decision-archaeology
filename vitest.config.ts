@@ -8,8 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/__tests__/setup.ts'],
     globals: true,
-    // Playwright owns e2e/; the unit suite never picks those files up.
-    exclude: [...configDefaults.exclude, 'e2e/**'],
+    // Playwright owns e2e/, and .claude/ holds agent worktrees; the unit suite never picks those files up.
+    exclude: [...configDefaults.exclude, 'e2e/**', '.claude/**'],
   },
   resolve: {
     alias: {

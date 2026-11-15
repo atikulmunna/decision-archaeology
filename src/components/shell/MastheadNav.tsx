@@ -45,7 +45,7 @@ export function MastheadNav({ links = NAV_LINKS, cta }: { links?: readonly NavLi
               key={href}
               href={href}
               aria-current={active ? 'page' : undefined}
-              className={`${linkBase} border-b-[1.5px] pb-0.5 ${active ? 'border-signal text-ink' : 'border-transparent text-muted hover:text-ink'}`}
+              className={`${linkBase} border-b-[1.5px] pb-0.5 ${active ? 'border-signal-ink text-ink' : 'border-transparent text-muted hover:text-ink'}`}
             >
               {label}
             </Link>

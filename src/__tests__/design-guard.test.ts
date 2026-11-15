@@ -9,11 +9,16 @@ const SRC = path.join(ROOT, 'src')
 // API routes are skipped: their only markup is inline-styled email HTML, a separate medium the tokens cannot reach.
 const SKIP = new Set([path.join(SRC, '__tests__'), path.join(SRC, 'generated'), path.join(SRC, 'app', 'api')])
 
+// Side borders (border-t-, border-x-) and ring offsets count too, and so do white and black.
 const PALETTE_CLASS =
-  /\b(?:bg|text|border|ring|from|via|to|fill|stroke|outline|divide|placeholder|decoration|accent|caret|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/g
+  /\b(?:bg|text|border(?:-[trblxyse])?|ring(?:-offset)?|from|via|to|fill|stroke|outline|divide|placeholder|decoration|accent|caret|shadow)-(?:(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}|white|black)\b/g
 // Any hex color inside a Tailwind arbitrary value, e.g. text-[#f00] or bg-[linear-gradient(...,#fff,...)]
 const ARBITRARY_HEX = /\[[^\]"'\s]*#[0-9a-fA-F]{3,8}[^\]"'\s]*\]/g
-const EMOJI = /\p{Extended_Pictographic}/gu
+// The copyright, registered and trademark signs are pictographic in Unicode but are ordinary text.
+const EMOJI = /(?![\u00A9\u00AE\u2122])\p{Extended_Pictographic}/gu
+// A CSS color function inside a Tailwind arbitrary value, or as a string literal in a style.
+const ARBITRARY_COLOR_FN = /\[[^\]"'\s]*\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\([^\]"'\s]*\]/g
+const QUOTED_COLOR_FN = /(['"`])(?:rgba?|hsla?|oklch|oklab|lab|lch)\([^'"`]*\)\1/g
 
 // A hex color as a string literal, e.g. stroke="#e5e7eb" or a ternary of hex values in an SVG prop.
 const QUOTED_HEX = /(['"`])#[0-9a-fA-F]{3,8}\1/g
@@ -25,6 +30,8 @@ export function findDesignViolations(source: string): string[] {
     ...(source.match(PALETTE_CLASS) ?? []),
     ...(source.match(ARBITRARY_HEX) ?? []),
     ...(source.match(QUOTED_HEX) ?? []),
+    ...(source.match(ARBITRARY_COLOR_FN) ?? []),
+    ...(source.match(QUOTED_COLOR_FN) ?? []),
     ...(source.match(EMOJI) ?? []),
   ]
 }
@@ -51,6 +58,15 @@ describe('design guard', () => {
     expect(findDesignViolations('<circle stroke="#e5e7eb" />')).toHaveLength(1)
     expect(findDesignViolations("stroke={ok ? '#10b981' : '#ef4444'}")).toHaveLength(2)
     expect(findDesignViolations('className="bg-paper text-ink"')).toEqual([])
+    // Gaps closed: white and black, side borders, ring offsets and CSS color functions.
+    expect(findDesignViolations('className="bg-white text-black"')).toHaveLength(2)
+    expect(findDesignViolations('className="border-t-gray-200 border-x-slate-300"')).toHaveLength(2)
+    expect(findDesignViolations('className="ring-offset-slate-100"')).toHaveLength(1)
+    expect(findDesignViolations('className="bg-[rgb(0,0,0)] text-[oklch(0.7_0.1_120)]"')).toHaveLength(2)
+    expect(findDesignViolations("style={{ color: 'rgba(0, 0, 0, 0.5)' }}")).toHaveLength(1)
+    expect(findDesignViolations('className="ring-offset-paper border-t-rule"')).toEqual([])
+    // The copyright, registered and trademark signs are text, not emoji.
+    expect(findDesignViolations('<p>© 2026 Decision Archaeology™ ®</p>')).toEqual([])
   })
 
   it('finds no violations in any source file', () => {
