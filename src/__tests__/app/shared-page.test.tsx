@@ -62,4 +62,19 @@ describe('shared decision page', () => {
     expect(markup).not.toContain('Sealed record')
   })
 
+  it('calls a record still inside its edit window a record, without the lock icon', async () => {
+    const decision = getDemoDecision(demoDecisionIdForKey('northwind-offer'))!
+    mocks.userFindUnique.mockResolvedValue({ id: 'db_collab' })
+    mocks.shareFindFirst.mockResolvedValue({
+      id: 'share_1',
+      decision: { ...decision, isLocked: false, lockedAt: null, createdAt: new Date() },
+      owner: { displayName: 'Rowan' },
+      comments: [],
+    })
+    const markup = renderToStaticMarkup(await SharedDecisionPage({ params: Promise.resolve({ shareId: 'share_1' }) }))
+    expect(markup).toContain('>Record<')
+    expect(markup).not.toContain('Locked record')
+    expect(markup).toContain('Provisional')
+  })
+
 })

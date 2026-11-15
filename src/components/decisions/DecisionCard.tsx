@@ -57,9 +57,10 @@ export function DecisionCard({ decision, searchQuery, routes = APP_ROUTES }: Pro
             <CatalogNumber value={decision.catalogNumber} />
             <span>{date}</span>
             {decision.isLocked && (
-              <span className="inline-flex items-center gap-1" title="Core fields sealed">
+              // "Sealed" only when a fingerprint exists; an older record is locked but has no seal.
+              <span className="inline-flex items-center gap-1" title={decision.sealHash ? 'Core fields locked and sealed' : 'Core fields locked'}>
                 <Lock aria-hidden="true" size={11} strokeWidth={1.5} />
-                Sealed
+                {decision.sealHash ? 'Sealed' : 'Locked'}
               </span>
             )}
           </div>

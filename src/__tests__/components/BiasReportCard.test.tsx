@@ -40,6 +40,16 @@ describe('BiasReportCard flagging', () => {
     expect(screen.getByRole('button', { name: 'Submit flag' })).toBeEnabled()
   })
 
+  it('clears the failure when the reader cancels and opens the form again', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}', { status: 500 }))
+    submitFlag()
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Flag' }))
+    expect(screen.getByRole('button', { name: 'Submit flag' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('says so when the request never reaches the server', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
     submitFlag()

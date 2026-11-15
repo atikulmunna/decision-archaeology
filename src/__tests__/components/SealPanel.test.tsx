@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, useState } from 'react'
 import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SealPanel } from '@/components/seal/SealPanel'
 import { demoDecisionIdForKey } from '@/lib/demo/archive'
@@ -226,6 +226,54 @@ describe('SealPanel', () => {
     expect(
       screen.getByText('One word is changed in your browser, so this is not the text that was sealed. Turn the change off to see it.')
     ).toBeInTheDocument()
+  })
+
+  it('announces the verdict without reading out both fingerprints', async () => {
+    render(<SealPanel record={specimen} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Verify seal' }))
+    await screen.findByText('Seal verified')
+    expect(screen.getByRole('status')).not.toHaveTextContent(specimen.sealHash!)
+    expect(screen.getByText('Computed now')).toBeInTheDocument()
+  })
+
+  it('stops saying Copied once the text changes', async () => {
+    const restore = setClipboard({ writeText: () => Promise.resolve() })
+    try {
+      render(<TamperHarness />)
+      fireEvent.click(screen.getByRole('button', { name: 'Show what is sealed' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+      expect(await screen.findByRole('button', { name: 'Copied' })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('checkbox', { name: /Try changing a word/ }))
+      expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument()
+    } finally {
+      restore()
+    }
+  })
+
+  it('announces a second copy failure afresh and forgets it when the panel closes', async () => {
+    const restore = setClipboard(undefined)
+    try {
+      render(<SealPanel record={specimen} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Show what is sealed' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+      const first = await screen.findByRole('alert')
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+      await waitFor(() => expect(screen.getByRole('alert')).not.toBe(first))
+      fireEvent.click(screen.getByRole('button', { name: 'Hide what is sealed' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Show what is sealed' }))
+      expect(screen.queryByRole('alert')).toBeNull()
+    } finally {
+      restore()
+    }
+  })
+
+  it('drops a failed hash message once the text changes', async () => {
+    vi.spyOn(globalThis.crypto.subtle, 'digest').mockRejectedValueOnce(new Error('no digest'))
+    render(<TamperHarness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Verify seal' }))
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Try changing a word/ }))
+    expect(screen.queryByRole('alert')).toBeNull()
   })
 
   it('does not date corrections against a retroactive seal', () => {

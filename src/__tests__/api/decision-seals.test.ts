@@ -197,7 +197,8 @@ describe('sealing on writes', () => {
     await PATCH(patchRequest({ title: 'A sharper title for the move' }), params('d1'))
     const authorizedAt = vi.mocked(authorizeDecisionPatch).mock.calls.at(-1)?.[2]
     expect(authorizedAt).toBeInstanceOf(Date)
-    expect(authorizedAt).toEqual(update.mock.calls[0][0].data.sealedAt)
+    // The same Date object, not two clocks that happened to agree within a millisecond.
+    expect(authorizedAt).toBe(update.mock.calls[0][0].data.sealedAt)
   })
 
   it('never seals an imported record, even through a core edit', async () => {

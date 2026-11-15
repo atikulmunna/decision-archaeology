@@ -47,8 +47,10 @@ export function SealPanel({
   const [result, setResult] = useState<{ payload: string; computed: string } | null>(null)
   const [verifying, setVerifying] = useState(false)
   const [showPayload, setShowPayload] = useState(false)
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
-  const [hashFailed, setHashFailed] = useState(false)
+  // Copy and hash outcomes also belong to the payload they were for; each copy attempt is numbered
+  // so a repeated failure mounts a fresh alert and is announced again.
+  const [copied, setCopied] = useState<{ payload: string; ok: boolean; attempt: number } | null>(null)
+  const [hashFailedFor, setHashFailedFor] = useState<string | null>(null)
   const hashAvailable = useSyncExternalStore(noSubscription, canHash, assumeHashing)
 
   if (!record.sealHash) {
@@ -73,27 +75,35 @@ export function SealPanel({
   const current = result && result.payload === payload ? result : null
   const matches = current?.computed === record.sealHash
   const fileName = sealFileName(record.catalogNumber)
+  const copyOutcome = copied && copied.payload === payload ? copied : null
+  const hashFailed = hashFailedFor === payload
 
   async function verify() {
     setVerifying(true)
-    setHashFailed(false)
+    setHashFailedFor(null)
     try {
       setResult({ payload, computed: await computeSealHash(payload) })
     } catch {
-      setHashFailed(true)
+      setHashFailedFor(payload)
     } finally {
       setVerifying(false)
     }
   }
 
   async function copy() {
+    const attempt = (copied?.attempt ?? 0) + 1
     try {
       if (typeof navigator.clipboard?.writeText !== 'function') throw new Error('No clipboard')
       await navigator.clipboard.writeText(payload)
-      setCopyState('copied')
+      setCopied({ payload, ok: true, attempt })
     } catch {
-      setCopyState('failed')
+      setCopied({ payload, ok: false, attempt })
     }
+  }
+
+  function togglePayload() {
+    setShowPayload((open) => !open)
+    setCopied(null)
   }
 
   function download() {
@@ -123,7 +133,7 @@ export function SealPanel({
         <Button size="sm" onClick={verify} loading={verifying} disabled={!hashAvailable}>
           Verify seal
         </Button>
-        <Button size="sm" variant="secondary" onClick={() => setShowPayload((open) => !open)} aria-expanded={showPayload}>
+        <Button size="sm" variant="secondary" onClick={togglePayload} aria-expanded={showPayload}>
           {showPayload ? 'Hide what is sealed' : 'Show what is sealed'}
         </Button>
       </div>
@@ -146,25 +156,33 @@ export function SealPanel({
         </label>
       )}
 
-      {/* Always on the page, so screen readers announce the result when it arrives; empty, it gives back the gap. */}
-      <div role="status" className="empty:-mt-3">
+      {/* The verdict region is always on the page, so screen readers announce the result when it arrives.
+          The fingerprints sit outside it, so the announcement is not 128 hex characters. Before a result,
+          the wrapper takes back the gap it occupies. */}
+      <div className={current ? `flex flex-col gap-1 border-l-[3px] pl-3 ${matches ? 'border-signal-ink' : 'border-danger'}` : '-mt-3'}>
+        <div role="status" className="flex flex-col gap-1">
+          {current && (
+            <>
+              <p className={`${label} ${matches ? 'text-signal-ink' : 'text-danger'}`}>
+                {matches ? 'Seal verified' : 'Does not match'}
+              </p>
+              <p className="text-sm text-ink-2">
+                {matches
+                  ? 'Your browser hashed this record and got the same fingerprint stored at sealing. Nothing that locked has changed.'
+                  : tampered
+                    ? 'One word changed in your browser, and the fingerprint is completely different. That is how a seal shows any edit after sealing.'
+                    : "This record's fingerprint differs from the one stored at sealing, so something that locked has changed."}
+              </p>
+            </>
+          )}
+        </div>
         {current && (
-          <div className={`flex flex-col gap-1 border-l-[3px] pl-3 ${matches ? 'border-signal-ink' : 'border-danger'}`}>
-            <p className={`${label} ${matches ? 'text-signal-ink' : 'text-danger'}`}>
-              {matches ? 'Seal verified' : 'Does not match'}
-            </p>
-            <p className="text-sm text-ink-2">
-              {matches
-                ? 'Your browser hashed this record and got the same fingerprint stored at sealing. Nothing that locked has changed.'
-                : tampered
-                  ? 'One word changed in your browser, and the fingerprint is completely different. That is how a seal shows any edit after sealing.'
-                  : "This record's fingerprint differs from the one stored at sealing, so something that locked has changed."}
-            </p>
+          <>
             <p className={`${label} mt-1 text-muted`}>Stored</p>
             <p className={hashText}>{record.sealHash}</p>
             <p className={`${label} mt-1 text-muted`}>Computed now</p>
             <p className={`${hashText} ${matches ? '' : 'text-danger'}`}>{current.computed}</p>
-          </div>
+          </>
         )}
       </div>
 
@@ -180,15 +198,15 @@ export function SealPanel({
           </pre>
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="secondary" onClick={copy}>
-              {copyState === 'copied' ? 'Copied' : 'Copy'}
+              {copyOutcome?.ok ? 'Copied' : 'Copy'}
             </Button>
             <Button size="sm" variant="secondary" onClick={download}>
               Download
             </Button>
             <span className={`${label} text-muted`}>Hash the file exactly as downloaded: sha256sum {fileName}</span>
           </div>
-          {copyState === 'failed' && (
-            <p role="alert" className="text-sm text-danger">
+          {copyOutcome && !copyOutcome.ok && (
+            <p key={copyOutcome.attempt} role="alert" className="text-sm text-danger">
               Could not copy. Select the text above instead.
             </p>
           )}

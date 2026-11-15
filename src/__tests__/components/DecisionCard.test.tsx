@@ -52,4 +52,12 @@ describe('DecisionCard', () => {
     render(<DecisionCard decision={cardFixture} routes={DEMO_ROUTES} />)
     expect(screen.getByRole('link')).toHaveAttribute('href', '/demo/decisions/d1')
   })
+
+  it('calls a locked record without a seal locked, and a sealed one sealed', () => {
+    const { rerender } = render(<DecisionCard decision={cardFixture} />)
+    expect(screen.getByText('Locked')).toHaveAttribute('title', 'Core fields locked')
+    expect(screen.queryByText('Sealed')).toBeNull()
+    rerender(<DecisionCard decision={{ ...cardFixture, sealHash: 'a'.repeat(64), sealedAt: new Date('2026-03-14') }} />)
+    expect(screen.getByText('Sealed')).toHaveAttribute('title', 'Core fields locked and sealed')
+  })
 })

@@ -30,6 +30,12 @@ export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false, 
   const [flagError, setFlagError] = useState(false)
   const severity = SEVERITY[bias.severity]
 
+  // A failure belongs to one attempt: closing or reopening the form starts clean.
+  function toggleFlagForm(open: boolean) {
+    setShowFlagForm(open)
+    setFlagError(false)
+  }
+
   async function submitFlag() {
     setFlagging(true)
     setFlagError(false)
@@ -60,7 +66,7 @@ export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false, 
             <Badge tone={severity.tone}>{severity.label}</Badge>
           </div>
           {readOnly ? null : !flagged ? (
-            <Button variant="ghost" size="sm" onClick={() => setShowFlagForm((v) => !v)}>
+            <Button variant="ghost" size="sm" onClick={() => toggleFlagForm(!showFlagForm)}>
               <Flag aria-hidden="true" size={12} strokeWidth={1.5} />
               Flag
             </Button>
@@ -109,7 +115,7 @@ export function BiasReportCard({ bias, reportId, index, alreadyFlagged = false, 
               <Button size="sm" variant="secondary" onClick={submitFlag} loading={flagging}>
                 Submit flag
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowFlagForm(false)}>
+              <Button size="sm" variant="ghost" onClick={() => toggleFlagForm(false)}>
                 Cancel
               </Button>
             </div>
