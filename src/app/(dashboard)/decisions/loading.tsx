@@ -21,8 +21,9 @@ function DecisionRowSkeleton() {
 
 export default function DecisionsLoading() {
   return (
-    <div className="flex flex-col gap-6" aria-busy="true">
-      {/* A label on a plain div is never read out; a status message is. */}
+    <div className="flex flex-col gap-6">
+      {/* A label on a plain div is never read out; a status message is. No aria-busy around it,
+          since some screen readers hold back what is inside a busy region. */}
       <p role="status" className="sr-only">
         Loading the archive
       </p>

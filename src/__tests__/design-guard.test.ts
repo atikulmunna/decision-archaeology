@@ -16,9 +16,12 @@ const PALETTE_CLASS =
 const ARBITRARY_HEX = /\[[^\]"'\s]*#[0-9a-fA-F]{3,8}[^\]"'\s]*\]/g
 // The copyright, registered and trademark signs are pictographic in Unicode but are ordinary text.
 const EMOJI = /(?![\u00A9\u00AE\u2122])\p{Extended_Pictographic}/gu
-// A CSS color function inside a Tailwind arbitrary value, or as a string literal in a style.
-const ARBITRARY_COLOR_FN = /\[[^\]"'\s]*\b(?:rgba?|hsla?|oklch|oklab|lab|lch)\([^\]"'\s]*\]/g
-const QUOTED_COLOR_FN = /(['"`])(?:rgba?|hsla?|oklch|oklab|lab|lch)\([^'"`]*\)\1/g
+// A CSS color function inside a Tailwind arbitrary value. Not \b before the name: in shadow syntax
+// the color follows an underscore (shadow-[0_1px_rgba(...)]), and an underscore is a word character.
+const ARBITRARY_COLOR_FN = /\[[^\]"'\s]*(?<![a-z])(?:rgba?|hsla?|oklch|oklab|lab|lch)\([^\]"'\s]*\]/g
+// One anywhere in a string literal, such as a style's boxShadow: '0 1px 2px rgba(...)'. It must start
+// the string or follow a space, so arbitrary values (after [ or _) are counted once, above.
+const QUOTED_COLOR_FN = /(['"`])[^'"`\n]*?(?<=['"`\s])(?:rgba?|hsla?|oklch|oklab|lab|lch)\([^'"`]*\)[^'"`\n]*\1/g
 
 // A hex color as a string literal, e.g. stroke="#e5e7eb" or a ternary of hex values in an SVG prop.
 const QUOTED_HEX = /(['"`])#[0-9a-fA-F]{3,8}\1/g
@@ -64,6 +67,10 @@ describe('design guard', () => {
     expect(findDesignViolations('className="ring-offset-slate-100"')).toHaveLength(1)
     expect(findDesignViolations('className="bg-[rgb(0,0,0)] text-[oklch(0.7_0.1_120)]"')).toHaveLength(2)
     expect(findDesignViolations("style={{ color: 'rgba(0, 0, 0, 0.5)' }}")).toHaveLength(1)
+    // Shadows put the color after an underscore or inside a longer string.
+    expect(findDesignViolations('className="shadow-[0_1px_rgba(0,0,0,0.1)]"')).toHaveLength(1)
+    expect(findDesignViolations('className="shadow-[0_0_0_1px_rgb(0_0_0/0.1)]"')).toHaveLength(1)
+    expect(findDesignViolations("style={{ boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' }}")).toHaveLength(1)
     expect(findDesignViolations('className="ring-offset-paper border-t-rule"')).toEqual([])
     // The copyright, registered and trademark signs are text, not emoji.
     expect(findDesignViolations('<p>© 2026 Decision Archaeology™ ®</p>')).toEqual([])

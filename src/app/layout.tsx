@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
 import { ClerkProvider } from '@clerk/nextjs'
 import { clerkAppearance } from '@/lib/design/clerk-appearance'
 import { clerkLocalization } from '@/lib/design/clerk-localization'
 import { fontVariables } from '@/lib/design/fonts'
-import { parseThemePreference, THEME_COOKIE, THEME_INIT_SCRIPT } from '@/lib/design/theme'
+import { THEME_INIT_SCRIPT } from '@/lib/design/theme'
 import { siteUrl } from '@/lib/site'
 import './globals.css'
 
@@ -21,15 +20,14 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image' },
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const preference = parseThemePreference((await cookies()).get(THEME_COOKIE)?.value)
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider appearance={clerkAppearance} localization={clerkLocalization}>
-      {/* Font variables live on <html> so the :root-level tokens (--font-sans etc.) can resolve them. */}
+      {/* Font variables live on <html> so the :root-level tokens (--font-sans etc.) can resolve them.
+          data-theme is left to the init script (it runs before first paint), so React never owns it:
+          a refresh after switching to System cannot strip what the toggle set. */}
       <html
         lang="en"
-        data-theme={preference === 'system' ? undefined : preference}
         className={fontVariables}
         suppressHydrationWarning
       >

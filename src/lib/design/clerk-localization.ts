@@ -18,7 +18,8 @@ export const AUTH_COPY = {
 } as const
 
 /** Clerk's card copy in the site's own voice instead of Clerk's defaults. */
-// satisfies, not a type annotation: a misspelled key is an error, and the exact shape stays visible.
+// satisfies, not a type annotation: a misspelled key written here is an error, and the exact shape stays
+// visible. Keys spread in from AUTH_COPY skip that check, so keep its four names as Clerk spells them.
 export const clerkLocalization = {
   signIn: { start: { ...AUTH_COPY['sign-in'] } },
   signUp: { start: { ...AUTH_COPY['sign-up'] } },

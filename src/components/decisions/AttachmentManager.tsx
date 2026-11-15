@@ -126,17 +126,26 @@ export function AttachmentManager({
         </div>
         {!readOnly && (
           // A real button, so the file picker opens from the keyboard too (a label is not focusable).
+          // aria-disabled, not disabled: a disabled button drops focus to the page when an upload starts.
           <Button
             type="button"
             variant="secondary"
             size="sm"
-            disabled={loading || remainingSlots === 0}
-            onClick={() => inputRef.current?.click()}
+            aria-disabled={loading || remainingSlots === 0}
+            className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            onClick={() => {
+              if (!loading && remainingSlots > 0) inputRef.current?.click()
+            }}
           >
             {loading ? 'Uploading...' : 'Add files'}
           </Button>
         )}
       </div>
+      {!readOnly && (
+        <p role="status" className="sr-only">
+          {loading ? 'Uploading attachments' : ''}
+        </p>
+      )}
 
       {!readOnly && (
         <input

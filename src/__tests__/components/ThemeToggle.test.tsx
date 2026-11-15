@@ -9,6 +9,27 @@ afterEach(() => {
 })
 
 describe('ThemeToggle', () => {
+  it('still cycles through every choice when the browser refuses the cookie', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() })
+    )
+    // Cookies blocked: writes are dropped and reads come back empty.
+    Object.defineProperty(document, 'cookie', { configurable: true, get: () => '', set: () => {} })
+    try {
+      render(<ThemeToggle initialPreference="system" />)
+      await userEvent.click(screen.getByRole('button', { name: 'Theme: System' }))
+      expect(screen.getByRole('button', { name: 'Theme: Light' })).toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Theme: Light' }))
+      expect(screen.getByRole('button', { name: 'Theme: Dark' })).toBeInTheDocument()
+      expect(document.documentElement.dataset.theme).toBe('dark')
+      await userEvent.click(screen.getByRole('button', { name: 'Theme: Dark' }))
+      expect(screen.getByRole('button', { name: 'Theme: System' })).toBeInTheDocument()
+    } finally {
+      delete (document as unknown as Record<string, unknown>).cookie
+    }
+  })
+
   it('shows the saved choice even when the page was rendered with an older one', () => {
     // A page prefetched before the reader toggled carries the old preference from the server.
     document.cookie = 'da-theme=dark; path=/'

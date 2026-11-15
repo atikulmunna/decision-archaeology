@@ -22,7 +22,9 @@ function subscribe(listener: () => void) {
     listeners.delete(listener)
   }
 }
-const readPreference = () => readThemeCookie(document.cookie)
+// Set only when the browser refuses the cookie, so the toggle still cycles in that page.
+let unsaved: ThemePreference | null = null
+const readPreference = () => unsaved ?? readThemeCookie(document.cookie)
 
 export function ThemeToggle({ initialPreference }: { initialPreference: ThemePreference }) {
   const preference = useSyncExternalStore(subscribe, readPreference, () => initialPreference)
@@ -33,6 +35,7 @@ export function ThemeToggle({ initialPreference }: { initialPreference: ThemePre
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     document.documentElement.dataset.theme = resolveTheme(next, prefersDark)
     document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`
+    unsaved = readThemeCookie(document.cookie) === next ? null : next
     listeners.forEach((listener) => listener())
   }
 

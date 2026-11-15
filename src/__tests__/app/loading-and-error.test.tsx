@@ -17,6 +17,8 @@ describe('loading screens', () => {
     for (const Loading of [DashboardLoading, ArchiveLoading]) {
       const { unmount } = render(<Loading />)
       expect(screen.getByRole('status')).toHaveTextContent('Loading')
+      // Outside the busy region: some screen readers hold back what is inside it.
+      expect(screen.getByRole('status').closest('[aria-busy="true"]')).toBeNull()
       unmount()
     }
   })
