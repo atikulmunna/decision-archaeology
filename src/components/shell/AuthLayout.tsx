@@ -1,9 +1,16 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
+import { preconnect } from 'react-dom'
+import { clerkFrontendApiOrigin } from '@/lib/clerk-frontend-api'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { SpecimenCard } from './SpecimenCard'
 
 export function AuthLayout({ heading, children }: { heading: string; children: ReactNode }) {
+  // Start the connection to Clerk while the page is still arriving, so its card code downloads sooner.
+  const clerkOrigin = clerkFrontendApiOrigin(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+  if (clerkOrigin) preconnect(clerkOrigin, { crossOrigin: 'anonymous' })
+  preconnect('https://img.clerk.com')
+
   return (
     <div className="min-h-screen bg-paper text-ink">
       <div className="mx-auto grid min-h-screen max-w-[1200px] gap-12 px-4 py-10 md:grid-cols-2 md:items-center">
