@@ -18,6 +18,11 @@ vi.mock('@clerk/nextjs/server', () => ({ auth: async () => ({ userId: 'user_1' }
 vi.mock('@/lib/db-user', () => ({ getOrCreateDbUser: async () => ({ id: 'db_1', tier: 'FREE' }) }))
 vi.mock('@/lib/catalog-db', () => ({ getMaxCatalogNumber: mocks.getMaxCatalogNumber }))
 vi.mock('@/lib/decisions', () => ({ getDecisions: vi.fn() }))
+// A pass-through spy, so a test can see which moment the route authorized against.
+vi.mock('@/lib/decision-patch', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/decision-patch')>()
+  return { ...actual, authorizeDecisionPatch: vi.fn(actual.authorizeDecisionPatch) }
+})
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     decisionRecord: { create: mocks.create, update: mocks.update, findFirst: mocks.findFirst, count: mocks.count },
@@ -32,6 +37,7 @@ import { POST } from '@/app/api/decisions/route'
 import { PATCH } from '@/app/api/decisions/[id]/route'
 import { PATCH as approveCorrection } from '@/app/api/decisions/[id]/corrections/[correctionId]/route'
 import { buildSealPayload, computeSealHash } from '@/lib/seal'
+import { authorizeDecisionPatch } from '@/lib/decision-patch'
 
 const { create, update, findFirst, correctionFindFirst, correctionUpdate, userFindUnique, getMaxCatalogNumber } = mocks
 
@@ -165,6 +171,33 @@ describe('sealing on writes', () => {
     expect(sealHash).toBe(await computeSealHash(buildSealPayload(after)))
     expect(sealHash).not.toBe(finalizedInWindow.sealHash)
     expect(sealedAt).toBeInstanceOf(Date)
+  })
+
+  it('keeps the tags a core edit leaves out, in the record and in the seal', async () => {
+    findFirst.mockResolvedValue(finalizedInWindow)
+    update.mockImplementation(async ({ data }: { data: Data }) => ({ ...finalizedInWindow, ...data }))
+    await PATCH(patchRequest({ title: 'A sharper title for the move' }), params('d1'))
+    const { sealHash, ...stored } = update.mock.calls[0][0].data
+    expect(stored.customTags).toBeUndefined()
+    expect(sealHash).toBe(
+      await computeSealHash(buildSealPayload({ ...finalizedInWindow, title: 'A sharper title for the move' }))
+    )
+  })
+
+  it('keeps the tags a draft autosave leaves out', async () => {
+    findFirst.mockResolvedValue(draftRecord)
+    update.mockImplementation(async ({ data }: { data: Data }) => ({ ...draftRecord, ...data }))
+    await PATCH(patchRequest({ title: 'A sharper title for the move' }), params('d1'))
+    expect(update.mock.calls[0][0].data.customTags).toBeUndefined()
+  })
+
+  it('authorizes and seals a core edit against the same moment', async () => {
+    findFirst.mockResolvedValue(finalizedInWindow)
+    update.mockImplementation(echo)
+    await PATCH(patchRequest({ title: 'A sharper title for the move' }), params('d1'))
+    const authorizedAt = vi.mocked(authorizeDecisionPatch).mock.calls.at(-1)?.[2]
+    expect(authorizedAt).toBeInstanceOf(Date)
+    expect(authorizedAt).toEqual(update.mock.calls[0][0].data.sealedAt)
   })
 
   it('never seals an imported record, even through a core edit', async () => {

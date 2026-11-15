@@ -58,9 +58,20 @@ export type SealableDecision = Pick<
   letter?: SealLetter | null
 }
 
-/** Same words, same bytes: Unicode NFC, and CRLF or lone CR line endings become LF. */
+// A whole surrogate pair, or one half on its own.
+const SURROGATES = /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF]/g
+const REPLACEMENT = String.fromCharCode(0xfffd)
+
+/**
+ * Same words, same bytes: Unicode NFC, and CRLF or lone CR line endings become LF. A lone surrogate
+ * half (a broken emoji) is stored by the database as U+FFFD, so it is sealed as U+FFFD too. Written
+ * without toWellFormed so older browsers can still verify.
+ */
 export function canonicalText(value: string): string {
-  return value.normalize('NFC').replace(/\r\n?/g, '\n')
+  return value
+    .replace(SURROGATES, (match) => (match.length === 2 ? match : REPLACEMENT))
+    .normalize('NFC')
+    .replace(/\r\n?/g, '\n')
 }
 
 function canonicalOptional(value: string | null | undefined): string | null {

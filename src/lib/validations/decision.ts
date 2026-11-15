@@ -81,7 +81,8 @@ export const DraftDecisionSchema = z.object({
   predictedTimeframe: z.string().datetime().optional().nullable(),
   confidenceLevel: z.number().int().min(1).max(10).optional().nullable(),
   domainTag: DomainTagEnum.optional().nullable(),
-  customTags: z.array(z.string()).max(5, 'Maximum 5 custom tags').default([]),
+  // No default: an autosave that leaves the tags out keeps the ones stored.
+  customTags: z.array(z.string()).max(5, 'Maximum 5 custom tags').optional(),
   forecasts: z.array(DraftForecastSchema).max(FORECAST_MAX, 'At most 3 forecasts.').optional(),
   // Answers to the Devil's Advocate questions; accepted only once questions were asked.
   challengeAnswers: ChallengeAnswersSchema.optional(),
@@ -95,7 +96,10 @@ export const UpdateNotesSchema = z.object({
   supplementaryNotes: z.string(),
 })
 
-export const UpdateDraftSchema = CreateDecisionSchema.partial()
+// No tag default either: a core edit that leaves the tags out keeps them, in the record and in the seal.
+export const UpdateDraftSchema = CreateDecisionSchema.extend({
+  customTags: z.array(z.string()).max(5, 'Maximum 5 custom tags').optional(),
+}).partial()
 
 export type UpdateDraftInput = z.infer<typeof UpdateDraftSchema>
 

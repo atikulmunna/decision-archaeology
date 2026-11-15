@@ -88,8 +88,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
+  // One moment for the whole request: the lock check and the seal agree on what time it is.
+  const now = new Date()
   const intent = classifyDecisionPatch(body as Record<string, unknown>, record)
-  const authorization = authorizeDecisionPatch(record, intent)
+  const authorization = authorizeDecisionPatch(record, intent, now)
   if (!authorization.ok) {
     return NextResponse.json({ error: authorization.error }, { status: authorization.status })
   }
@@ -109,8 +111,6 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     })
     return NextResponse.json(updated)
   }
-
-  const now = new Date()
 
   if (intent === 'finalize') {
     const parsed = FinalizeDecisionSchema.safeParse(body)

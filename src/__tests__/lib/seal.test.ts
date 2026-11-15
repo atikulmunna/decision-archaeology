@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildSealPayload,
+  canonicalText,
   computeSealHash,
   isRetroactiveSeal,
   SEALED_RELATIONS,
@@ -328,5 +329,22 @@ describe('seal v4', () => {
       letter: { ...lettered.letter!, body: 'secret', id: 'l1' } as never,
     })
     expect(record.letter).toEqual(lettered.letter)
+  })
+})
+
+describe('text with broken emoji', () => {
+  const lone = String.fromCharCode(0xd83d)
+  const replacement = String.fromCharCode(0xfffd)
+  const pair = String.fromCharCode(0xd83d, 0xde00)
+
+  it('seals a lone surrogate as the replacement character the database stores', () => {
+    expect(buildSealPayload({ ...fixture, reasoning: `Worth it ${lone}` })).toBe(
+      buildSealPayload({ ...fixture, reasoning: `Worth it ${replacement}` })
+    )
+  })
+
+  it('replaces each lone half and keeps whole pairs', () => {
+    const low = String.fromCharCode(0xde00)
+    expect(canonicalText(`a${lone}b${pair}c${low}${lone}`)).toBe(`a${replacement}b${pair}c${replacement}${replacement}`)
   })
 })
